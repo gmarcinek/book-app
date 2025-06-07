@@ -1,0 +1,9 @@
+{
+    "max_tokens": 3000,
+    "chunk_size": 3000,
+    "chunk_overlap": 300,
+    "max_iterations": 100,
+    "min_entity_length": 2,
+    "max_entity_length": 100,
+    "enable_memory_monitoring": true
+}

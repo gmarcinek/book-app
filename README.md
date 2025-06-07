@@ -1,0 +1,296 @@
+# Book Agent - NER Module Commands
+
+## Quick Start
+
+```bash
+# Basic usage - single file
+python orchestrator/main.py document.pdf
+
+# With specific model
+python orchestrator/main.py book.docx --model claude-4-sonnet
+
+# Batch processing
+python orchestrator/main.py documents/ --batch
+```
+
+## Available Models
+
+| Model               | Provider  | Description                                | Cost |
+| ------------------- | --------- | ------------------------------------------ | ---- |
+| `qwen2.5-coder`     | Ollama    | **Default** - Fast, local, coding-oriented | Free |
+| `qwen2.5-coder:32b` | Ollama    | Larger version, better quality             | Free |
+| `codestral`         | Ollama    | Alternative local model                    | Free |
+| `claude-4-sonnet`   | Anthropic | **Best quality** - Premium model           | Paid |
+| `gpt-4o`            | OpenAI    | High quality GPT model                     | Paid |
+| `gpt-4o-mini`       | OpenAI    | Cheaper GPT option                         | Paid |
+| `gpt-4.1-mini`      | OpenAI    | Latest mini version                        | Paid |
+
+## Basic Commands
+
+### Single File Processing
+
+```bash
+# Minimal - uses all defaults
+python orchestrator/main.py document.txt
+
+# Specify model
+python orchestrator/main.py file.pdf --model claude-4-sonnet
+
+# Custom entities directory
+python orchestrator/main.py book.docx --entities-dir my_knowledge
+
+# Skip relationships (faster)
+python orchestrator/main.py large_file.pdf --no-relationships
+
+# Enable conflict resolution
+python orchestrator/main.py document.txt --resolve
+```
+
+### Batch Processing
+
+```bash
+# Process all files in directory
+python orchestrator/main.py documents/ --batch
+
+# Specific file pattern
+python orchestrator/main.py books/ --batch --pattern "*.pdf"
+
+# Multiple patterns (process PDFs and DOCX)
+python orchestrator/main.py library/ --batch --pattern "*.{pdf,docx}"
+
+# Text files only
+python orchestrator/main.py texts/ --batch --pattern "*.txt"
+```
+
+## Advanced Options
+
+### Model & Performance
+
+```bash
+# Use high-quality cloud model
+python orchestrator/main.py document.pdf --model claude-4-sonnet
+
+# Local model for privacy
+python orchestrator/main.py sensitive.txt --model qwen2.5-coder:32b
+
+# Increase file size limit (default 50MB)
+python orchestrator/main.py huge_book.pdf --max-size 200.0
+
+# Custom config file
+python orchestrator/main.py file.txt --config my_ner_config.json
+```
+
+### Features Control
+
+```bash
+# Skip relationship extraction (much faster)
+python orchestrator/main.py document.pdf --no-relationships
+
+# Enable duplicate resolution
+python orchestrator/main.py messy_data.txt --resolve
+
+# Skip aggregated graph creation
+python orchestrator/main.py file.txt --no-aggregation
+
+# All features enabled
+python orchestrator/main.py complete.pdf --resolve
+```
+
+### Output Control
+
+```bash
+# Quiet mode (minimal output)
+python orchestrator/main.py document.pdf --quiet
+
+# Verbose mode (detailed stats)
+python orchestrator/main.py file.txt --verbose
+
+# JSON output (for scripting)
+python orchestrator/main.py data.pdf --json > result.json
+
+# Custom output file name
+python orchestrator/main.py book.pdf --output my_knowledge_graph.json
+```
+
+## File Format Support
+
+| Format     | Extension | Description        | Notes                         |
+| ---------- | --------- | ------------------ | ----------------------------- |
+| Plain Text | `.txt`    | Simple text files  | UTF-8 encoding preferred      |
+| Markdown   | `.md`     | Markdown documents | Full syntax support           |
+| PDF        | `.pdf`    | PDF documents      | Text extraction only (no OCR) |
+| Word       | `.docx`   | Microsoft Word     | Modern format only            |
+| RTF        | `.rtf`    | Rich Text Format   | Cross-platform text           |
+
+## Examples by Use Case
+
+### Academic Research
+
+```bash
+# Process research papers
+python orchestrator/main.py papers/ --batch --pattern "*.pdf" --model claude-4-sonnet --resolve
+
+# Single paper with detailed analysis
+python orchestrator/main.py research.pdf --model claude-4-sonnet --verbose --resolve
+```
+
+### Book Analysis
+
+```bash
+# Analyze entire book
+python orchestrator/main.py "War and Peace.txt" --model qwen2.5-coder:32b --resolve
+
+# Multiple books
+python orchestrator/main.py library/ --batch --pattern "*.{txt,pdf}" --entities-dir book_knowledge
+```
+
+### Quick Testing
+
+```bash
+# Fast processing for testing
+python orchestrator/main.py sample.txt --no-relationships --quiet
+
+# Local model for privacy
+python orchestrator/main.py confidential.pdf --model qwen2.5-coder --no-relationships
+```
+
+### Production Processing
+
+```bash
+# Full pipeline with all features
+python orchestrator/main.py documents/ --batch --model claude-4-sonnet --resolve --verbose
+
+# Custom configuration for specific domain
+python orchestrator/main.py legal_docs/ --batch --config legal_ner_config.json --resolve
+```
+
+## Output Structure
+
+### Entity Files
+
+```
+entities/
+├── ent.1234567890123456.abcd1234.json  # Individual entity
+├── ent.1234567890123457.efgh5678.json
+└── ...
+```
+
+### Aggregated Graph
+
+```
+knowledge_graph_document_20231206_143022.json
+```
+
+### Example Entity File Structure
+
+```json
+{
+  "id": "ent.1234567890123456.abcd1234",
+  "name": "Shakespeare",
+  "type": "OSOBA",
+  "description": "English playwright and poet",
+  "confidence": 0.95,
+  "source_info": {
+    "evidence": "William Shakespeare was born in...",
+    "chunk_references": ["chunk_0_pos_1250-4250"],
+    "found_in_chunks": [0],
+    "source_document": "literature.pdf"
+  },
+  "relationships": {
+    "internal": [
+      {
+        "type": "WROTE",
+        "target_entity": "Hamlet",
+        "evidence": "Shakespeare wrote Hamlet in...",
+        "confidence": 0.9
+      }
+    ],
+    "external": [
+      {
+        "type": "BIRTH_YEAR",
+        "value": "1564",
+        "source": "historical_record"
+      }
+    ],
+    "pending": [
+      {
+        "name": "Anne Hathaway",
+        "type": "OSOBA",
+        "reason": "Mentioned as Shakespeare's wife"
+      }
+    ]
+  },
+  "metadata": {
+    "created": "2023-12-06T14:30:22.123456",
+    "last_updated": "2023-12-06T14:30:22.123456",
+    "model_used": "claude-4-sonnet",
+    "extraction_method": "llm_chunk_based"
+  }
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**"File not found"**
+
+```bash
+# Check file exists
+ls -la document.pdf
+
+# Use absolute path
+python orchestrator/main.py /full/path/to/document.pdf
+```
+
+**"LLM model not available"**
+
+```bash
+# For Ollama models, ensure Ollama is running
+ollama serve
+
+# Pull model if not available
+ollama pull qwen2.5-coder
+
+# List available models
+ollama list
+```
+
+**"Memory issues with large files"**
+
+```bash
+# Increase system memory or reduce file size
+python orchestrator/main.py large.pdf --max-size 25.0
+
+# Skip relationships to reduce memory usage
+python orchestrator/main.py large.pdf --no-relationships
+```
+
+**"API key errors for cloud models"**
+
+```bash
+# Set environment variables
+export OPENAI_API_KEY="your-key-here"
+export ANTHROPIC_API_KEY="your-key-here"
+
+# Or use local models
+python orchestrator/main.py document.pdf --model qwen2.5-coder
+```
+
+### Performance Tips
+
+1. **Use local models** for faster, free processing
+2. **Skip relationships** (`--no-relationships`) for 2-3x speed boost
+3. **Process in batches** rather than individual files
+4. **Use `--quiet`** mode to reduce I/O overhead
+5. **Increase `--max-size`** only if you have sufficient RAM
+
+### Getting Help
+
+```bash
+# Show all available options
+python orchestrator/main.py --help
+
+# Check model availability
+python orchestrator/main.py document.txt --model nonexistent-model
+```
