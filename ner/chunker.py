@@ -32,8 +32,8 @@ class TextChunker:
     
     def __init__(self, config_path: str = "ner/ner_config.json"):
         self.config = load_ner_config(config_path)
-        self.chunk_size = self.config.get("chunk_size", 3000)
-        self.overlap_size = self.config.get("chunk_overlap", 300)
+        self.chunk_size = self.config.get("chunk_size", 5000)
+        self.overlap_size = self.config.get("chunk_overlap", 400)
         self.max_iterations = self.config.get("max_iterations", 100)
     
     def chunk_text(self, text: str, smart_boundaries: bool = True) -> List[TextChunk]:

@@ -24,9 +24,9 @@ def load_ner_config(config_path: str = "ner/ner_config.json") -> Dict[str, Any]:
     
     # Fallback defaults
     return {
-        "max_tokens": 3000,
-        "chunk_size": 3000,
-        "chunk_overlap": 300,
+        "max_tokens": 5000,
+        "chunk_size": 5000,
+        "chunk_overlap": 400,
         "max_iterations": 100,
         "min_entity_length": 2,
         "max_entity_length": 100,

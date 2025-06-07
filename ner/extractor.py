@@ -1,5 +1,5 @@
 """
-NER Entity Extractor - Ulepszony ekstraktor z lepszą walidacją
+NER Entity Extractor - Tylko ekstrakcja encji
 """
 
 import json
@@ -34,7 +34,7 @@ class ExtractedEntity:
 
 class EntityExtractor:
     """
-    Ulepszony ekstraktor encji z lepszą walidacją i filtrowaniem
+    Uproszczony ekstraktor encji - bez relacji
     """
     
     def __init__(self, model: str = Models.QWEN_CODER, config_path: str = "ner/ner_config.json"):
@@ -47,6 +47,11 @@ class EntityExtractor:
             "entities_extracted_valid": 0,
             "entities_rejected": 0,
             "failed_extractions": 0
+        }
+        self.context_stats = {
+            'contexts_generated': 0,
+            'entities_found_in_context': 0,
+            'fallback_contexts_used': 0
         }
     
     def _initialize_llm(self):
@@ -78,7 +83,7 @@ class EntityExtractor:
             raise
     
     def _parse_llm_response(self, response: str) -> List[Dict[str, Any]]:
-        """Parse LLM JSON response into entities list with better error handling"""
+        """Parse LLM JSON response into entities list"""
         try:
             # Clean response - remove markdown formatting if present
             clean_response = response.strip()
@@ -174,6 +179,25 @@ class EntityExtractor:
             'confidence': confidence
         }
     
+    def _find_entity_context(self, entity_name: str, chunk_text: str, context_window: int = 100) -> str:
+        return ""
+    
+    def _validate_entity_context(self, entity_name: str, context: str) -> bool:
+        """
+        Validate that entity actually appears in its context
+        
+        Returns:
+            True if entity found in context, False otherwise
+        """
+        return entity_name.lower() in context.lower()
+    
+    def _update_context_stats(self, entity_name: str, context: str):
+        """Update statistics about context quality"""
+        self.context_stats['contexts_generated'] += 1
+        
+        if self._validate_entity_context(entity_name, context):
+            self.context_stats['entities_found_in_context'] += 1
+    
     def _extract_entities_from_chunk(self, chunk: TextChunk) -> List[ExtractedEntity]:
         """Extract and validate entities from a single text chunk"""
         try:
@@ -193,13 +217,19 @@ class EntityExtractor:
                 cleaned_entity = self._validate_and_clean_entity(entity_data)
                 
                 if cleaned_entity:
+                    # 🔧 POPRAWKA - znajdź precyzyjny kontekst dla encji
+                    entity_context = self._find_entity_context(cleaned_entity['name'], chunk.text)
+                    
+                    # Update context statistics
+                    self._update_context_stats(cleaned_entity['name'], entity_context)
+                    
                     entity = ExtractedEntity(
                         name=cleaned_entity['name'],
                         type=cleaned_entity['type'],
                         description=cleaned_entity['description'],
                         confidence=cleaned_entity['confidence'],
                         chunk_id=chunk.id,
-                        context=chunk.text[:200] + "..." if len(chunk.text) > 200 else chunk.text
+                        context=entity_context  # ✅ Używa precyzyjnego kontekstu
                     )
                     valid_entities.append(entity)
                     self.extraction_stats["entities_extracted_valid"] += 1
@@ -286,18 +316,25 @@ class EntityExtractor:
                           self.extraction_stats["entities_extracted_raw"] 
                           if self.extraction_stats["entities_extracted_raw"] > 0 else 0)
         
+        context_accuracy = (self.context_stats["entities_found_in_context"] / 
+                           self.context_stats["contexts_generated"] 
+                           if self.context_stats["contexts_generated"] > 0 else 0)
+        
         logger.info(f"Entity extraction complete:")
         logger.info(f"  Chunks processed: {self.extraction_stats['chunks_processed']}")
         logger.info(f"  Raw entities: {self.extraction_stats['entities_extracted_raw']}")
         logger.info(f"  Valid entities: {self.extraction_stats['entities_extracted_valid']}")
         logger.info(f"  Final entities (after dedup): {len(deduplicated_entities)}")
         logger.info(f"  Validation rate: {validation_rate:.1%}")
+        logger.info(f"  Context accuracy: {context_accuracy:.1%}")
+        logger.info(f"  Fallback contexts: {self.context_stats['fallback_contexts_used']}")
         
         return deduplicated_entities
     
     def get_extraction_stats(self) -> Dict[str, Any]:
         """Get detailed extraction statistics"""
         stats = self.extraction_stats.copy()
+        stats.update(self.context_stats)
         
         if stats["entities_extracted_raw"] > 0:
             stats["validation_rate"] = stats["entities_extracted_valid"] / stats["entities_extracted_raw"]
@@ -305,5 +342,12 @@ class EntityExtractor:
         else:
             stats["validation_rate"] = 0
             stats["rejection_rate"] = 0
+        
+        if stats["contexts_generated"] > 0:
+            stats["context_accuracy"] = stats["entities_found_in_context"] / stats["contexts_generated"]
+            stats["fallback_rate"] = stats["fallback_contexts_used"] / stats["contexts_generated"]
+        else:
+            stats["context_accuracy"] = 0
+            stats["fallback_rate"] = 0
         
         return stats

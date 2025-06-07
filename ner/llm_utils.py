@@ -8,7 +8,11 @@ def call_llm_semantic_cleaning(text: str, model_name: str = None) -> str:
     """
     config = load_ner_config()
     model = model_name or config.get("default_model", "qwen-coder")
-    client = LLMClient(model)
+    client = LLMClient(
+        model,
+        max_tokens=5000,
+        temperature=0.0,
+    )
 
     prompt = NERPrompts.get_semantic_cleaning_prompt(text)
     response = client.chat(prompt)

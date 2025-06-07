@@ -1,6 +1,6 @@
 """
-NER Graph Aggregator - Entity file management and knowledge graph building
-Handles entity persistence, indexing, and graph aggregation
+NER Graph Aggregator - Entity file management (bez relacji)
+Handles entity persistence, indexing, and simple aggregation
 """
 
 import json
@@ -26,14 +26,7 @@ class AggregatorError(Exception):
 
 class GraphAggregator:
     """
-    Manage entity files and build aggregated knowledge graphs
-    
-    Features:
-    - Entity file creation and updates
-    - Entity index management
-    - Duplicate detection and merging
-    - Aggregated JSON output
-    - File-based persistence
+    Manage entity files and build simple aggregated graphs (bez relacji)
     """
     
     def __init__(self, entities_dir: str = "entities", config_path: str = "ner/ner_config.json"):
@@ -79,7 +72,7 @@ class GraphAggregator:
     
     def create_entity_file(self, entity_data: Dict[str, Any], chunk_refs: List[str]) -> Optional[str]:
         """
-        Create or update individual entity JSON file
+        Create or update individual entity JSON file (bez relacji)
         
         Args:
             entity_data: Complete entity dictionary
@@ -123,7 +116,7 @@ class GraphAggregator:
             return None
     
     def _create_new_entity(self, entity_id: str, entity_data: Dict[str, Any], chunk_refs: List[str]):
-        """Create new entity file"""
+        """Create new entity file (bez relacji)"""
         # Ensure proper structure
         complete_entity = {
             "id": entity_id,
@@ -138,12 +131,6 @@ class GraphAggregator:
                 "found_in_chunks": entity_data.get('source_info', {}).get('found_in_chunks', []),
                 "source_document": entity_data.get('source_info', {}).get('source_document', 'unknown')
             },
-            
-            "relationships": entity_data.get('relationships', {
-                "internal": [],
-                "external": [],
-                "pending": []
-            }),
             
             "metadata": {
                 "created": datetime.now().isoformat(),
@@ -160,7 +147,7 @@ class GraphAggregator:
         print(f"Created entity file: {entity_file}")
     
     def _update_existing_entity(self, entity_id: str, new_data: Dict[str, Any], chunk_refs: List[str]):
-        """Update existing entity file"""
+        """Update existing entity file (bez relacji)"""
         entity_file = self.entities_dir / f"{entity_id}.json"
         
         if not entity_file.exists():
@@ -186,7 +173,7 @@ class GraphAggregator:
     
     def _merge_entity_data(self, existing: Dict[str, Any], new_data: Dict[str, Any], 
                           chunk_refs: List[str]) -> Dict[str, Any]:
-        """Merge new entity data with existing entity"""
+        """Merge new entity data with existing entity (bez relacji)"""
         # Start with existing data
         merged = existing.copy()
         
@@ -214,47 +201,10 @@ class GraphAggregator:
         existing_chunks.update(new_chunks)
         source_info['found_in_chunks'] = list(existing_chunks)
         
-        # Merge relationships (avoid duplicates)
-        self._merge_relationships(merged, new_data)
-        
         # Update metadata
         merged['metadata']['last_updated'] = datetime.now().isoformat()
         
         return merged
-    
-    def _merge_relationships(self, merged: Dict[str, Any], new_data: Dict[str, Any]):
-        """Merge relationship data avoiding duplicates"""
-        merged_rels = merged.setdefault('relationships', {})
-        new_rels = new_data.get('relationships', {})
-        
-        for rel_type in ['internal', 'external', 'pending']:
-            existing_rels = merged_rels.setdefault(rel_type, [])
-            new_type_rels = new_rels.get(rel_type, [])
-            
-            # Create set of existing relationships for deduplication
-            if rel_type == 'internal':
-                existing_keys = {(r.get('type', ''), r.get('target_entity', '')) for r in existing_rels}
-                for new_rel in new_type_rels:
-                    key = (new_rel.get('type', ''), new_rel.get('target_entity', ''))
-                    if key not in existing_keys:
-                        existing_rels.append(new_rel)
-                        existing_keys.add(key)
-            
-            elif rel_type == 'external':
-                existing_keys = {(r.get('type', ''), r.get('value', '')) for r in existing_rels}
-                for new_rel in new_type_rels:
-                    key = (new_rel.get('type', ''), new_rel.get('value', ''))
-                    if key not in existing_keys:
-                        existing_rels.append(new_rel)
-                        existing_keys.add(key)
-            
-            elif rel_type == 'pending':
-                existing_keys = {r.get('name', '') for r in existing_rels}
-                for new_rel in new_type_rels:
-                    name = new_rel.get('name', '')
-                    if name not in existing_keys:
-                        existing_rels.append(new_rel)
-                        existing_keys.add(name)
     
     def _write_entity_file(self, file_path: Path, entity_data: Dict[str, Any]):
         """Write entity data to file"""
@@ -324,7 +274,7 @@ class GraphAggregator:
 
     def create_aggregated_graph(self, output_file: str = "knowledge_graph.json") -> Dict[str, Any]:
         """
-        Create aggregated knowledge graph from all entity files
+        Create aggregated knowledge graph from all entity files (bez relacji)
         
         Args:
             output_file: Output file name for aggregated graph
@@ -394,27 +344,18 @@ class GraphAggregator:
             raise AggregatorError(f"Failed to save aggregated graph: {e}")
     
     def _generate_graph_summary(self, entities: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate summary statistics for the graph"""
+        """Generate summary statistics for the graph (bez relacji)"""
         if not entities:
             return {"total_entities": 0}
         
         # Count by type
         entity_types = {}
-        total_relationships = 0
         confidence_scores = []
         
         for entity in entities:
             # Count types
             entity_type = entity.get('type', 'unknown')
             entity_types[entity_type] = entity_types.get(entity_type, 0) + 1
-            
-            # Count relationships
-            relationships = entity.get('relationships', {})
-            total_relationships += (
-                len(relationships.get('internal', [])) +
-                len(relationships.get('external', [])) +
-                len(relationships.get('pending', []))
-            )
             
             # Collect confidence scores
             confidence = entity.get('confidence', 0)
@@ -427,8 +368,6 @@ class GraphAggregator:
         return {
             "total_entities": len(entities),
             "entity_types": entity_types,
-            "total_relationships": total_relationships,
-            "avg_relationships_per_entity": total_relationships / len(entities),
             "avg_confidence": round(avg_confidence, 3),
             "confidence_range": {
                 "min": min(confidence_scores) if confidence_scores else 0,

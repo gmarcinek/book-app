@@ -31,7 +31,7 @@ def create_parser() -> argparse.ArgumentParser:
 Examples:
     python main.py document.pdf
     python main.py folder/ --batch --model claude-4-sonnet
-    python main.py text.txt --no-relationships --entities-dir my_entities
+    python main.py text.txt --entities-dir my_entities
     python main.py book.docx --model qwen2.5-coder:32b --verbose
         """
     )
@@ -73,12 +73,6 @@ Examples:
     
     # Feature toggles
     parser.add_argument(
-        "--no-relationships",
-        action="store_true",
-        help="Skip relationship extraction (faster processing)"
-    )
-    
-    parser.add_argument(
         "--no-aggregation",
         action="store_true",
         help="Skip creating aggregated graph file"
@@ -117,7 +111,7 @@ Examples:
     )
 
     parser.add_argument(
-    "--clean",
+        "--clean",
         action="store_true",
         help="Enable semantic cleaning before chunking"
     )
@@ -173,7 +167,6 @@ def print_results(result: Dict[str, Any], args) -> None:
         # Single file results
         print(f"📄 Source: {Path(result.get('source_file', 'unknown')).name}")
         print(f"🔍 Entities created: {result.get('entities_created', 0)}")
-        print(f"🔗 Relationships: {'enabled' if result.get('relationships_processed', False) else 'disabled'}")
         print(f"📁 Entities directory: {result.get('output', {}).get('entities_dir', 'entities')}")
         
         if result.get('output', {}).get('aggregated_graph'):
@@ -238,7 +231,6 @@ def main():
                 entities_dir=args.entities_dir,
                 model=args.model,
                 config_path=args.config,
-                enable_relationships=not args.no_relationships,
                 output_aggregated=not args.no_aggregation,
                 clean_semantically=args.clean,
             )
@@ -249,7 +241,6 @@ def main():
                 entities_dir=args.entities_dir,
                 model=args.model,
                 config_path=args.config,
-                enable_relationships=not args.no_relationships,
                 output_aggregated=not args.no_aggregation,
                 clean_semantically=args.clean,
             )

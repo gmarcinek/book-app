@@ -1,0 +1,21 @@
+{
+  "id": "ent.1749274065198426.ffc02bca",
+  "name": "ludzie",
+  "type": "OSOBA",
+  "description": "Ludzie są przedstawiani jako istoty, które mogą być symulacjami. W kontekście tekstu sugeruje to, że ich istnienie może być iluzoryczne lub sztucznie stworzone.",
+  "confidence": 0.85,
+  "source_info": {
+    "evidence": "",
+    "chunk_references": [
+      "chunk_0"
+    ],
+    "found_in_chunks": [],
+    "source_document": "docs\\test0.txt"
+  },
+  "metadata": {
+    "created": "2025-06-07T07:27:45.198435",
+    "last_updated": "2025-06-07T07:27:45.198438",
+    "model_used": "gpt-4o-mini",
+    "extraction_method": "llm"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "ent.1749274065198645.a9786399",
+  "name": "sztuczna inteligencja",
+  "type": "KONCEPCJA",
+  "description": "Sztuczna inteligencja odnosi się do systemów komputerowych, które potrafią wykonywać zadania wymagające inteligencji ludzkiej. W tym kontekście każdy człowiek jest postrzegany jako forma sztucznej int...",
+  "confidence": 0.85,
+  "source_info": {
+    "evidence": "",
+    "chunk_references": [
+      "chunk_0"
+    ],
+    "found_in_chunks": [],
+    "source_document": "docs\\test0.txt"
+  },
+  "metadata": {
+    "created": "2025-06-07T07:27:45.198650",
+    "last_updated": "2025-06-07T07:27:45.198652",
+    "model_used": "gpt-4o-mini",
+    "extraction_method": "llm"
+  }
+}
