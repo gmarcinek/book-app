@@ -25,6 +25,13 @@ ZASADY EKSTRAKCJI:
 DOSTĘPNE TYPY ENCJI:
 {entity_types_str}
 
+SZACOWANIE CONFIDENCE - bądź realistyczny:
+- 0.9+ = wyraźnie nazwane, jednoznaczne (Jan Kowalski, konkretne przedmioty)
+- 0.7-0.9 = jasne z kontekstu, opisane szczegółowo
+- 0.5-0.7 = domniemane, wywnioskowane pośrednio  
+- 0.3-0.5 = abstrakcyjne, metaforyczne, fenomeny psychiczne
+- 0.1-0.3 = bardzo niepewne, wymagające weryfikacji
+
 STRUKTURA FENOMENÓW:
 {phenomenon_examples}
 
@@ -42,7 +49,7 @@ INSTRUKCJE SPECJALNE:
 
 PRZYKŁADY ALIASES:
 - Osoba: "Jan Kowalski" → aliases: ["Jan", "Kowalski", "JK", "Janek"]
-- Miejsce: "Warszawa" → aliases: ["stolica", "WSZ", "miasto"]
+- Miejsce: "Warszawa" → aliases: ["stolica", "WWA", "miasto"]
 - Organizacja: "Uniwersytet Warszawski" → aliases: ["UW", "uniwersytet", "uczelnia"]
 - Przedmiot: "komputer" → aliases: ["laptop", "PC", "maszyna"]
 - Scena: "rozmowa_w_ogrodzie" → aliases: ["scena_w_ogrodzie", "dialog_na_zewnątrz"]
@@ -55,7 +62,7 @@ FORMAT - TYLKO JSON:
       "name": "nazwa_w_formie_podstawowej",
       "type": "TYP_Z_LISTY_WYŻEJ",
       "description": "definicja encji 3-5 zdań z uwzględnieniem kontekstu otaczającego",
-      "confidence": 0.85, # od 0 do 1
+      "confidence": 0.X, // 0.2=bardzo niepewne, 0.5=umiarkowane, 0.8=pewne, 0.95=oczywiste
       "context": "fragment_tekstu_gdzie_wystepuje",
       "aliases": ["wariant1", "wariant2", "skrót"],
       "phenomenon_structure": {{

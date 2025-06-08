@@ -12,7 +12,7 @@ from llm import Models
 from .loaders import DocumentLoader, LoadedDocument
 from .chunker import TextChunker
 from .extractor import EntityExtractor
-from .aggregator import GraphAggregator
+from .aggregation import GraphAggregator
 from .llm_utils import call_llm_semantic_cleaning
 
 class NERProcessingError(Exception):
@@ -39,21 +39,27 @@ def process_text_to_knowledge(
             print(f"✅ Po czyszczeniu: {len(document.content):,} znaków")
             _save_cleaned_text(document, entities_dir)
 
-        # Process
+        # Chunk
         chunks = TextChunker(config_path).chunk_text(document.content)
         print(f"Created {len(chunks)} chunks")
         
-        entities = EntityExtractor(model, config_path).extract_entities(chunks)
-        print(f"Extracted {len(entities)} entities")
-        
-        # Save
+        # Init aggregator
         aggregator = GraphAggregator(entities_dir, config_path)
         aggregator.load_entity_index()
+
+        # Extract
+        extractor = EntityExtractor(model, config_path)
+        extractor.aggregator = aggregator
+        entities = extractor.extract_entities(chunks)
+        print(f"Extracted {len(entities)} entities")
         
+        # Save entities
         created_ids = []
         for entity in entities:
             entity_dict = {
-                'name': entity.name, 'type': entity.type, 'description': entity.description,
+                'name': entity.name,
+                'type': entity.type,
+                'description': entity.description,
                 'confidence': entity.confidence,
                 'aliases': entity.aliases,
                 'source_info': {
@@ -63,7 +69,7 @@ def process_text_to_knowledge(
                 },
                 'metadata': {'model_used': model, 'extraction_method': 'llm'}
             }
-            
+
             chunk_refs = [f"chunk_{entity.chunk_id}"] if entity.chunk_id is not None else []
             entity_id = aggregator.create_entity_file(entity_dict, chunk_refs)
             if entity_id:
@@ -76,7 +82,7 @@ def process_text_to_knowledge(
         if output_aggregated:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             safe_name = Path(document.source_file).stem[:20]
-            output_file = f"entities/knowledge_graph_{safe_name}_{timestamp}.json"
+            output_file = aggregator.entities_dir / f"knowledge_graph_{safe_name}_{timestamp}.json"
             aggregation_result = aggregator.create_aggregated_graph(output_file)
         
         return {
@@ -87,10 +93,10 @@ def process_text_to_knowledge(
             "output": {
                 "entities_dir": entities_dir,
                 "entity_ids": created_ids,
-                "aggregated_graph": aggregation_result["output_file"] if aggregation_result else None
+                "aggregated_graph": str(output_file) if aggregation_result else None
             }
         }
-        
+    
     except Exception as e:
         return {
             "status": "error",
@@ -98,6 +104,7 @@ def process_text_to_knowledge(
             "error": str(e),
             "source_file": getattr(input_source, 'source_file', str(input_source))
         }
+
 
 def process_file(file_path: str, **kwargs) -> Dict[str, Any]:
     return process_text_to_knowledge(file_path, **kwargs)

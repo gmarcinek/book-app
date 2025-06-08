@@ -1,7 +1,8 @@
 """
 Właściwa ekstrakcja encji: _extract_entities_from_chunk() (bez meta-prompt części)
 """
-
+from pathlib import Path
+from datetime import datetime
 import logging
 from typing import List
 from ..chunker import TextChunk
@@ -11,7 +12,6 @@ from .parsing import _parse_llm_response
 from .validation import _validate_and_clean_entity
 
 logger = logging.getLogger(__name__)
-
 
 def _build_extraction_prompt(text: str) -> str:
     """Build entity extraction prompt using centralized prompts (FALLBACK)"""
@@ -48,7 +48,9 @@ def _extract_entities_from_chunk(extractor, chunk: TextChunk) -> List:
     try:
         # ← KROK 1: ROZGRZEWKA - analiza chunka i generowanie custom promptu
         meta_prompt = _build_chunk_analysis_prompt(chunk.text)
+        _log_prompt(extractor, meta_prompt, chunk.id, "meta_prompt")
         meta_response = extractor._call_llm(meta_prompt, extractor.extractor_config.get_meta_analysis_temperature())
+        _log_response(extractor, meta_response, chunk.id, "meta_prompt")
         extractor.meta_prompt_stats['meta_prompts_generated'] += 1
         
         # Parse custom prompt from meta-response
@@ -61,12 +63,14 @@ def _extract_entities_from_chunk(extractor, chunk: TextChunk) -> List:
         else:
             # ← KROK 2B: FALLBACK do standardowego promptu
             prompt = _build_extraction_prompt(chunk.text)
+            _log_prompt(extractor, prompt, chunk.id, "extraction_prompt")
             extractor.meta_prompt_stats['meta_prompts_failed'] += 1
             extractor.meta_prompt_stats['fallback_to_standard_prompt'] += 1
             logger.warning(f"Meta-prompt failed for chunk {chunk.id}, using fallback")
         
         # Call LLM for actual extraction
         response = extractor._call_llm(prompt, extractor.extractor_config.get_entity_extraction_temperature())
+        _log_response(extractor, response, chunk.id, "extraction_prompt")
         
         # Parse response
         raw_entities = _parse_llm_response(response)
@@ -106,3 +110,23 @@ def _extract_entities_from_chunk(extractor, chunk: TextChunk) -> List:
         logger.error(f"Failed to extract entities from chunk {chunk.id}: {e}")
         extractor.extraction_stats["failed_extractions"] += 1
         return []
+
+def _log_prompt(extractor, prompt_text: str, chunk_id: int, purpose: str):
+    """
+    Save the prompt to the aggregator log folder.
+    """
+    if hasattr(extractor, "aggregator") and hasattr(extractor.aggregator, "log_dir"):
+        timestamp = datetime.now().strftime("%H%M%S")
+        file_name = f"{purpose}_chunk{chunk_id}_{timestamp}.txt"
+        path = extractor.aggregator.log_dir / file_name
+        path.write_text(prompt_text, encoding="utf-8")
+
+def _log_response(extractor, response_text: str, chunk_id: int, purpose: str):
+    """
+    Save the LLM response to the aggregator log folder.
+    """
+    if hasattr(extractor, "aggregator") and hasattr(extractor.aggregator, "log_dir"):
+        timestamp = datetime.now().strftime("%H%M%S")
+        file_name = f"{purpose}_response_chunk{chunk_id}_{timestamp}.txt"
+        path = extractor.aggregator.log_dir / file_name
+        path.write_text(response_text, encoding="utf-8")

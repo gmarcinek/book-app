@@ -108,6 +108,9 @@ class EntityExtractor:
         all_entities = []
         
         logger.info(f"Starting entity extraction from {len(chunks)} chunks")
+
+        if hasattr(self, "aggregator") is False and hasattr(chunks[0], "aggregator"):
+            self.aggregator = chunks[0].aggregator
         
         for chunk in chunks:
             try:

@@ -9,7 +9,7 @@ import time
 import hashlib
 import psutil
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 
 def load_ner_config(config_path: str = "ner/ner_config.json") -> Dict[str, Any]:
@@ -24,8 +24,8 @@ def load_ner_config(config_path: str = "ner/ner_config.json") -> Dict[str, Any]:
     
     # Fallback defaults
     return {
-        "max_tokens": 5000,
-        "chunk_size": 5000,
+        "max_tokens": 8000,
+        "chunk_size": 8000,
         "chunk_overlap": 400,
         "max_iterations": 100,
         "min_entity_length": 2,
@@ -140,3 +140,18 @@ def safe_filename(name: str, max_length: int = 50) -> str:
         safe_name = safe_name[:max_length].rstrip("._-")
     
     return safe_name or "unnamed"
+
+def load_entities_from_directory(entities_dir: Path) -> List[Dict[str, Any]]:
+    """
+    Load all JSON entity files from the given directory and return them as a list of dicts.
+    Ignores non-JSON files and errors on invalid JSON.
+    """
+    entities = []
+    for file in entities_dir.glob("*.json"):
+        try:
+            with open(file, encoding="utf-8") as f:
+                entity = json.load(f)
+                entities.append(entity)
+        except Exception as e:
+            print(f"[WARN] Failed to load entity file {file.name}: {e}")
+    return entities

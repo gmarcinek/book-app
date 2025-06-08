@@ -31,9 +31,9 @@ class ExtractorConfig:
         """Default configuration"""
         return {
             "extraction": {
-                "max_tokens": 5000,
-                "meta_analysis_temperature": 0.3,
-                "entity_extraction_temperature": 0.1
+                "max_tokens": 8000,
+                "meta_analysis_temperature": 0.1,
+                "entity_extraction_temperature": 0.0
             }
         }
     
@@ -47,7 +47,7 @@ class ExtractorConfig:
     
     def get_max_tokens(self) -> int:
         """Get max tokens for extraction"""
-        return self.config.get("extraction", {}).get("max_tokens", 5000)
+        return self.config.get("extraction", {}).get("max_tokens", 8000)
     
     def get_config(self) -> Dict[str, Any]:
         """Get full configuration"""

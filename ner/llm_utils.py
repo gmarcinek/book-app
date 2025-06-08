@@ -10,7 +10,7 @@ def call_llm_semantic_cleaning(text: str, model_name: str = None) -> str:
     model = model_name or config.get("default_model", "qwen-coder")
     client = LLMClient(
         model,
-        max_tokens=5000,
+        max_tokens=8000,
         temperature=0.0,
     )
 

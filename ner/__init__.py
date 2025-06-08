@@ -9,7 +9,7 @@ Supports multiple document formats and provides basic knowledge representation.
 from .loaders import DocumentLoader, LoadedDocument, load_text
 from .chunker import TextChunker, TextChunk
 from .extractor import EntityExtractor
-from .aggregator import GraphAggregator
+from .aggregation import GraphAggregator
 from .resolver import EntityResolver  # Placeholder
 from .utils import load_ner_config, log_memory_usage
 from .prompt import NERPrompt

@@ -7,7 +7,7 @@ Main API for knowledge graph extraction from text.
 from .loaders import load_text_file
 from .extractor import KnowledgeGraphBuilder
 from .resolver import EntityResolver
-from .aggregator import GraphAggregator
+from .aggregation import GraphAggregator
 from .utils import log_memory_usage
 
 __version__ = "0.1.0"
