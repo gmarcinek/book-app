@@ -8,6 +8,9 @@ ENTITY_TYPES = {
         "OSOBA", "MIEJSCE", "ORGANIZACJA", "PRZEDMIOT", 
         "WYDARZENIE", "USŁUGA", "KONCEPCJA"
     ],
+    "structural": [
+        "SCENA", "DIALOG"
+    ],
     "psychological": [
         "FENOMENON", "EMOCJA", "MYŚL"
     ],
