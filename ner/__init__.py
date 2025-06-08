@@ -12,7 +12,7 @@ from .extractor import EntityExtractor
 from .aggregator import GraphAggregator
 from .resolver import EntityResolver  # Placeholder
 from .utils import load_ner_config, log_memory_usage
-from .prompts import NERPrompts
+from .prompt import NERPrompt
 from .consts import ENTITY_TYPES, PHENOMENON_PREFIXES
 from .llm_utils import call_llm_semantic_cleaning
 
@@ -53,7 +53,7 @@ __all__ = [
     'load_text',
     'load_ner_config',
     'log_memory_usage',
-    'NERPrompts',
+    'NERPrompt',
     'ENTITY_TYPES',
     'PHENOMENON_PREFIXES',
     'call_llm_semantic_cleaning',

@@ -4,13 +4,13 @@
 
 ```bash
 # Basic usage - single file
-python orchestrator/main.py document.pdf
+poetry run app document.pdf
 
 # With specific model
-python orchestrator/main.py book.docx --model claude-4-sonnet
+poetry run app book.docx --model claude-4-sonnet
 
 # Batch processing
-python orchestrator/main.py documents/ --batch
+poetry run app documents/ --batch
 ```
 
 ## Available Models
@@ -31,35 +31,35 @@ python orchestrator/main.py documents/ --batch
 
 ```bash
 # Minimal - uses all defaults
-python orchestrator/main.py document.txt
+poetry run app document.txt
 
 # Specify model
-python orchestrator/main.py file.pdf --model claude-4-sonnet
+poetry run app file.pdf --model claude-4-sonnet
 
 # Custom entities directory
-python orchestrator/main.py book.docx --entities-dir my_knowledge
+poetry run app book.docx --entities-dir my_knowledge
 
 # Skip relationships (faster)
-python orchestrator/main.py large_file.pdf --no-relationships
+poetry run app large_file.pdf --no-relationships
 
 # Enable conflict resolution
-python orchestrator/main.py document.txt --resolve
+poetry run app document.txt --resolve
 ```
 
 ### Batch Processing
 
 ```bash
 # Process all files in directory
-python orchestrator/main.py documents/ --batch
+poetry run app documents/ --batch
 
 # Specific file pattern
-python orchestrator/main.py books/ --batch --pattern "*.pdf"
+poetry run app books/ --batch --pattern "*.pdf"
 
 # Multiple patterns (process PDFs and DOCX)
-python orchestrator/main.py library/ --batch --pattern "*.{pdf,docx}"
+poetry run app library/ --batch --pattern "*.{pdf,docx}"
 
 # Text files only
-python orchestrator/main.py texts/ --batch --pattern "*.txt"
+poetry run app texts/ --batch --pattern "*.txt"
 ```
 
 ## Advanced Options
@@ -68,48 +68,48 @@ python orchestrator/main.py texts/ --batch --pattern "*.txt"
 
 ```bash
 # Use high-quality cloud model
-python orchestrator/main.py document.pdf --model claude-4-sonnet
+poetry run app document.pdf --model claude-4-sonnet
 
 # Local model for privacy
-python orchestrator/main.py sensitive.txt --model qwen2.5-coder:32b
+poetry run app sensitive.txt --model qwen2.5-coder:32b
 
 # Increase file size limit (default 50MB)
-python orchestrator/main.py huge_book.pdf --max-size 200.0
+poetry run app huge_book.pdf --max-size 200.0
 
 # Custom config file
-python orchestrator/main.py file.txt --config my_ner_config.json
+poetry run app file.txt --config my_ner_config.json
 ```
 
 ### Features Control
 
 ```bash
 # Skip relationship extraction (much faster)
-python orchestrator/main.py document.pdf --no-relationships
+poetry run app document.pdf --no-relationships
 
 # Enable duplicate resolution
-python orchestrator/main.py messy_data.txt --resolve
+poetry run app messy_data.txt --resolve
 
 # Skip aggregated graph creation
-python orchestrator/main.py file.txt --no-aggregation
+poetry run app file.txt --no-aggregation
 
 # All features enabled
-python orchestrator/main.py complete.pdf --resolve
+poetry run app complete.pdf --resolve
 ```
 
 ### Output Control
 
 ```bash
 # Quiet mode (minimal output)
-python orchestrator/main.py document.pdf --quiet
+poetry run app document.pdf --quiet
 
 # Verbose mode (detailed stats)
-python orchestrator/main.py file.txt --verbose
+poetry run app file.txt --verbose
 
 # JSON output (for scripting)
-python orchestrator/main.py data.pdf --json > result.json
+poetry run app data.pdf --json > result.json
 
 # Custom output file name
-python orchestrator/main.py book.pdf --output my_knowledge_graph.json
+poetry run app book.pdf --output my_knowledge_graph.json
 ```
 
 ## File Format Support
@@ -128,40 +128,40 @@ python orchestrator/main.py book.pdf --output my_knowledge_graph.json
 
 ```bash
 # Process research papers
-python orchestrator/main.py papers/ --batch --pattern "*.pdf" --model claude-4-sonnet --resolve
+poetry run app papers/ --batch --pattern "*.pdf" --model claude-4-sonnet --resolve
 
 # Single paper with detailed analysis
-python orchestrator/main.py research.pdf --model claude-4-sonnet --verbose --resolve
+poetry run app research.pdf --model claude-4-sonnet --verbose --resolve
 ```
 
 ### Book Analysis
 
 ```bash
 # Analyze entire book
-python orchestrator/main.py "War and Peace.txt" --model qwen2.5-coder:32b --resolve
+poetry run app "War and Peace.txt" --model qwen2.5-coder:32b --resolve
 
 # Multiple books
-python orchestrator/main.py library/ --batch --pattern "*.{txt,pdf}" --entities-dir book_knowledge
+poetry run app library/ --batch --pattern "*.{txt,pdf}" --entities-dir book_knowledge
 ```
 
 ### Quick Testing
 
 ```bash
 # Fast processing for testing
-python orchestrator/main.py sample.txt --no-relationships --quiet
+poetry run app sample.txt --no-relationships --quiet
 
 # Local model for privacy
-python orchestrator/main.py confidential.pdf --model qwen2.5-coder --no-relationships
+poetry run app confidential.pdf --model qwen2.5-coder --no-relationships
 ```
 
 ### Production Processing
 
 ```bash
 # Full pipeline with all features
-python orchestrator/main.py documents/ --batch --model claude-4-sonnet --resolve --verbose
+poetry run app documents/ --batch --model claude-4-sonnet --resolve --verbose
 
 # Custom configuration for specific domain
-python orchestrator/main.py legal_docs/ --batch --config legal_ner_config.json --resolve
+poetry run app legal_docs/ --batch --config legal_ner_config.json --resolve
 ```
 
 ## Output Structure
@@ -240,7 +240,7 @@ knowledge_graph_document_20231206_143022.json
 ls -la document.pdf
 
 # Use absolute path
-python orchestrator/main.py /full/path/to/document.pdf
+poetry run app /full/path/to/document.pdf
 ```
 
 **"LLM model not available"**
@@ -260,10 +260,10 @@ ollama list
 
 ```bash
 # Increase system memory or reduce file size
-python orchestrator/main.py large.pdf --max-size 25.0
+poetry run app large.pdf --max-size 25.0
 
 # Skip relationships to reduce memory usage
-python orchestrator/main.py large.pdf --no-relationships
+poetry run app large.pdf --no-relationships
 ```
 
 **"API key errors for cloud models"**
@@ -274,7 +274,7 @@ export OPENAI_API_KEY="your-key-here"
 export ANTHROPIC_API_KEY="your-key-here"
 
 # Or use local models
-python orchestrator/main.py document.pdf --model qwen2.5-coder
+poetry run app document.pdf --model qwen2.5-coder
 ```
 
 ### Performance Tips
@@ -289,8 +289,8 @@ python orchestrator/main.py document.pdf --model qwen2.5-coder
 
 ```bash
 # Show all available options
-python orchestrator/main.py --help
+poetry run app --help
 
 # Check model availability
-python orchestrator/main.py document.txt --model nonexistent-model
+poetry run app document.txt --model nonexistent-model
 ```

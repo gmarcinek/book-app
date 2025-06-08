@@ -1,5 +1,5 @@
 from llm import LLMClient
-from .prompts import NERPrompts
+from .prompt import NERPrompt
 from .utils import load_ner_config
 
 def call_llm_semantic_cleaning(text: str, model_name: str = None) -> str:
@@ -14,7 +14,7 @@ def call_llm_semantic_cleaning(text: str, model_name: str = None) -> str:
         temperature=0.0,
     )
 
-    prompt = NERPrompts.get_semantic_cleaning_prompt(text)
+    prompt = NERPrompt.get_semantic_cleaning_prompt(text)
     response = client.chat(prompt)
 
     return extract_clean_text_from_response(response)

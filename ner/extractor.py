@@ -1,5 +1,5 @@
 """
-NER Entity Extractor - Tylko ekstrakcja encji
+NER Entity Extractor - Tylko ekstrakcja encji + META-PROMPT SYSTEM + ALIASES
 """
 
 import json
@@ -12,7 +12,7 @@ load_dotenv()
 # Local imports
 from .utils import load_ner_config, log_memory_usage, validate_entity_name, validate_entity_type
 from .chunker import TextChunk
-from .prompts import NERPrompts
+from .prompt import NERPrompt
 from .consts import ENTITY_TYPES_FLAT as ENTITY_TYPES
 from llm import Models
 
@@ -28,13 +28,19 @@ class ExtractedEntity:
     type: str
     description: str
     confidence: float
+    aliases: List[str] = None
     chunk_id: Optional[int] = None
     context: Optional[str] = None
+    
+    def __post_init__(self):
+        """Initialize aliases as empty list if None"""
+        if self.aliases is None:
+            self.aliases = []
 
 
 class EntityExtractor:
     """
-    Uproszczony ekstraktor encji - bez relacji
+    Uproszczony ekstraktor encji - bez relacji + META-PROMPT SYSTEM
     """
     
     def __init__(self, model: str = Models.QWEN_CODER, config_path: str = "ner/ner_config.json"):
@@ -53,6 +59,12 @@ class EntityExtractor:
             'entities_found_in_context': 0,
             'fallback_contexts_used': 0
         }
+        # ← NOWE: stats dla meta-prompt systemu
+        self.meta_prompt_stats = {
+            'meta_prompts_generated': 0,
+            'meta_prompts_failed': 0,
+            'fallback_to_standard_prompt': 0
+        }
     
     def _initialize_llm(self):
         """Initialize LLM client if needed"""
@@ -66,8 +78,36 @@ class EntityExtractor:
                 raise
     
     def _build_extraction_prompt(self, text: str) -> str:
-        """Build entity extraction prompt using centralized prompts"""
-        return NERPrompts.get_entity_extraction_prompt(text)
+        """Build entity extraction prompt using centralized prompts (FALLBACK)"""
+        return NERPrompt.get_entity_extraction_prompt(text)
+    
+    # ← NOWE: Meta-prompt system methods
+    def _build_chunk_analysis_prompt(self, text: str) -> str:
+        """Build meta-prompt for chunk analysis"""
+        return NERPrompt.get_chunk_analysis_prompt(text)
+    
+    def _parse_custom_prompt(self, response: str) -> Optional[str]:
+        """Parse custom NER prompt from meta-prompt response"""
+        try:
+            # Extract content between <CUSTOM_NER_PROMPT> tags
+            if '<CUSTOM_NER_PROMPT>' in response and '</CUSTOM_NER_PROMPT>' in response:
+                start = response.find('<CUSTOM_NER_PROMPT>') + len('<CUSTOM_NER_PROMPT>')
+                end = response.find('</CUSTOM_NER_PROMPT>')
+                custom_prompt = response[start:end].strip()
+                
+                if len(custom_prompt) > 50:  # Basic validation
+                    return custom_prompt
+            
+            logger.warning("Failed to parse custom prompt from meta-prompt response")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error parsing custom prompt: {e}")
+            return None
+    
+    def _build_custom_extraction_prompt(self, text: str, custom_instructions: str) -> str:
+        """Build final extraction prompt using custom instructions"""
+        return NERPrompt.build_custom_extraction_prompt(text, custom_instructions)
     
     def _call_llm(self, prompt: str) -> str:
         """Call LLM with prompt and return response"""
@@ -128,7 +168,7 @@ class EntityExtractor:
     
     def _validate_and_clean_entity(self, entity_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
-        Validate and clean entity data
+        Validate and clean entity data + aliases
         
         Returns:
             Cleaned entity dict or None if invalid
@@ -141,23 +181,21 @@ class EntityExtractor:
         entity_type = entity_data.get('type', '').strip().upper()
         
         if not name or not entity_type:
-            logger.debug(f"Missing name or type: {entity_data}")
+            logger.info(f"Missing name or type: {entity_data}")
             return None
         
         # Validate name
         if not validate_entity_name(name):
-            logger.debug(f"Invalid entity name: '{name}'")
+            logger.info(f"Invalid entity name: '{name}'")
             return None
         
         # Validate type
         if entity_type not in ENTITY_TYPES:
-            logger.debug(f"Invalid entity type: '{entity_type}' (valid types: {ENTITY_TYPES})")
+            logger.info(f"Invalid entity type: '{entity_type}' (valid types: {ENTITY_TYPES})")
             return None
         
         # Clean and validate description
         description = str(entity_data.get('description', '')).strip()
-        if len(description) > 200:  # Limit description length
-            description = description[:200] + "..."
         
         # Validate and normalize confidence
         confidence = entity_data.get('confidence', 0.5)
@@ -169,14 +207,30 @@ class EntityExtractor:
         
         # Reject entities with very low confidence
         if confidence < 0.3:
-            logger.debug(f"Rejected low confidence entity: {name} ({confidence})")
+            logger.info(f"Rejected low confidence entity: {name} ({confidence})")
             return None
+        
+        # ← NOWE: Validate and clean aliases
+        aliases = entity_data.get('aliases', [])
+        if not isinstance(aliases, list):
+            aliases = []
+        
+        # Clean aliases - remove empty, duplicates, and the main name
+        cleaned_aliases = []
+        for alias in aliases:
+            if isinstance(alias, str):
+                alias_clean = alias.strip()
+                if (alias_clean and 
+                    alias_clean.lower() != name.lower() and 
+                    alias_clean not in cleaned_aliases):
+                    cleaned_aliases.append(alias_clean)
         
         return {
             'name': name,
             'type': entity_type,
             'description': description,
-            'confidence': confidence
+            'confidence': confidence,
+            'aliases': cleaned_aliases  # ← NOWE
         }
     
     def _find_entity_context(self, entity_name: str, chunk_text: str, context_window: int = 100) -> str:
@@ -199,12 +253,31 @@ class EntityExtractor:
             self.context_stats['entities_found_in_context'] += 1
     
     def _extract_entities_from_chunk(self, chunk: TextChunk) -> List[ExtractedEntity]:
-        """Extract and validate entities from a single text chunk"""
+        """
+        Extract and validate entities from a single text chunk
+        ← NOWE: Uses 2-step meta-prompt process
+        """
         try:
-            # Build prompt
-            prompt = self._build_extraction_prompt(chunk.text)
+            # ← KROK 1: ROZGRZEWKA - analiza chunka i generowanie custom promptu
+            meta_prompt = self._build_chunk_analysis_prompt(chunk.text)
+            meta_response = self._call_llm(meta_prompt)
+            self.meta_prompt_stats['meta_prompts_generated'] += 1
             
-            # Call LLM
+            # Parse custom prompt from meta-response
+            custom_instructions = self._parse_custom_prompt(meta_response)
+            
+            if custom_instructions:
+                # ← KROK 2A: EXTRACTION z custom promptem
+                prompt = self._build_custom_extraction_prompt(chunk.text, custom_instructions)
+                logger.info(f"Using custom prompt for chunk {chunk.id}")
+            else:
+                # ← KROK 2B: FALLBACK do standardowego promptu
+                prompt = self._build_extraction_prompt(chunk.text)
+                self.meta_prompt_stats['meta_prompts_failed'] += 1
+                self.meta_prompt_stats['fallback_to_standard_prompt'] += 1
+                logger.warning(f"Meta-prompt failed for chunk {chunk.id}, using fallback")
+            
+            # Call LLM for actual extraction
             response = self._call_llm(prompt)
             
             # Parse response
@@ -217,7 +290,7 @@ class EntityExtractor:
                 cleaned_entity = self._validate_and_clean_entity(entity_data)
                 
                 if cleaned_entity:
-                    # 🔧 POPRAWKA - znajdź precyzyjny kontekst dla encji
+                    # Find entity context
                     entity_context = self._find_entity_context(cleaned_entity['name'], chunk.text)
                     
                     # Update context statistics
@@ -228,8 +301,9 @@ class EntityExtractor:
                         type=cleaned_entity['type'],
                         description=cleaned_entity['description'],
                         confidence=cleaned_entity['confidence'],
+                        aliases=cleaned_entity['aliases'],  # ← NOWE
                         chunk_id=chunk.id,
-                        context=entity_context  # ✅ Używa precyzyjnego kontekstu
+                        context=entity_context
                     )
                     valid_entities.append(entity)
                     self.extraction_stats["entities_extracted_valid"] += 1
@@ -246,38 +320,74 @@ class EntityExtractor:
     
     def _deduplicate_entities(self, entities: List[ExtractedEntity]) -> List[ExtractedEntity]:
         """
-        Remove duplicate entities based on normalized names
+        Remove duplicate entities based on normalized names + aliases
         Keep the entity with highest confidence
+        ← NOWE: Uwzględnia aliases w deduplikacji
         """
         if not entities:
             return entities
         
-        # Group entities by normalized name
+        # Group entities by normalized name and aliases
         entity_groups = {}
+        
         for entity in entities:
-            normalized_name = entity.name.lower().strip()
+            # Create set of all possible names (main + aliases)
+            all_names = {entity.name.lower().strip()}
+            for alias in entity.aliases:
+                all_names.add(alias.lower().strip())
             
-            if normalized_name not in entity_groups:
-                entity_groups[normalized_name] = []
-            entity_groups[normalized_name].append(entity)
+            # Find if entity belongs to existing group
+            found_group = None
+            for group_key, group_names in entity_groups.items():
+                if any(name in group_names for name in all_names):
+                    found_group = group_key
+                    break
+            
+            if found_group:
+                # Add to existing group
+                entity_groups[found_group]['entities'].append(entity)
+                entity_groups[found_group]['all_names'].update(all_names)
+            else:
+                # Create new group
+                normalized_key = entity.name.lower().strip()
+                entity_groups[normalized_key] = {
+                    'entities': [entity],
+                    'all_names': all_names
+                }
         
         # Keep best entity from each group
         deduplicated = []
         duplicates_removed = 0
         
-        for normalized_name, group in entity_groups.items():
-            if len(group) == 1:
-                deduplicated.append(group[0])
+        for group_key, group_data in entity_groups.items():
+            entities_in_group = group_data['entities']
+            
+            if len(entities_in_group) == 1:
+                deduplicated.append(entities_in_group[0])
             else:
                 # Keep entity with highest confidence
-                best_entity = max(group, key=lambda e: e.confidence)
-                deduplicated.append(best_entity)
-                duplicates_removed += len(group) - 1
+                best_entity = max(entities_in_group, key=lambda e: e.confidence)
                 
-                logger.debug(f"Deduplicated '{normalized_name}': kept 1 of {len(group)} entities")
+                # Merge aliases from all entities in group
+                all_aliases = set()
+                for entity in entities_in_group:
+                    all_aliases.update(entity.aliases)
+                    # Add main names of other entities as aliases
+                    if entity != best_entity:
+                        all_aliases.add(entity.name)
+                
+                # Remove main name from aliases
+                all_aliases.discard(best_entity.name.lower())
+                all_aliases.discard(best_entity.name)
+                
+                best_entity.aliases = list(all_aliases)
+                deduplicated.append(best_entity)
+                duplicates_removed += len(entities_in_group) - 1
+                
+                logger.info(f"Deduplicated '{group_key}': kept 1 of {len(entities_in_group)} entities, merged aliases")
         
         if duplicates_removed > 0:
-            logger.info(f"Removed {duplicates_removed} duplicate entities")
+            logger.info(f"Removed {duplicates_removed} duplicate entities, merged aliases")
         
         return deduplicated
     
@@ -320,6 +430,12 @@ class EntityExtractor:
                            self.context_stats["contexts_generated"] 
                            if self.context_stats["contexts_generated"] > 0 else 0)
         
+        # ← NOWE: Meta-prompt stats
+        meta_success_rate = ((self.meta_prompt_stats['meta_prompts_generated'] - 
+                             self.meta_prompt_stats['meta_prompts_failed']) / 
+                            self.meta_prompt_stats['meta_prompts_generated'] 
+                            if self.meta_prompt_stats['meta_prompts_generated'] > 0 else 0)
+        
         logger.info(f"Entity extraction complete:")
         logger.info(f"  Chunks processed: {self.extraction_stats['chunks_processed']}")
         logger.info(f"  Raw entities: {self.extraction_stats['entities_extracted_raw']}")
@@ -327,7 +443,8 @@ class EntityExtractor:
         logger.info(f"  Final entities (after dedup): {len(deduplicated_entities)}")
         logger.info(f"  Validation rate: {validation_rate:.1%}")
         logger.info(f"  Context accuracy: {context_accuracy:.1%}")
-        logger.info(f"  Fallback contexts: {self.context_stats['fallback_contexts_used']}")
+        logger.info(f"  Meta-prompt success rate: {meta_success_rate:.1%}")
+        logger.info(f"  Fallback to standard prompt: {self.meta_prompt_stats['fallback_to_standard_prompt']}")
         
         return deduplicated_entities
     
@@ -335,6 +452,7 @@ class EntityExtractor:
         """Get detailed extraction statistics"""
         stats = self.extraction_stats.copy()
         stats.update(self.context_stats)
+        stats.update(self.meta_prompt_stats)  # ← NOWE
         
         if stats["entities_extracted_raw"] > 0:
             stats["validation_rate"] = stats["entities_extracted_valid"] / stats["entities_extracted_raw"]
@@ -349,5 +467,12 @@ class EntityExtractor:
         else:
             stats["context_accuracy"] = 0
             stats["fallback_rate"] = 0
+        
+        # ← NOWE: Meta-prompt stats
+        if stats["meta_prompts_generated"] > 0:
+            stats["meta_prompt_success_rate"] = ((stats["meta_prompts_generated"] - stats["meta_prompts_failed"]) / 
+                                                stats["meta_prompts_generated"])
+        else:
+            stats["meta_prompt_success_rate"] = 0
         
         return stats

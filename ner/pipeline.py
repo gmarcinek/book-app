@@ -55,6 +55,7 @@ def process_text_to_knowledge(
             entity_dict = {
                 'name': entity.name, 'type': entity.type, 'description': entity.description,
                 'confidence': entity.confidence,
+                'aliases': entity.aliases,
                 'source_info': {
                     'evidence': entity.context or '',
                     'chunk_references': [f"chunk_{entity.chunk_id}"] if entity.chunk_id is not None else [],
@@ -75,7 +76,7 @@ def process_text_to_knowledge(
         if output_aggregated:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             safe_name = Path(document.source_file).stem[:20]
-            output_file = f"knowledge_graph_{safe_name}_{timestamp}.json"
+            output_file = f"entities/knowledge_graph_{safe_name}_{timestamp}.json"
             aggregation_result = aggregator.create_aggregated_graph(output_file)
         
         return {
