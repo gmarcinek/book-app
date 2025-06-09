@@ -1,21 +1,35 @@
 """
 Właściwa ekstrakcja encji: _extract_entities_from_chunk() (bez meta-prompt części)
+REFACTORED: Now uses domain-specific NER implementations for prompts only
 """
 from pathlib import Path
 from datetime import datetime
 import logging
 from typing import List
 from ..chunker import TextChunk
-from ..prompt import NERPrompt
-from .meta_prompt import _build_chunk_analysis_prompt, _parse_custom_prompt, _build_custom_extraction_prompt
+from ..domains import DomainFactory
+from .meta_prompt import _parse_custom_prompt
 from .parsing import _parse_llm_response
 from .validation import _validate_and_clean_entity
 
 logger = logging.getLogger(__name__)
 
 def _build_extraction_prompt(text: str) -> str:
-    """Build entity extraction prompt using centralized prompts (FALLBACK)"""
-    return NERPrompt.get_entity_extraction_prompt(text)
+    """Build entity extraction prompt using domain-specific prompts (FALLBACK)"""
+    ner = DomainFactory.create_domain("literary")
+    return ner.get_base_extraction_prompt(text)
+
+
+def _build_chunk_analysis_prompt(text: str) -> str:
+    """Build meta-prompt for chunk analysis using domain-specific prompts"""
+    ner = DomainFactory.create_domain("literary")
+    return ner.get_meta_analysis_prompt(text)
+
+
+def _build_custom_extraction_prompt(text: str, custom_instructions: str) -> str:
+    """Build final extraction prompt using custom instructions and domain-specific prompts"""
+    ner = DomainFactory.create_domain("literary")
+    return ner.build_custom_extraction_prompt(text, custom_instructions)
 
 
 def _find_entity_context(entity_name: str, chunk_text: str, context_window: int = 100) -> str:
@@ -43,7 +57,7 @@ def _update_context_stats(extractor, entity_name: str, context: str):
 def _extract_entities_from_chunk(extractor, chunk: TextChunk) -> List:
     """
     Extract and validate entities from a single text chunk
-    ← NOWE: Uses 2-step meta-prompt process
+    ← UPDATED: Uses domain-specific prompts via factory
     """
     try:
         # ← KROK 1: ROZGRZEWKA - analiza chunka i generowanie custom promptu
