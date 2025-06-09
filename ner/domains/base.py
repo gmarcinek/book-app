@@ -40,8 +40,7 @@ class BaseNER(ABC):
     
     @abstractmethod
     def should_use_cleaning(self) -> bool:
-        """Whether this domain benefits from semantic cleaning preprocessing"""
-        pass
+        return False  # DEFAULT = False dla wszystkich domen
     
     def get_cleaning_prompt(self, text: str) -> Optional[str]:
         """

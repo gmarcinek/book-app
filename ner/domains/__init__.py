@@ -1,8 +1,5 @@
-"""
-Domain-specific NER implementations
-"""
-
-from .base import BaseNER, DomainConfig, DomainFactory
+from .base import BaseNER, DomainConfig
+from .factory import DomainFactory
 from .literary import LiteraryNER
 
 __all__ = [
