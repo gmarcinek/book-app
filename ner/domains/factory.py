@@ -5,6 +5,7 @@ Domain factory - creates domain instances from names
 from typing import List
 from .base import BaseNER
 from .literary import LiteraryNER
+from .liric import LiricNER
 
 
 class DomainFactory:
@@ -16,7 +17,7 @@ class DomainFactory:
         Create domain instances from list of domain names
         
         Args:
-            domain_names: List of domain names (e.g. ["literary", "legal"])
+            domain_names: List of domain names (e.g. ["literary", "liric"])
             
         Returns:
             List of domain instances
@@ -29,16 +30,18 @@ class DomainFactory:
         for name in domain_names:
             if name == "literary":
                 domains.append(LiteraryNER())
+            elif name == "liric":
+                domains.append(LiricNER())
             # elif name == "legal":
             #     domains.append(LegalNER())
             # elif name == "medical":
             #     domains.append(MedicalNER())
             else:
-                raise ValueError(f"Unknown domain: '{name}'. Available domains: ['literary']")
+                raise ValueError(f"Unknown domain: '{name}'. Available domains: {DomainFactory.get_available_domains()}")
         
         return domains
     
     @staticmethod
     def get_available_domains() -> List[str]:
         """Get list of available domain names"""
-        return ["literary"]
+        return ["literary", "liric"]

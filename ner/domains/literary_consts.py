@@ -13,10 +13,10 @@ LITERARY_ENTITY_TYPES = {
         "WYDARZENIE", "USŁUGA", "KONCEPCJA"
     ],
     "structural": [
-        "SCENA", "DIALOG"
+        "SCENA", "DIALOG", "WYPOWIEDŹ"
     ],
     "psychological": [
-        "FENOMENON", "EMOCJA", "MYŚL"
+        "FENOMENON", "EMOCJA", "MYŚL", "NASTRÓJ"
     ],
     "temporal": [
         "CZAS", "OKRES"
@@ -87,7 +87,7 @@ LITERARY_CONFIDENCE_THRESHOLDS = {
 }
 
 # === PROMPT TEMPLATES - bazowe wzorce ===
-LITERARY_META_ANALYSIS_CONTEXT = """Jesteś ekspertem od Named Entity Recognition dla tekstów literackich i autobiograficznych. 
+LITERARY_META_ANALYSIS_CONTEXT = """Jesteś ekspertem od Named Entity Recognition dla tekstów literackich. 
 Analizujesz fragment tekstu pod kątem:
 - Głównych tematów (autobiografia, wspomnienia, psychologia)
 - Typów encji (osoby, miejsca, fenomeny psychiczne, sceny, dialogi)
@@ -100,7 +100,6 @@ LITERARY_EXTRACTION_RULES = """ZASADY EKSTRAKCJI:
 1. Tylko encje jawnie obecne lub logicznie implikowane w tekście
 2. Forma podstawowa (mianownik, liczba pojedyncza)
 3. Uwzględnij BRAKI jako pełnoprawne encje
-4. FENOMENY psychiczne ze strukturą "TYP: podtyp -> treść" jako typ "FENOMENON"
 5. SCENY jako spójne fragmenty akcji z lokacją, postaciami i tematyką
 6. DIALOGI jako rozmowy między postaciami (obiektywne fakty)"""
 
@@ -130,7 +129,7 @@ LITERARY_JSON_TEMPLATE = """{
       "name": "nazwa_w_formie_podstawowej",
       "type": "TYP_Z_LISTY_WYŻEJ",
       "description": "definicja encji 3-5 zdań z uwzględnieniem kontekstu",
-      "confidence": 0.85,
+      "confidence": 0.50, //od 0 do 1
       "context": "fragment_tekstu_gdzie_wystepuje",
       "aliases": ["wariant1", "wariant2", "skrót"],
       "phenomenon_structure": {

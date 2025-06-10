@@ -71,6 +71,13 @@ Examples:
         help="Path to NER config file (default: ner/ner_config.json)"
     )
     
+    parser.add_argument(
+        "--domains", "-d",
+        nargs="+",
+        default=["auto"], 
+        help="Domains to use: literary, liric, auto (default: auto)"  # ← POPRAWIONE
+    )
+    
     # Feature toggles
     parser.add_argument(
         "--no-aggregation",
@@ -231,6 +238,7 @@ def main():
                 entities_dir=args.entities_dir,
                 model=args.model,
                 config_path=args.config,
+                domain_names=args.domains,
                 output_aggregated=not args.no_aggregation,
             )
         else:
@@ -240,6 +248,7 @@ def main():
                 entities_dir=args.entities_dir,
                 model=args.model,
                 config_path=args.config,
+                domain_names=args.domains,
                 output_aggregated=not args.no_aggregation,
             )
         

@@ -40,6 +40,7 @@ class GraphAggregator:
         if entity_id:
             if created:
                 self.aggregation_stats["entities_created"] += 1
+                self.aggregation_stats["files_written"] += 1
             else:
                 self.aggregation_stats["entities_updated"] += 1
             self.aggregation_stats["aliases_indexed"] += alias_count

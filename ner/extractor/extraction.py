@@ -1,12 +1,13 @@
 """
-Entity extraction from chunks - Updated to use multi-domain with preserved old flow
+Entity extraction from chunks - Updated with auto-classification support
 """
 from pathlib import Path
 from datetime import datetime
 import logging
 from typing import List
 from ..chunker import TextChunk
-from ..domains import BaseNER
+from ..domains import BaseNER, DomainFactory
+from ..domains.auto import AutoNER
 from .meta_prompt import _build_chunk_analysis_prompt, _parse_custom_prompt, _build_custom_extraction_prompt, _build_extraction_prompt
 from .parsing import _parse_llm_response
 from .validation import _validate_and_clean_entity
@@ -16,9 +17,32 @@ logger = logging.getLogger(__name__)
 
 def _extract_entities_from_chunk_multi_domain(extractor, chunk: TextChunk, domains: List[BaseNER], domain_names: List[str]) -> List:
     """
-    Extract entities from chunk using multiple domains
-    Iterates through all domains and aggregates results - PRESERVED OLD FLOW
+    Extract entities from chunk using multiple domains or auto-classification
     """
+    
+    # AUTO-CLASSIFICATION LOGIC
+    if domain_names == ["auto"]:
+        logger.info(f"Auto-classifying chunk {chunk.id}")
+        
+        try:
+            # Use AutoNER classifier to determine domains for this chunk
+            classifier = AutoNER()
+            detected_domains = classifier.classify_chunk_with_llm(chunk.text, extractor.llm_client)
+            
+            # Get actual domain instances
+            domains = DomainFactory.use(detected_domains)
+            domain_names = detected_domains
+            
+            logger.info(f"Chunk {chunk.id} auto-classified to domains: {domain_names}")
+            
+        except Exception as e:
+            logger.error(f"❌ Auto-classification failed for chunk {chunk.id}: {e}")
+            # Fallback to literary domain
+            domains = DomainFactory.use(["literary"])
+            domain_names = ["literary"]
+            logger.info(f"Using fallback domain 'literary' for chunk {chunk.id}")
+    
+    # EXISTING MULTI-DOMAIN EXTRACTION LOGIC
     all_entities = []
     
     logger.info(f"Processing chunk {chunk.id} with {len(domains)} domains: {domain_names}")
@@ -48,7 +72,7 @@ def _extract_entities_from_chunk_multi_domain(extractor, chunk: TextChunk, domai
             logger.info(f"Domain '{domain_name}' extracted {raw_count} entities from chunk {chunk.id}")
             
         except Exception as e:
-            logger.error(f"Error extracting with domain '{domain_name}' for chunk {chunk.id}: {e}")
+            logger.error(f"❌ Error extracting with domain '{domain_name}' for chunk {chunk.id}: {e}")
             continue
     
     logger.info(f"Chunk {chunk.id}: Total {len(all_entities)} entities from {len(domains)} domains")
@@ -130,7 +154,7 @@ def _extract_entities_from_chunk_single_domain_old_flow(extractor, chunk: TextCh
         return valid_entities
         
     except Exception as e:
-        logger.error(f"Failed to extract entities from chunk {chunk.id} with domain '{domain_name}': {e}")
+        logger.error(f"❌ Failed to extract entities from chunk {chunk.id} with domain '{domain_name}': {e}")
         extractor.extraction_stats["failed_extractions"] += 1
         return []
 

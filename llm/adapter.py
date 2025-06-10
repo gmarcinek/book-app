@@ -26,7 +26,7 @@ class LLMClient:
         
         # Ustaw max_tokens - użyj maksimum dla modelu jeśli nie podano
         if max_tokens is None:
-            max_tokens = MODEL_MAX_TOKENS.get(model, 8000)
+            max_tokens = MODEL_MAX_TOKENS.get(model, 4000)
         
         self.config = LLMConfig(
             max_tokens=max_tokens,
@@ -61,14 +61,14 @@ class LLMClient:
     
     def get_max_tokens_for_model(self) -> int:
         """Zwróć maksymalną liczbę tokenów dla bieżącego modelu"""
-        return MODEL_MAX_TOKENS.get(self.model, 8000)
+        return MODEL_MAX_TOKENS.get(self.model, 4000)
     
     def get_model_info(self) -> Dict[str, Any]:
         """Zwróć informacje o modelu"""
         return {
             "model": self.model,
             "provider": self.provider.value,
-            "max_tokens_available": MODEL_MAX_TOKENS.get(self.model, 8000),
+            "max_tokens_available": MODEL_MAX_TOKENS.get(self.model, 4000),
             "current_config": {
                 "max_tokens": self.config.max_tokens,
                 "temperature": self.config.temperature,

@@ -7,7 +7,7 @@ from .models import ModelProvider
 @dataclass
 class LLMConfig:
     """Konfiguracja dla modeli LLM"""
-    max_tokens: int = 8000
+    max_tokens: int = 4000
     temperature: float = 0.0
     system_message: Optional[str] = None
     extra_params: Dict[str, Any] = None

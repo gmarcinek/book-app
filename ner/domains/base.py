@@ -57,7 +57,7 @@ class BaseNER(ABC):
         """Format entity types for prompts - can be customized per domain"""
         return ", ".join(self.get_entity_types())
     
-    def get_confidence_threshold(self) -> float:
+    def get_confidence_threshold(self, entity_type: str = None) -> float:
         """Minimum confidence threshold for this domain - can be customized"""
         return 0.5
 

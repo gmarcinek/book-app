@@ -3,7 +3,7 @@ NER Pipeline - Skompresowany text-to-knowledge processing
 """
 
 from pathlib import Path
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, List
 from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
@@ -23,6 +23,7 @@ def process_text_to_knowledge(
     model: str = Models.QWEN_CODER,
     config_path: str = "ner/ner_config.json",
     output_aggregated: bool = True,
+    domain_names: List[str] = None,
 ) -> Dict[str, Any]:
     """Process text to entities"""
     try:
@@ -39,7 +40,7 @@ def process_text_to_knowledge(
         aggregator.load_entity_index()
 
         # Extract
-        extractor = EntityExtractor(model, config_path)
+        extractor = EntityExtractor(model, config_path, domain_names)
         extractor.aggregator = aggregator
         entities = extractor.extract_entities(chunks)
         print(f"Extracted {len(entities)} entities")

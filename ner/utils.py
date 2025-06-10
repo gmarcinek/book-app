@@ -25,8 +25,8 @@ def load_ner_config(config_path: str = "ner/ner_config.json") -> Dict[str, Any]:
         print(f"Warning: Could not load config from {config_path}: {e}")
     
     return {
-        "max_tokens": 8000,
-        "chunk_size": 8000,
+        "max_tokens": 4000,
+        "chunk_size": 7000,
         "chunk_overlap": 400,
         "max_iterations": 100,
         "min_entity_length": 2,

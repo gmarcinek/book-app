@@ -1,5 +1,5 @@
 """
-Base Entity Extractor - multi-domain extraction with DomainFactory
+Base Entity Extractor - multi-domain extraction with Auto-Classification support
 """
 
 import logging
@@ -30,7 +30,7 @@ class ExtractedEntity:
     aliases: List[str] = None
     chunk_id: Optional[int] = None
     context: Optional[str] = None
-    domain: Optional[str] = None  # ← NOWE: która domena wyekstraktowała
+    domain: Optional[str] = None  # ← Which domain extracted this entity
     
     def __post_init__(self):
         """Initialize aliases as empty list if None"""
@@ -40,7 +40,7 @@ class ExtractedEntity:
 
 class EntityExtractor:
     """
-    Multi-domain entity extractor - iterates through domains for each chunk
+    Multi-domain entity extractor with auto-classification support
     """
     
     def __init__(self, 
@@ -53,24 +53,38 @@ class EntityExtractor:
         self.model = model
         self.llm_client = None
         
-        # ← NOWE: Multi-domain setup
+        # Handle domain names
         if domain_names is None:
-            domain_names = ["literary"]  # default domain
+            domain_names = ["literary", "liric"]
         
         self.domain_names = domain_names
-        self.domains = DomainFactory.use(domain_names)
         
-        logger.info(f"Initialized extractor with domains: {domain_names}")
+        # For auto mode, we don't pre-create domains (they'll be determined per chunk)
+        if domain_names == ["auto"]:
+            self.domains = []  # Will be populated per chunk
+            logger.info("Initialized extractor with auto-classification mode")
+        else:
+            # Regular multi-domain mode
+            self.domains = DomainFactory.use(domain_names)
+            logger.info(f"Initialized extractor with domains: {domain_names}")
         
-        # Stats per domain
+        # Stats - initialize with available domains for non-auto mode
+        if domain_names == ["auto"]:
+            # For auto mode, initialize with all possible domains
+            available_domains = ["literary", "liric"]
+        else:
+            available_domains = domain_names
+        
         self.extraction_stats = {
             "chunks_processed": 0,
-            "domains_used": len(self.domains),
+            "domains_used": len(self.domains) if self.domains else 0,
             "entities_extracted_raw": 0,
             "entities_extracted_valid": 0,
             "entities_rejected": 0,
             "failed_extractions": 0,
-            "by_domain": {name: {"raw": 0, "valid": 0, "rejected": 0} for name in domain_names}
+            "auto_classifications": 0,
+            "auto_classification_failures": 0,
+            "by_domain": {name: {"raw": 0, "valid": 0, "rejected": 0} for name in available_domains}
         }
         
         self.context_stats = {
@@ -83,7 +97,7 @@ class EntityExtractor:
             'meta_prompts_generated': 0,
             'meta_prompts_failed': 0,
             'fallback_to_standard_prompt': 0,
-            'by_domain': {name: {"generated": 0, "failed": 0} for name in domain_names}
+            'by_domain': {name: {"generated": 0, "failed": 0} for name in available_domains}
         }
     
     def _initialize_llm(self):
@@ -94,7 +108,7 @@ class EntityExtractor:
                 self.llm_client = LLMClient(self.model)
                 logger.info(f"Initialized LLM model: {self.model}")
             except Exception as e:
-                logger.error(f"Failed to initialize LLM: {e}")
+                logger.error(f"❌ Failed to initialize LLM: {e}")
                 raise
     
     def _call_llm(self, prompt: str, temperature: Optional[float] = None) -> str:
@@ -116,11 +130,11 @@ class EntityExtractor:
             return response
             
         except Exception as e:
-            logger.error(f"LLM call failed: {e}")
+            logger.error(f"❌ LLM call failed: {e}")
             raise
     
     def extract_entities(self, chunks: List[TextChunk]) -> List[ExtractedEntity]:
-        """Extract entities from multiple text chunks using all domains"""
+        """Extract entities from multiple text chunks using domains or auto-classification"""
         from .extraction import _extract_entities_from_chunk_multi_domain
         from .deduplication import _deduplicate_entities
         
@@ -128,18 +142,25 @@ class EntityExtractor:
         
         all_entities = []
         
-        logger.info(f"Starting multi-domain extraction from {len(chunks)} chunks using {len(self.domains)} domains")
+        if self.domain_names == ["auto"]:
+            logger.info(f"Starting auto-classification extraction from {len(chunks)} chunks")
+        else:
+            logger.info(f"Starting multi-domain extraction from {len(chunks)} chunks using {len(self.domains)} domains")
 
         if hasattr(self, "aggregator") is False and hasattr(chunks[0], "aggregator"):
             self.aggregator = chunks[0].aggregator
         
         for chunk in chunks:
             try:
-                # ← NOWE: Extract with all domains
+                # Extract with domains (or auto-classification)
                 entities = _extract_entities_from_chunk_multi_domain(self, chunk, self.domains, self.domain_names)
                 all_entities.extend(entities)
                 
                 self.extraction_stats["chunks_processed"] += 1
+                
+                # Track auto-classification stats
+                if self.domain_names == ["auto"]:
+                    self.extraction_stats["auto_classifications"] += 1
                 
                 # Log progress every 5 chunks
                 if self.extraction_stats["chunks_processed"] % 5 == 0:
@@ -149,7 +170,9 @@ class EntityExtractor:
                 log_memory_usage(f"After chunk {chunk.id}")
                 
             except Exception as e:
-                logger.error(f"Error processing chunk {chunk.id}: {e}")
+                logger.error(f"❌ Error processing chunk {chunk.id}: {e}")
+                if self.domain_names == ["auto"]:
+                    self.extraction_stats["auto_classification_failures"] += 1
                 continue
         
         # Deduplicate entities (across domains)
@@ -176,9 +199,22 @@ class EntityExtractor:
                             self.meta_prompt_stats['meta_prompts_generated'] 
                             if self.meta_prompt_stats['meta_prompts_generated'] > 0 else 0)
         
-        logger.info(f"Multi-domain extraction complete:")
-        logger.info(f"  Chunks processed: {self.extraction_stats['chunks_processed']}")
-        logger.info(f"  Domains used: {self.extraction_stats['domains_used']} {self.domain_names}")
+        # Mode-specific logging
+        if self.domain_names == ["auto"]:
+            auto_success_rate = ((self.extraction_stats["auto_classifications"] - 
+                                 self.extraction_stats["auto_classification_failures"]) / 
+                                self.extraction_stats["auto_classifications"] 
+                                if self.extraction_stats["auto_classifications"] > 0 else 0)
+            
+            logger.info(f"Auto-classification extraction complete:")
+            logger.info(f"  Chunks processed: {self.extraction_stats['chunks_processed']}")
+            logger.info(f"  Auto-classifications: {self.extraction_stats['auto_classifications']}")
+            logger.info(f"  Auto-classification success rate: {auto_success_rate:.1%}")
+        else:
+            logger.info(f"Multi-domain extraction complete:")
+            logger.info(f"  Chunks processed: {self.extraction_stats['chunks_processed']}")
+            logger.info(f"  Domains used: {self.extraction_stats['domains_used']} {self.domain_names}")
+        
         logger.info(f"  Raw entities: {self.extraction_stats['entities_extracted_raw']}")
         logger.info(f"  Valid entities: {self.extraction_stats['entities_extracted_valid']}")
         logger.info(f"  Final entities (after dedup): {len(deduplicated_entities)}")
@@ -186,15 +222,16 @@ class EntityExtractor:
         logger.info(f"  Context accuracy: {context_accuracy:.1%}")
         logger.info(f"  Meta-prompt success rate: {meta_success_rate:.1%}")
         
-        # ← NOWE: Per-domain stats
-        for domain_name in self.domain_names:
-            domain_stats = self.extraction_stats["by_domain"][domain_name]
+        # Per-domain stats (only for domains that were actually used)
+        domains_used = set(entity.domain for entity in deduplicated_entities if entity.domain)
+        for domain_name in domains_used:
+            domain_stats = self.extraction_stats["by_domain"].get(domain_name, {"raw": 0, "valid": 0})
             domain_rate = (domain_stats["valid"] / domain_stats["raw"] 
                           if domain_stats["raw"] > 0 else 0)
             logger.info(f"  Domain '{domain_name}': {domain_stats['raw']} raw → {domain_stats['valid']} valid ({domain_rate:.1%})")
     
     def get_extraction_stats(self) -> Dict[str, Any]:
-        """Get detailed extraction statistics including per-domain breakdown"""
+        """Get detailed extraction statistics including auto-classification"""
         stats = self.extraction_stats.copy()
         stats.update(self.context_stats)
         stats.update(self.meta_prompt_stats)
@@ -219,5 +256,12 @@ class EntityExtractor:
                                                 stats["meta_prompts_generated"])
         else:
             stats["meta_prompt_success_rate"] = 0
+        
+        # Auto-classification rates
+        if stats["auto_classifications"] > 0:
+            stats["auto_classification_success_rate"] = ((stats["auto_classifications"] - stats["auto_classification_failures"]) / 
+                                                        stats["auto_classifications"])
+        else:
+            stats["auto_classification_success_rate"] = 0
         
         return stats

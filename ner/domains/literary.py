@@ -1,61 +1,35 @@
 """
-Literary Domain Implementation - Backup/Fallback obecnego prompter systemu
-Implementuje wszystkie metody z BaseNER używając literary_consts.py
+Literary Domain Implementation - 1:1 Legacy Prompts
 """
 
 from typing import List, Dict, Any
+
+from ner.domains.literary_consts import LITERARY_PHENOMENON_STRUCTURE, LITERARY_PHENOMENON_TYPES, LITERARY_ENTITY_TYPES_FLAT
 from .base import BaseNER, DomainConfig
-from .literary_consts import (
-    LITERARY_ENTITY_TYPES_FLAT,
-    LITERARY_META_ANALYSIS_CONTEXT,
-    LITERARY_EXTRACTION_RULES,
-    LITERARY_CONFIDENCE_GUIDE,
-    LITERARY_SPECIAL_INSTRUCTIONS,
-    LITERARY_ALIASES_EXAMPLES,
-    LITERARY_JSON_TEMPLATE,
-    format_literary_entity_types,
-    format_literary_phenomenon_lines,
-    get_literary_confidence_threshold
-)
 
 
 class LiteraryNER(BaseNER):
-    """
-    Literary/Autobiographical Domain NER
-    Backup/fallback implementation of current prompter system
-    """
+    """Literary Domain with exact legacy prompts"""
     
     def __init__(self):
         config = DomainConfig(
             name="literary",
             entity_types=LITERARY_ENTITY_TYPES_FLAT,
-            confidence_threshold=0.3,  # Lower for psychological content
+            confidence_threshold=0.3,
         )
         super().__init__(config)
     
     def get_entity_types(self) -> List[str]:
-        """Get domain-specific entity types"""
         return LITERARY_ENTITY_TYPES_FLAT
     
-    def get_confidence_threshold(self, entity_type: str = None) -> float:
-        """Get confidence threshold for entity type"""
-        if entity_type:
-            return get_literary_confidence_threshold(entity_type)
-        return self.config.confidence_threshold
-    
     def get_meta_analysis_prompt(self, text: str) -> str:
-        """
-        META-PROMPT: Analizuje chunk i generuje spersonalizowany prompt NER
-        Backup implementation of meta_analysis.py
-        """
-        entity_types_str = format_literary_entity_types()
+        """META-PROMPT: 1:1 copy from legacy meta_analysis.py"""
+        entity_types_str = ", ".join(LITERARY_ENTITY_TYPES_FLAT)
         
         prompt = f"""Jesteś ekspertem od Named Entity Recognition. Twoim zadaniem jest przeanalizować podany fragment tekstu i utworzyć SPERSONALIZOWANY PROMPT do ekstrakcji encji specjalnie dopasowany do tego konkretnego fragmentu.
 
 FRAGMENT TEKSTU DO ANALIZY:
 {text}
-
-{LITERARY_META_ANALYSIS_CONTEXT}
 
 TWOJE ZADANIA:
 1. PRZEANALIZUJ treść fragmentu pod kątem:
@@ -104,24 +78,32 @@ WYGENERUJ TERAZ SPERSONALIZOWANY PROMPT:"""
         return prompt
     
     def get_base_extraction_prompt(self, text: str) -> str:
-        """
-        Standard entity extraction prompt (FALLBACK)
-        Backup implementation of entity_extraction.py
-        """
-        entity_types_str = format_literary_entity_types()
-        phenomenon_examples = format_literary_phenomenon_lines()
+        """FALLBACK: 1:1 copy from legacy entity_extraction.py"""
+        entity_types_str = ", ".join(LITERARY_ENTITY_TYPES_FLAT)
+        phenomenon_examples = self._format_phenomenon_lines()
         
         prompt = f"""Zidentyfikuj konkretne encje w tekście według ścisłych kryteriów.
 
 TEKST:
 {text}
 
-{LITERARY_EXTRACTION_RULES}
+ZASADY EKSTRAKCJI:
+1. Tylko encje jawnie obecne lub logicznie implikowane w tekście
+2. Forma podstawowa (mianownik, liczba pojedyncza)
+3. Uwzględnij BRAKI jako pełnoprawne encje
+4. FENOMENY psychiczne ze strukturą "TYP: podtyp -> treść" jako typ "FENOMENON"
+5. SCENY jako spójne fragmenty akcji z lokacją, postaciami i tematyką
+6. DIALOGI jako rozmowy między postaciami (obiektywne fakty)
 
 DOSTĘPNE TYPY ENCJI:
 {entity_types_str}
 
-{LITERARY_CONFIDENCE_GUIDE}
+SZACOWANIE CONFIDENCE - bądź realistyczny:
+- 0.9+ = wyraźnie nazwane, jednoznaczne (Jan Kowalski, konkretne przedmioty)
+- 0.7-0.9 = jasne z kontekstu, opisane szczegółowo
+- 0.5-0.7 = domniemane, wywnioskowane pośrednio  
+- 0.3-0.5 = abstrakcyjne, metaforyczne, fenomeny psychiczne
+- 0.1-0.3 = bardzo niepewne, wymagające weryfikacji
 
 STRUKTURA FENOMENÓW:
 {phenomenon_examples}
@@ -132,22 +114,45 @@ ENCJE STRUKTURALNE:
 - DIALOG: rozmowa między postaciami jako obiektywny fakt
   Przykład: "dialog_narratora_z_matką_o_jutrzejszych_planach"
 
-{LITERARY_SPECIAL_INSTRUCTIONS}
+INSTRUKCJE SPECJALNE:
+- "brak piekarnika" → encja: "piekarnik" (typ: PRZEDMIOT) + "brak" (typ: BRAK)
+- "MYŚL: retrospekcja -> nie miałem czasu" → encja: "myśl_retrospektywna_braku_czasu" (typ: FENOMENON)
+- "zimny posiłek" → encja: "posiłek" (typ: JEDZENIE) z właściwością "zimny"
+- ALIASES: dodaj wszystkie warianty nazwy z tekstu (np. "Jan Kowalski" → aliases: ["Jan", "Kowalski", "JK"])
 
-{LITERARY_ALIASES_EXAMPLES}
+PRZYKŁADY ALIASES:
+- Osoba: "Jan Kowalski" → aliases: ["Jan", "Kowalski", "JK", "Janek"]
+- Miejsce: "Warszawa" → aliases: ["stolica", "WWA", "miasto"]
+- Organizacja: "Uniwersytet Warszawski" → aliases: ["UW", "uniwersytet", "uczelnia"]
+- Przedmiot: "komputer" → aliases: ["laptop", "PC", "maszyna"]
+- Scena: "rozmowa_w_ogrodzie" → aliases: ["scena_w_ogrodzie", "dialog_na_zewnątrz"]
+- Dialog: "rozmowa_z_sąsiadem" → aliases: ["dialog_z_sąsiadem", "konwersacja"]
 
 FORMAT - TYLKO JSON:
-{LITERARY_JSON_TEMPLATE}
+{{
+  "entities": [
+    {{
+      "name": "nazwa_w_formie_podstawowej",
+      "type": "TYP_Z_LISTY_WYŻEJ",
+      "description": "definicja encji 3-5 zdań z uwzględnieniem kontekstu otaczającego",
+      "confidence": 0.X, // 0.2=bardzo niepewne, 0.5=umiarkowane, 0.8=pewne, 0.95=oczywiste
+      "context": "fragment_tekstu_gdzie_wystepuje",
+      "aliases": ["wariant1", "wariant2", "skrót"],
+      "phenomenon_structure": {{
+        "main_type": "MYŚL",
+        "subtype": "retrospekcja", 
+        "content": "nie miałem wtedy czasu"
+      }} // tylko dla typu FENOMENON
+    }}
+  ]
+}}
 
 JSON:"""
         return prompt
     
     def build_custom_extraction_prompt(self, text: str, custom_instructions: str) -> str:
-        """
-        Buduje finalny prompt do ekstrakcji używając custom instructions z meta-prompt
-        Backup implementation of custom_extraction.py
-        """
-        entity_types_str = format_literary_entity_types()
+        """Custom extraction: 1:1 copy from legacy custom_extraction.py"""
+        entity_types_str = ", ".join(LITERARY_ENTITY_TYPES_FLAT)
         
         final_prompt = f"""{custom_instructions}
 
@@ -158,51 +163,86 @@ DOSTĘPNE TYPY ENCJI (użyj tylko z tej listy):
 {entity_types_str}
 
 WYMAGANY FORMAT JSON:
-{LITERARY_JSON_TEMPLATE}
+{{
+  "entities": [
+    {{
+      "name": "nazwa_w_formie_podstawowej",
+      "type": "TYP_Z_LISTY_WYŻEJ",
+      "description": "definicja encji 3-5 zdań z uwzględnieniem kontekstu",
+      "confidence": 0.85,
+      "context": "fragment_tekstu_gdzie_wystepuje",
+      "aliases": ["wariant1", "wariant2", "skrót"],
+      "phenomenon_structure": {{
+        "main_type": "MYŚL",
+        "subtype": "retrospekcja", 
+        "content": "szczegóły fenomenu"
+      }} // tylko dla typu FENOMENON
+    }}
+  ]
+}}
 
 WYKONAJ EKSTRAKCJĘ - ZWRÓĆ TYLKO JSON:"""
         
         return final_prompt
     
-    def validate_entity(self, entity_data: Dict[str, Any]) -> bool:
-        """Validate extracted entity for literary domain"""
-        # Basic validation
-        if not entity_data.get('name') or not entity_data.get('type'):
-            return False
-        
-        # Check if entity type is in allowed list
-        if entity_data['type'] not in self.get_entity_types():
-            return False
-        
-        # Confidence validation
-        confidence = entity_data.get('confidence', 0.0)
-        if confidence < 0.1 or confidence > 1.0:
-            return False
-        
-        # Literary-specific validation
-        entity_type = entity_data['type']
-        min_confidence = self.get_confidence_threshold(entity_type)
-        
-        # Allow lower confidence for psychological content
-        if entity_type in ['FENOMENON', 'EMOCJA', 'MYŚL'] and confidence >= 0.2:
-            return True
-        
-        return confidence >= min_confidence
-    
     def should_use_cleaning(self) -> bool:
-        """Whether this domain should use semantic cleaning"""
-        return False  # Literary domain preserves raw text nuances
+        return False
     
-    def get_domain_specific_config(self) -> Dict[str, Any]:
-        """Get domain-specific configuration"""
-        return {
-            "uses_phenomena": True,
-            "supports_psychological_states": True,
-            "supports_retrospection": True,
-            "supports_scenes_and_dialogs": True,
-            "confidence_strategy": "permissive_for_psychology",
-            "aliases_required": True,
-            "context_heavy": True,
-            "preserves_raw_text": True,  # No semantic cleaning
-            "uses_cleaning": False
-        }
+    def get_cleaning_prompt(self, text: str) -> str:
+        """Semantic cleaning: 1:1 copy from legacy semantic_cleaning.py"""
+        phenomenon_examples = self._format_phenomenon_lines()
+        
+        prompt = f"""Przekształć poniższy fragment wspomnieniowego tekstu autobiograficznego
+w sformalizowaną scenę nadającą się do ekstrakcji encji i fenomenów.
+
+TEKST DO ANALIZY:
+{text}
+
+ZASADY PRZETWARZANIA:
+1. bądź wnikliwy
+2. Zachowaj konkretne obiekty, miejsca, osoby, wydarzenia, BRAKI, myśli i stany psychiczne
+3. Zidentyfikuj fenomeny psychiczne i oznacz je strukturalnie:
+{phenomenon_examples}
+4. Używaj formatu: TYP_FENOMENU: podtyp -> konkretna treść
+5. Każde oznaczenie fenomenu jako osobne zdanie
+6. Język neutralny, bez metafor i poetyckości
+7. Nie dodawaj faktów - tylko parafrazuj istniejące
+8. Czas bezczasowy (prezentacyjny) zamiast przeszłego
+
+FORMAT: czysty tekst z oznaczeniami fenomenów
+
+PRZYKŁAD TRANSFORMACJI:
+Input: "Nie miałem piekarnika. Zresztą i tak nie miałbym czasu. Zjadłem coś na zimno."
+Output: Brak piekarnika w mieszkaniu. MYŚL: retrospekcja -> wtedy nie miałem czasu na gotowanie. Zjedzenie zimnego posiłku zamiast gotowania.
+
+TWOJA TRANSFORMACJA:"""
+        return prompt
+    
+    def _format_phenomenon_lines(self):
+        """Format structured phenomenon types for prompt - legacy format_phenomenon_lines()"""
+        lines = [
+            f"FORMATY FENOMENÓW:",
+            f"- Bez podmiotu: {LITERARY_PHENOMENON_STRUCTURE['format']}",
+            f"- Z podmiotem: {LITERARY_PHENOMENON_STRUCTURE['format_with_subject']}",
+            "",
+            "PRZYKŁADY Z PODMIOTAMI:",
+            "- MYŚL: retrospekcja -> [narrator] nie miałem wtedy czasu na gotowanie",
+            "- EMOCJA: podstawowa -> [mieszkańcy] cieszenie się z prądu", 
+            "- KOMPENSACJA: -> [narrator] zjedzenie tortu w cukierni",
+            "",
+            "ROZPOZNAWANIE PODMIOTÓW Z TEKSTU:",
+            "- 'ja', 'nie mam', 'myślę' → [narrator]",
+            "- 'my', 'mamy', 'cieszmy się' → [mieszkańcy]", 
+            "- konkretne imiona/role → [imię/rola]",
+            "- gdy nieznany podmiot → brak nawiasów lub [narrator]",
+            "",
+            "DOSTĘPNE TYPY I PODTYPY:"
+        ]
+        
+        for category, phenomena in list(LITERARY_PHENOMENON_TYPES.items())[:2]:  # Limit for prompt
+            lines.append(f"• {category.upper()}:")
+            for phenom_type, subtypes in phenomena.items():
+                subtypes_str = ", ".join(subtypes[:3])  # Limit subtypes
+                lines.append(f"  - {phenom_type}: {subtypes_str}")
+        
+        return "\n".join(lines)

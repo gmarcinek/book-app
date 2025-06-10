@@ -46,9 +46,9 @@ def _parse_llm_response(response: str) -> List[Dict[str, Any]]:
         return entities
             
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse JSON response: {e}")
-        logger.error(f"Raw response (first 300 chars): {response[:300]}")
+        logger.error(f"❌ Failed to parse JSON response: {e}")
+        logger.error(f"❌ Raw response (first 300 chars): {response[:300]}")
         return []
     except Exception as e:
-        logger.error(f"Error parsing LLM response: {e}")
+        logger.error(f"❌ Error parsing LLM response: {e}")
         return []
