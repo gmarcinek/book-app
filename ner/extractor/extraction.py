@@ -1,5 +1,5 @@
 """
-Multi-domain entity extraction from chunks
+Entity extraction from chunks - Updated to use multi-domain with preserved old flow
 """
 from pathlib import Path
 from datetime import datetime
@@ -7,7 +7,7 @@ import logging
 from typing import List
 from ..chunker import TextChunk
 from ..domains import BaseNER
-from .meta_prompt import _parse_custom_prompt
+from .meta_prompt import _build_chunk_analysis_prompt, _parse_custom_prompt, _build_custom_extraction_prompt, _build_extraction_prompt
 from .parsing import _parse_llm_response
 from .validation import _validate_and_clean_entity
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def _extract_entities_from_chunk_multi_domain(extractor, chunk: TextChunk, domains: List[BaseNER], domain_names: List[str]) -> List:
     """
     Extract entities from chunk using multiple domains
-    Iterates through all domains and aggregates results
+    Iterates through all domains and aggregates results - PRESERVED OLD FLOW
     """
     all_entities = []
     
@@ -27,8 +27,8 @@ def _extract_entities_from_chunk_multi_domain(extractor, chunk: TextChunk, domai
         try:
             logger.info(f"Extracting with domain '{domain_name}' for chunk {chunk.id}")
             
-            # Extract entities using single domain
-            entities_from_domain = _extract_entities_from_chunk_single_domain(
+            # Extract entities using PRESERVED OLD FLOW
+            entities_from_domain = _extract_entities_from_chunk_single_domain_old_flow(
                 extractor, chunk, domain, domain_name
             )
             
@@ -55,14 +55,14 @@ def _extract_entities_from_chunk_multi_domain(extractor, chunk: TextChunk, domai
     return all_entities
 
 
-def _extract_entities_from_chunk_single_domain(extractor, chunk: TextChunk, domain: BaseNER, domain_name: str) -> List:
+def _extract_entities_from_chunk_single_domain_old_flow(extractor, chunk: TextChunk, domain: BaseNER, domain_name: str) -> List:
     """
-    Extract entities from chunk using single domain
-    Uses domain-specific prompts and strategies
+    Extract entities from chunk using single domain - PRESERVED OLD FLOW
+    This is the same logic as old _extract_entities_from_chunk() but domain-aware
     """
     try:
-        # KROK 1: Meta-analysis using domain-specific prompt
-        meta_prompt = domain.get_meta_analysis_prompt(chunk.text)
+        # ← KROK 1: ROZGRZEWKA - analiza chunka i generowanie custom promptu (OLD FLOW)
+        meta_prompt = _build_chunk_analysis_prompt(chunk.text, domain)  # ← DOMAIN-AWARE
         _log_prompt(extractor, meta_prompt, chunk.id, f"meta_prompt_{domain_name}")
         
         meta_response = extractor._call_llm(meta_prompt, extractor.extractor_config.get_meta_analysis_temperature())
@@ -75,12 +75,12 @@ def _extract_entities_from_chunk_single_domain(extractor, chunk: TextChunk, doma
         custom_instructions = _parse_custom_prompt(meta_response)
         
         if custom_instructions:
-            # KROK 2A: Custom extraction using domain-specific template
-            prompt = domain.build_custom_extraction_prompt(chunk.text, custom_instructions)
+            # ← KROK 2A: EXTRACTION z custom promptem (OLD FLOW)
+            prompt = _build_custom_extraction_prompt(chunk.text, custom_instructions, domain)  # ← DOMAIN-AWARE
             logger.info(f"Using custom prompt for chunk {chunk.id}, domain '{domain_name}'")
         else:
-            # KROK 2B: Fallback to domain base prompt
-            prompt = domain.get_base_extraction_prompt(chunk.text)
+            # ← KROK 2B: FALLBACK do standardowego promptu (OLD FLOW)
+            prompt = _build_extraction_prompt(chunk.text, domain)  # ← DOMAIN-AWARE
             _log_prompt(extractor, prompt, chunk.id, f"extraction_prompt_{domain_name}")
             
             extractor.meta_prompt_stats['meta_prompts_failed'] += 1
@@ -89,20 +89,21 @@ def _extract_entities_from_chunk_single_domain(extractor, chunk: TextChunk, doma
             
             logger.warning(f"Meta-prompt failed for chunk {chunk.id}, domain '{domain_name}', using fallback")
         
-        # Call LLM for actual extraction
+        # Call LLM for actual extraction (OLD FLOW)
         response = extractor._call_llm(prompt, extractor.extractor_config.get_entity_extraction_temperature())
         _log_response(extractor, response, chunk.id, f"extraction_prompt_{domain_name}")
         
-        # Parse response
+        # Parse response (OLD FLOW)
         raw_entities = _parse_llm_response(response)
         extractor.extraction_stats["entities_extracted_raw"] += len(raw_entities)
         
-        # Validate and convert to ExtractedEntity objects
+        # Validate and convert to ExtractedEntity objects (OLD FLOW + DOMAIN VALIDATION)
         valid_entities = []
         for entity_data in raw_entities:
-            cleaned_entity = _validate_and_clean_entity(entity_data)
+            cleaned_entity = _validate_and_clean_entity(entity_data, domain)  # ← DOMAIN-AWARE VALIDATION
             
             if cleaned_entity:
+                
                 # Find entity context
                 entity_context = _find_entity_context(cleaned_entity['name'], chunk.text)
                 
@@ -132,6 +133,7 @@ def _extract_entities_from_chunk_single_domain(extractor, chunk: TextChunk, doma
         logger.error(f"Failed to extract entities from chunk {chunk.id} with domain '{domain_name}': {e}")
         extractor.extraction_stats["failed_extractions"] += 1
         return []
+
 
 def _find_entity_context(entity_name: str, chunk_text: str, context_window: int = 100) -> str:
     """Find context around entity in chunk text"""

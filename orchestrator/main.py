@@ -232,7 +232,6 @@ def main():
                 model=args.model,
                 config_path=args.config,
                 output_aggregated=not args.no_aggregation,
-                clean_semantically=args.clean,
             )
         else:
             # Single file processing
@@ -242,7 +241,6 @@ def main():
                 model=args.model,
                 config_path=args.config,
                 output_aggregated=not args.no_aggregation,
-                clean_semantically=args.clean,
             )
         
         # Print results

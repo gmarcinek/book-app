@@ -1,6 +1,5 @@
 """
-NER Utils - Memory monitoring, validation, ID generation
-Memory-safe utilities for NER processing
+NER Utils - Memory monitoring, validation, ID generation, simple JSON parsing
 """
 
 import os
@@ -8,8 +7,11 @@ import json
 import time
 import hashlib
 import psutil
+import logging
 from pathlib import Path
 from typing import Dict, Any, Optional, List
+
+logger = logging.getLogger(__name__)
 
 
 def load_ner_config(config_path: str = "ner/ner_config.json") -> Dict[str, Any]:
@@ -22,7 +24,6 @@ def load_ner_config(config_path: str = "ner/ner_config.json") -> Dict[str, Any]:
     except Exception as e:
         print(f"Warning: Could not load config from {config_path}: {e}")
     
-    # Fallback defaults
     return {
         "max_tokens": 8000,
         "chunk_size": 8000,
@@ -46,7 +47,7 @@ def log_memory_usage(stage: str = ""):
 
 def generate_entity_id(name: str, entity_type: str) -> str:
     """Generate unique entity ID"""
-    timestamp = str(int(time.time() * 1000000))  # microsecond precision
+    timestamp = str(int(time.time() * 1000000))
     hash_input = f"{name}_{entity_type}_{timestamp}"
     hash_suffix = hashlib.md5(hash_input.encode()).hexdigest()[:8]
     return f"ent.{timestamp}.{hash_suffix}"
@@ -83,7 +84,6 @@ def validate_text_content(text: str) -> bool:
     if not text_stripped:
         return False
     
-    # Check reasonable size (not too big for memory)
     max_size = 50 * 1024 * 1024  # 50MB text limit
     return len(text_stripped.encode('utf-8')) <= max_size
 
@@ -121,7 +121,6 @@ def cleanup_text(text: str) -> str:
     if not text:
         return ""
     
-    # Remove extra whitespace and normalize line endings
     cleaned = " ".join(text.split())
     return cleaned.strip()
 
@@ -131,21 +130,17 @@ def safe_filename(name: str, max_length: int = 50) -> str:
     if not name:
         return "unnamed"
     
-    # Remove unsafe characters
     safe_name = "".join(c for c in name if c.isalnum() or c in "._- ")
     safe_name = safe_name.replace(" ", "_").strip("._-")
     
-    # Truncate if too long
     if len(safe_name) > max_length:
         safe_name = safe_name[:max_length].rstrip("._-")
     
     return safe_name or "unnamed"
 
+
 def load_entities_from_directory(entities_dir: Path) -> List[Dict[str, Any]]:
-    """
-    Load all JSON entity files from the given directory and return them as a list of dicts.
-    Ignores non-JSON files and errors on invalid JSON.
-    """
+    """Load all JSON entity files from directory"""
     entities = []
     for file in entities_dir.glob("*.json"):
         try:
@@ -155,3 +150,26 @@ def load_entities_from_directory(entities_dir: Path) -> List[Dict[str, Any]]:
         except Exception as e:
             print(f"[WARN] Failed to load entity file {file.name}: {e}")
     return entities
+
+
+# === SIMPLE JSON PARSING FOR LLM RESPONSES ===
+
+def parse_llm_json_response(response: str, expected_key: str = None) -> Optional[dict]:
+    """Simple JSON parsing for LLM responses - no overthinking"""
+    try:
+        if not response or '{' not in response:
+            return None
+        
+        # Basic cleanup only
+        clean = response.strip().replace('```json', '').replace('```', '')
+        clean = clean.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+        
+        data = json.loads(clean)
+        
+        if expected_key and expected_key not in data:
+            return None
+        
+        return data
+        
+    except Exception:
+        return None  # Just fallback, don't log noise

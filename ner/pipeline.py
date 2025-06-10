@@ -13,7 +13,6 @@ from .loaders import DocumentLoader, LoadedDocument
 from .chunker import TextChunker
 from .extractor import EntityExtractor
 from .aggregation import GraphAggregator
-from .llm_utils import call_llm_semantic_cleaning
 
 class NERProcessingError(Exception):
     pass
@@ -24,20 +23,12 @@ def process_text_to_knowledge(
     model: str = Models.QWEN_CODER,
     config_path: str = "ner/ner_config.json",
     output_aggregated: bool = True,
-    clean_semantically: bool = False
 ) -> Dict[str, Any]:
     """Process text to entities"""
     try:
         # Load
         document = DocumentLoader().load_document(input_source) if isinstance(input_source, str) else input_source
         print(f"Loaded: {len(document.content):,} chars from {Path(document.source_file).name}")
-        
-        # Clean
-        if clean_semantically:
-            print("🔍 Czyszczenie semantyczne...")
-            document.content = call_llm_semantic_cleaning(document.content, model)
-            print(f"✅ Po czyszczeniu: {len(document.content):,} znaków")
-            _save_cleaned_text(document, entities_dir)
 
         # Chunk
         chunks = TextChunker(config_path).chunk_text(document.content)

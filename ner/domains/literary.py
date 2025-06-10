@@ -7,15 +7,12 @@ from typing import List, Dict, Any
 from .base import BaseNER, DomainConfig
 from .literary_consts import (
     LITERARY_ENTITY_TYPES_FLAT,
-    LITERARY_CONFIDENCE_THRESHOLDS,
     LITERARY_META_ANALYSIS_CONTEXT,
     LITERARY_EXTRACTION_RULES,
     LITERARY_CONFIDENCE_GUIDE,
     LITERARY_SPECIAL_INSTRUCTIONS,
     LITERARY_ALIASES_EXAMPLES,
     LITERARY_JSON_TEMPLATE,
-    LITERARY_CLEANING_RULES,
-    LITERARY_CLEANING_EXAMPLE,
     format_literary_entity_types,
     format_literary_phenomenon_lines,
     get_literary_confidence_threshold
@@ -33,7 +30,6 @@ class LiteraryNER(BaseNER):
             name="literary",
             entity_types=LITERARY_ENTITY_TYPES_FLAT,
             confidence_threshold=0.3,  # Lower for psychological content
-            description="Autobiographical and literary text analysis"
         )
         super().__init__(config)
     

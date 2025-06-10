@@ -1,20 +1,20 @@
 """
-NER (Named Entity Recognition) Package - Uproszczona wersja
+NER (Named Entity Recognition) Package - Domain-based version
 
-A simplified package for extracting entities from text using LLMs.
-Supports multiple document formats and provides basic knowledge representation.
+A multi-domain package for extracting entities from text using LLMs.
+Supports multiple document formats and domain-specific extraction strategies.
 """
 
-# Import all components (bez relacji)
+# Import all components
 from .loaders import DocumentLoader, LoadedDocument, load_text
 from .chunker import TextChunker, TextChunk
 from .extractor import EntityExtractor
 from .aggregation import GraphAggregator
 from .resolver import EntityResolver  # Placeholder
 from .utils import load_ner_config, log_memory_usage
-from .prompt import NERPrompt
-from .consts import ENTITY_TYPES, PHENOMENON_PREFIXES
-from .llm_utils import call_llm_semantic_cleaning
+
+# Import domain system
+from .domains import DomainFactory, BaseNER, DomainConfig
 
 # Import main pipeline functions
 from .pipeline import (
@@ -26,10 +26,10 @@ from .pipeline import (
 )
 
 # Version info
-__version__ = "0.3.0"  # Bumped version for simplified release
+__version__ = "0.4.0"  # Bumped version for domain-based release
 __author__ = "NER Team"
 
-# Public API - uproszczone
+# Public API - domain-based
 __all__ = [
     # Main pipeline functions
     'process_text_to_knowledge',
@@ -38,12 +38,17 @@ __all__ = [
     'validate_configuration',
     'NERProcessingError',
     
-    # Core components (bez relationships i validation)
+    # Core components
     'EntityExtractor',
     'GraphAggregator',
     'EntityResolver',  # Placeholder
     'TextChunker',
     'DocumentLoader',
+    
+    # Domain system
+    'DomainFactory',
+    'BaseNER',
+    'DomainConfig',
     
     # Data classes
     'TextChunk',
@@ -53,10 +58,6 @@ __all__ = [
     'load_text',
     'load_ner_config',
     'log_memory_usage',
-    'NERPrompt',
-    'ENTITY_TYPES',
-    'PHENOMENON_PREFIXES',
-    'call_llm_semantic_cleaning',
     
     # Version
     '__version__'
