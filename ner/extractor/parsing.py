@@ -35,20 +35,20 @@ def _parse_llm_response(response: str) -> List[Dict[str, Any]]:
         elif isinstance(data, list):
             entities = data
         else:
-            logger.warning(f"Unexpected response format: {type(data)}")
+            logger.warning(f"⚠️ Unexpected response format: {type(data)}")
             return []
         
         # Ensure entities is a list
         if not isinstance(entities, list):
-            logger.warning(f"Entities is not a list: {type(entities)}")
+            logger.warning(f"⚠️ Entities is not a list: {type(entities)}")
             return []
         
         return entities
             
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse JSON response: {e}")
-        logger.error(f"Raw response (first 300 chars): {response[:300]}")
+        logger.error(f"❌ Failed to parse JSON response: {e}")
+        logger.error(f"❌ Raw response (first 300 chars): {response[:300]}")
         return []
     except Exception as e:
-        logger.error(f"Error parsing LLM response: {e}")
+        logger.error(f"❌ Error parsing LLM response: {e}")
         return []

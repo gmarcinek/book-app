@@ -22,7 +22,7 @@ class ExtractorConfig:
                 with open(config_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
         except Exception as e:
-            print(f"Warning: Could not load extractor config from {self.config_path}: {e}")
+            print(f"⚠️ Warning: Could not load extractor config from {self.config_path}: {e}")
         
         # Fallback defaults
         return self._get_default_config()
@@ -31,24 +31,28 @@ class ExtractorConfig:
         """Default configuration"""
         return {
             "extraction": {
-                "max_tokens": 8000,
-                "meta_analysis_temperature": 0.1,
-                "entity_extraction_temperature": 0.0
+                "max_tokens": 4096,
+                "meta_analysis_temperature": 0.0,
+                "entity_extraction_temperature": 0.0,
+                "meta_prompt_mode": "raw"
             }
         }
     
     def get_meta_analysis_temperature(self) -> float:
         """Get temperature for meta-analysis phase"""
-        return self.config.get("extraction", {}).get("meta_analysis_temperature", 0.3)
+        return self.config.get("extraction", {}).get("meta_analysis_temperature", 0.0)
     
     def get_entity_extraction_temperature(self) -> float:
         """Get temperature for entity extraction phase"""
-        return self.config.get("extraction", {}).get("entity_extraction_temperature", 0.1)
+        return self.config.get("extraction", {}).get("entity_extraction_temperature", 0.0)
     
     def get_max_tokens(self) -> int:
         """Get max tokens for extraction"""
-        return self.config.get("extraction", {}).get("max_tokens", 8000)
+        return self.config.get("extraction", {}).get("max_tokens", 4096)
     
     def get_config(self) -> Dict[str, Any]:
         """Get full configuration"""
         return self.config.copy()
+    
+    def get_meta_prompt_mode(self) -> str:
+        return self.config.get("meta_prompt_mode", "raw")

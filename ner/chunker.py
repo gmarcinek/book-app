@@ -32,7 +32,7 @@ class TextChunker:
     
     def __init__(self, config_path: str = "ner/ner_config.json"):
         self.config = load_ner_config(config_path)
-        self.chunk_size = self.config.get("chunk_size", 8000)
+        self.chunk_size = self.config.get("chunk_size", 9000)
         self.overlap_size = self.config.get("chunk_overlap", 400)
         self.max_iterations = self.config.get("max_iterations", 100)
     

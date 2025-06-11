@@ -1,18 +1,22 @@
 """
-Walidacja danych: _validate_and_clean_entity()
+Walidacja danych: _validate_and_clean_entity() - Domain-aware version
 """
 
 import logging
 from typing import Dict, Any, Optional
 from ..utils import validate_entity_name, validate_entity_type
-from ..consts import ENTITY_TYPES_FLAT as ENTITY_TYPES
+from ..domains import BaseNER
 
 logger = logging.getLogger(__name__)
 
 
-def _validate_and_clean_entity(entity_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _validate_and_clean_entity(entity_data: Dict[str, Any], domain: BaseNER = None) -> Optional[Dict[str, Any]]:
     """
-    Validate and clean entity data + aliases
+    Validate and clean entity data + aliases using domain-specific rules
+    
+    Args:
+        entity_data: Raw entity data from LLM
+        domain: Domain instance for domain-specific validation
     
     Returns:
         Cleaned entity dict or None if invalid
@@ -33,10 +37,22 @@ def _validate_and_clean_entity(entity_data: Dict[str, Any]) -> Optional[Dict[str
         logger.info(f"Invalid entity name: '{name}'")
         return None
     
-    # Validate type
-    if entity_type not in ENTITY_TYPES:
-        logger.info(f"Invalid entity type: '{entity_type}' (valid types: {ENTITY_TYPES})")
-        return None
+    # Domain-specific entity type validation
+    if domain:
+        valid_types = domain.get_entity_types()
+        if entity_type not in valid_types:
+            logger.info(f"Invalid entity type '{entity_type}' for domain '{domain.config.name}' (valid: {valid_types[:5]}...)")
+            return None
+        
+        # Additional domain-specific validation
+        if hasattr(domain, 'validate_entity') and not domain.validate_entity(entity_data):
+            logger.info(f"Entity '{name}' rejected by domain '{domain.config.name}' validation")
+            return None
+    else:
+        # Fallback: use basic type validation
+        if not validate_entity_type(entity_type):
+            logger.info(f"Invalid entity type: '{entity_type}'")
+            return None
     
     # Clean and validate description
     description = str(entity_data.get('description', '')).strip()
@@ -49,12 +65,17 @@ def _validate_and_clean_entity(entity_data: Dict[str, Any]) -> Optional[Dict[str
     except (ValueError, TypeError):
         confidence = 0.5
     
-    # Reject entities with very low confidence
-    if confidence < 0.3:
-        logger.info(f"Rejected low confidence entity: {name} ({confidence})")
+    # Domain-specific confidence threshold
+    min_confidence = 0.3  # Default
+    if domain:
+        min_confidence = domain.get_confidence_threshold(entity_type)
+    
+    # Reject entities with confidence below domain threshold
+    if confidence < min_confidence:
+        logger.info(f"Rejected low confidence entity: {name} ({confidence:.2f} < {min_confidence:.2f}) for domain {domain.config.name if domain else 'default'}")
         return None
     
-    # ← NOWE: Validate and clean aliases
+    # Validate and clean aliases
     aliases = entity_data.get('aliases', [])
     if not isinstance(aliases, list):
         aliases = []
@@ -74,5 +95,5 @@ def _validate_and_clean_entity(entity_data: Dict[str, Any]) -> Optional[Dict[str
         'type': entity_type,
         'description': description,
         'confidence': confidence,
-        'aliases': cleaned_aliases  # ← NOWE
+        'aliases': cleaned_aliases
     }

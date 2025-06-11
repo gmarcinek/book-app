@@ -50,6 +50,10 @@ Examples:
             Models.QWEN_CODER_32B, 
             Models.CODESTRAL,
             Models.CLAUDE_4_SONNET,
+            Models.CLAUDE_4_OPUS,
+            Models.CLAUDE_3_5_SONNET,
+            Models.CLAUDE_3_5_HAIKU,
+            Models.CLAUDE_3_HAIKU,
             Models.GPT_4O,
             Models.GPT_4O_MINI,
             Models.GPT_4_1_MINI
@@ -69,6 +73,13 @@ Examples:
         "--config",
         default="ner/ner_config.json",
         help="Path to NER config file (default: ner/ner_config.json)"
+    )
+    
+    parser.add_argument(
+        "--domains", "-d",
+        nargs="+",
+        default=["auto"], 
+        help="Domains to use: literary, liric, auto (default: auto)"  # ← POPRAWIONE
     )
     
     # Feature toggles
@@ -231,8 +242,8 @@ def main():
                 entities_dir=args.entities_dir,
                 model=args.model,
                 config_path=args.config,
+                domain_names=args.domains,
                 output_aggregated=not args.no_aggregation,
-                clean_semantically=args.clean,
             )
         else:
             # Single file processing
@@ -241,8 +252,8 @@ def main():
                 entities_dir=args.entities_dir,
                 model=args.model,
                 config_path=args.config,
+                domain_names=args.domains,
                 output_aggregated=not args.no_aggregation,
-                clean_semantically=args.clean,
             )
         
         # Print results

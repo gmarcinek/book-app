@@ -3,7 +3,7 @@ NER Pipeline - Skompresowany text-to-knowledge processing
 """
 
 from pathlib import Path
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, List
 from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
@@ -13,7 +13,6 @@ from .loaders import DocumentLoader, LoadedDocument
 from .chunker import TextChunker
 from .extractor import EntityExtractor
 from .aggregation import GraphAggregator
-from .llm_utils import call_llm_semantic_cleaning
 
 class NERProcessingError(Exception):
     pass
@@ -24,20 +23,13 @@ def process_text_to_knowledge(
     model: str = Models.QWEN_CODER,
     config_path: str = "ner/ner_config.json",
     output_aggregated: bool = True,
-    clean_semantically: bool = False
+    domain_names: List[str] = None,
 ) -> Dict[str, Any]:
     """Process text to entities"""
     try:
         # Load
         document = DocumentLoader().load_document(input_source) if isinstance(input_source, str) else input_source
         print(f"Loaded: {len(document.content):,} chars from {Path(document.source_file).name}")
-        
-        # Clean
-        if clean_semantically:
-            print("🔍 Czyszczenie semantyczne...")
-            document.content = call_llm_semantic_cleaning(document.content, model)
-            print(f"✅ Po czyszczeniu: {len(document.content):,} znaków")
-            _save_cleaned_text(document, entities_dir)
 
         # Chunk
         chunks = TextChunker(config_path).chunk_text(document.content)
@@ -48,7 +40,7 @@ def process_text_to_knowledge(
         aggregator.load_entity_index()
 
         # Extract
-        extractor = EntityExtractor(model, config_path)
+        extractor = EntityExtractor(model, config_path, domain_names)
         extractor.aggregator = aggregator
         entities = extractor.extract_entities(chunks)
         print(f"Extracted {len(entities)} entities")
@@ -63,7 +55,6 @@ def process_text_to_knowledge(
                 'confidence': entity.confidence,
                 'aliases': entity.aliases,
                 'source_info': {
-                    'evidence': entity.context or '',
                     'chunk_references': [f"chunk_{entity.chunk_id}"] if entity.chunk_id is not None else [],
                     'source_document': document.source_file
                 },
