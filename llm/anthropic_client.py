@@ -10,7 +10,29 @@ class AnthropicClient(BaseLLMClient):
     
     # Mapowanie nazw modeli na rzeczywiste nazwy API - tylko Claude 4
     MODEL_MAPPING = {
-        "claude-4-sonnet": "claude-sonnet-4-20250514"
+        # Claude 4 - najnowsza rodzina
+        "claude-4-sonnet": "claude-sonnet-4-20250514",
+        "claude-4-opus": "claude-opus-4-20250514",
+        
+        # Claude 3.5 - poprzednia generacja, wciąż bardzo dobra
+        "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
+        "claude-3.5-haiku": "claude-3-5-haiku-20241022",
+        
+        # Claude 3 - stabilna, sprawdzona generacja
+        "claude-3-opus": "claude-3-opus-20240229",
+        "claude-3-sonnet": "claude-3-sonnet-20240229", 
+        "claude-3-haiku": "claude-3-haiku-20240307",
+        
+        # Aliasy dla wygody
+        "sonnet": "claude-sonnet-4-20250514",
+        "opus": "claude-opus-4-20250514", 
+        "haiku": "claude-3-5-haiku-20241022",
+        
+        # Aliasy wersji
+        "latest": "claude-sonnet-4-20250514",
+        "fastest": "claude-3-5-haiku-20241022",
+        "smartest": "claude-opus-4-20250514",
+        "balanced": "claude-sonnet-4-20250514",
     }
     
     def __init__(self, model: str):

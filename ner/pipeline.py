@@ -55,7 +55,6 @@ def process_text_to_knowledge(
                 'confidence': entity.confidence,
                 'aliases': entity.aliases,
                 'source_info': {
-                    'evidence': entity.context or '',
                     'chunk_references': [f"chunk_{entity.chunk_id}"] if entity.chunk_id is not None else [],
                     'source_document': document.source_file
                 },

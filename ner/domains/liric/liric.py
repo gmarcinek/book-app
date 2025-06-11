@@ -3,7 +3,7 @@ Zracjonalizowany LiricNER - KISS ale z zachowaniem jakości z pierwowzoru
 """
 
 from typing import List, Dict, Any
-from .base import BaseNER, DomainConfig
+from ..base import BaseNER, DomainConfig
 from .liric_consts import (
     LIRIC_ENTITY_TYPES_FLAT,
     format_liric_entity_types,

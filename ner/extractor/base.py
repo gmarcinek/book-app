@@ -66,12 +66,12 @@ class EntityExtractor:
         else:
             # Regular multi-domain mode
             self.domains = DomainFactory.use(domain_names)
-            logger.info(f"Initialized extractor with domains: {domain_names}")
+            logger.info(f"🔄 Initialized extractor with domains: 🗂️ {domain_names}")
         
         # Stats - initialize with available domains for non-auto mode
         if domain_names == ["auto"]:
             # For auto mode, initialize with all possible domains
-            available_domains = ["literary", "liric"]
+            available_domains = ["literary", "liric", "simple"]
         else:
             available_domains = domain_names
         
@@ -106,7 +106,7 @@ class EntityExtractor:
             try:
                 from llm import LLMClient
                 self.llm_client = LLMClient(self.model)
-                logger.info(f"Initialized LLM model: {self.model}")
+                logger.info(f"🤖 Initialized LLM model: {self.model}")
             except Exception as e:
                 logger.error(f"❌ Failed to initialize LLM: {e}")
                 raise
@@ -135,7 +135,7 @@ class EntityExtractor:
     
     def extract_entities(self, chunks: List[TextChunk]) -> List[ExtractedEntity]:
         """Extract entities from multiple text chunks using domains or auto-classification"""
-        from .extraction import _extract_entities_from_chunk_multi_domain
+        from .extraction import extract_entities_from_chunk_multi_domain
         from .deduplication import _deduplicate_entities
         
         self._initialize_llm()
@@ -143,9 +143,9 @@ class EntityExtractor:
         all_entities = []
         
         if self.domain_names == ["auto"]:
-            logger.info(f"Starting auto-classification extraction from {len(chunks)} chunks")
+            logger.info(f"🔄 Starting auto-classification extraction from {len(chunks)} chunks")
         else:
-            logger.info(f"Starting multi-domain extraction from {len(chunks)} chunks using {len(self.domains)} domains")
+            logger.info(f"🔄 Starting multi-domain extraction from {len(chunks)} chunks using {len(self.domains)} domains")
 
         if hasattr(self, "aggregator") is False and hasattr(chunks[0], "aggregator"):
             self.aggregator = chunks[0].aggregator
@@ -153,7 +153,7 @@ class EntityExtractor:
         for chunk in chunks:
             try:
                 # Extract with domains (or auto-classification)
-                entities = _extract_entities_from_chunk_multi_domain(self, chunk, self.domains, self.domain_names)
+                entities = extract_entities_from_chunk_multi_domain(self, chunk, self.domains, self.domain_names)
                 all_entities.extend(entities)
                 
                 self.extraction_stats["chunks_processed"] += 1
@@ -206,12 +206,12 @@ class EntityExtractor:
                                 self.extraction_stats["auto_classifications"] 
                                 if self.extraction_stats["auto_classifications"] > 0 else 0)
             
-            logger.info(f"Auto-classification extraction complete:")
+            logger.info(f"🟢 Auto-classification extraction complete:")
             logger.info(f"  Chunks processed: {self.extraction_stats['chunks_processed']}")
             logger.info(f"  Auto-classifications: {self.extraction_stats['auto_classifications']}")
             logger.info(f"  Auto-classification success rate: {auto_success_rate:.1%}")
         else:
-            logger.info(f"Multi-domain extraction complete:")
+            logger.info(f"🟢 Multi-domain extraction complete:")
             logger.info(f"  Chunks processed: {self.extraction_stats['chunks_processed']}")
             logger.info(f"  Domains used: {self.extraction_stats['domains_used']} {self.domain_names}")
         

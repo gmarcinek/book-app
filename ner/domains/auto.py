@@ -39,6 +39,7 @@ class AutoNER:
 MOŻLIWE GRUPY:
 1. literary - proza, narracja, opisy, dialogi, wspomnienia, autobiografia, tekst literacki
 2. liric - poezja, wersy, rymy, figury poetyckie, symbolika, tekst poetycki
+3. simple - podstawowe encje (osoby, miejsca, organizacje, przedmioty, wydarzenia, czas)
 
 TEKST DO KLASYFIKACJI:
 {text}
@@ -46,8 +47,9 @@ TEKST DO KLASYFIKACJI:
 ZASADY:
 - Jeśli tekst jest jednoznacznie poetycki (wersy, rymy, strofy) → ["liric"]
 - Jeśli tekst jest prozą/narracją → ["literary"] 
-- Jeśli niepewny lub mieszany → ["literary", "liric"]
-- Jeśli bardzo niepewny → ["literary"] (fallback)
+- Jeśli tekst zawiera głównie podstawowe informacje → ["simple"]
+- Jeśli niepewny lub mieszany → ["literary", "simple"]
+- Jeśli bardzo niepewny → ["simple"] (fallback)
 
 ZWRÓĆ TYLKO JSON:
 {{"domains": ["domain1", "domain2"]}}"""
@@ -74,12 +76,12 @@ ZWRÓĆ TYLKO JSON:
             elif isinstance(data, list):
                 domains = data
             else:
-                logger.warning(f"Unexpected classification response format: {type(data)}")
-                return ["literary"]  # fallback
+                logger.warning(f"⚠️ Unexpected classification response format: {type(data)}")
+                return ["simple"]  # fallback
             
             # Validate domains
             valid_domains = []
-            available_domains = ["literary", "liric"]
+            available_domains = ["literary", "liric", "simple"]
             
             for domain in domains:
                 if isinstance(domain, str) and domain in available_domains:
@@ -87,17 +89,17 @@ ZWRÓĆ TYLKO JSON:
             
             # Ensure we have at least one domain
             if not valid_domains:
-                logger.warning("No valid domains found in classification, using fallback")
-                return ["literary"]
+                logger.warning("⚠️ No valid domains found in classification, using fallback")
+                return ["simple"]
             
             return valid_domains
             
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse classification JSON: {e}")
-            return ["literary"]  # fallback
+            logger.error(f"❌ Failed to parse classification JSON: {e}")
+            return ["simple"]  # fallback
         except Exception as e:
-            logger.error(f"Error parsing classification response: {e}")
-            return ["literary"]  # fallback
+            logger.error(f"E❌ rror parsing classification response: {e}")
+            return ["simple"]  # fallback
     
     def classify_chunk_with_llm(self, text: str, llm_client) -> List[str]:
         """
@@ -115,9 +117,9 @@ ZWRÓĆ TYLKO JSON:
             response = llm_client.chat(prompt)
             domains = self._parse_classification_response(response)
             
-            logger.info(f"Auto-classified chunk: {domains}")
+            logger.info(f"🔍 Auto-classified chunk: {domains}")
             return domains
             
         except Exception as e:
-            logger.error(f"Auto-classification failed: {e}")
-            return ["literary"]  # fallback
+            logger.error(f"❌ Auto-classification failed: {e}")
+            return ["simple"]  # fallback

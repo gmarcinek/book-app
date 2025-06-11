@@ -35,12 +35,12 @@ def _parse_llm_response(response: str) -> List[Dict[str, Any]]:
         elif isinstance(data, list):
             entities = data
         else:
-            logger.warning(f"Unexpected response format: {type(data)}")
+            logger.warning(f"⚠️ Unexpected response format: {type(data)}")
             return []
         
         # Ensure entities is a list
         if not isinstance(entities, list):
-            logger.warning(f"Entities is not a list: {type(entities)}")
+            logger.warning(f"⚠️ Entities is not a list: {type(entities)}")
             return []
         
         return entities

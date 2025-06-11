@@ -16,8 +16,14 @@ def _build_chunk_analysis_prompt(text: str, domain: BaseNER) -> str:
     return domain.get_meta_analysis_prompt(text)
 
 
-def _parse_custom_prompt(response: str) -> Optional[str]:
-    """Parse custom NER prompt from meta-prompt response with robust JSON fixing"""
+def _parse_custom_prompt(response: str, force_raw: bool = False) -> Optional[str]:
+    """
+    Parse custom prompt from LLM meta-prompt response.
+    If force_raw=True, just return the whole response stripped.
+    """
+    if force_raw:
+        return response.strip()
+
     data = parse_llm_json_response(response, expected_key="prompt")
     return data.get("prompt") if data else None
 

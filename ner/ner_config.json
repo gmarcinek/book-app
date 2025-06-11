@@ -1,7 +1,8 @@
 {
-    "max_tokens": 4000,
-    "chunk_size": 7000,
-    "chunk_overlap": 400,
+    "max_tokens": 4096,
+    "temperature": 0.0,
+    "chunk_size": 9000,
+    "chunk_overlap": 500,
     "max_iterations": 100,
     "min_entity_length": 2,
     "max_entity_length": 100,

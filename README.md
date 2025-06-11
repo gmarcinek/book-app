@@ -15,17 +15,35 @@ poetry run app documents/ --batch
 
 ## Available Models
 
-| Model               | Provider  | Description                                | Cost |
-| ------------------- | --------- | ------------------------------------------ | ---- |
-| `qwen2.5-coder`     | Ollama    | **Default** - Fast, local, coding-oriented | Free |
-| `qwen2.5-coder:32b` | Ollama    | Larger version, better quality             | Free |
-| `codestral`         | Ollama    | Alternative local model                    | Free |
-| `claude-4-sonnet`   | Anthropic | **Best quality** - Premium model           | Paid |
-| `gpt-4o`            | OpenAI    | High quality GPT model                     | Paid |
-| `gpt-4o-mini`       | OpenAI    | Cheaper GPT option                         | Paid |
-| `gpt-4.1-mini`      | OpenAI    | Latest mini version                        | Paid |
+| Model               | Provider  | Description                                | Cost | NER Quality |
+| ------------------- | --------- | ------------------------------------------ | ---- | ----------- |
+| `qwen2.5-coder`     | Ollama    | **Default** - Fast, local, coding-oriented | Free | ⭐⭐ |
+| `qwen2.5-coder:32b` | Ollama    | Larger version, better quality             | Free | ⭐⭐⭐ |
+| `codestral`         | Ollama    | Alternative local model                    | Free | ⭐⭐ |
+| `claude-4-sonnet`   | Anthropic | **Best quality** - Premium model           | $$$$ | ⭐⭐⭐⭐⭐ |
+| `claude-4-opus`     | Anthropic | **Highest intelligence** - Most expensive  | $$$$$ | ⭐⭐⭐⭐⭐ |
+| `claude-3.5-sonnet` | Anthropic | Very good quality, fast                   | $$$ | ⭐⭐⭐⭐ |
+| `claude-3.5-haiku`  | Anthropic | **Best for NER** - Fast, cheap, reliable  | $ | ⭐⭐⭐⭐ |
+| `claude-3-haiku`    | Anthropic | Cheapest Claude, basic quality            | $ | ⭐⭐⭐ |
+| `gpt-4o`            | OpenAI    | High quality GPT model                     | $$$ | ⭐⭐⭐⭐ |
+| `gpt-4o-mini`       | OpenAI    | Cheaper GPT option                         | $$ | ⭐⭐⭐ |
+| `gpt-4.1-mini`      | OpenAI    | Latest mini version                        | $$ | ⭐⭐⭐ |
 
-## Basic Commands
+### Recommendations by Use Case
+
+**📊 NER/Entity Extraction:**
+- **Best value**: `claude-3.5-haiku` - 10x cheaper than Sonnet, reliable JSON
+- **Budget**: `claude-3-haiku` - 12x cheaper, may need retries
+- **Premium**: `claude-4-sonnet` - highest accuracy
+
+**🧠 Complex Analysis:**
+- **Best**: `claude-4-opus` - most intelligent
+- **Balanced**: `claude-4-sonnet` - great quality/cost ratio
+- **Good**: `claude-3.5-sonnet` - fast and reliable
+
+**💻 Local/Free:**
+- **Default**: `qwen2.5-coder` - good for most tasks
+- **Better**: `qwen2.5-coder:32b` - higher quality, slower
 
 ### Single File Processing
 
@@ -44,6 +62,12 @@ poetry run app large_file.pdf --no-relationships
 
 # Enable conflict resolution
 poetry run app document.txt --resolve
+
+# Single domain scan
+poetry run app docs/kamienica.txt --model gpt-4o-mini --domains simple
+
+# Auto domain scan
+poetry run app docs/kamienica.txt --model gpt-4o-mini
 ```
 
 ### Batch Processing

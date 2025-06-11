@@ -68,9 +68,8 @@ LIRIC_JSON_TEMPLATE = """{
     {
       "name": "nazwa_w_formie_podstawowej",
       "type": "TYP_Z_LISTY_WYŻEJ",
-      "description": "definicja encji z kontekstem poetyckim",
+      "description": "definicja encji 3-5 zdań z uwzględnieniem kontekstu otaczającego",
       "confidence": 0.50,
-      "context": "fragment_tekstu_gdzie_wystepuje",
       "aliases": ["wariant1", "wariant2"],
       "phenomenon_structure": {
         "type": "emocjonalny/kognitywny/atmosferyczny/duchowy",

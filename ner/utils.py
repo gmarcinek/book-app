@@ -22,11 +22,11 @@ def load_ner_config(config_path: str = "ner/ner_config.json") -> Dict[str, Any]:
             with open(config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
     except Exception as e:
-        print(f"Warning: Could not load config from {config_path}: {e}")
+        print(f"⚠️ Warning: Could not load config from {config_path}: {e}")
     
     return {
-        "max_tokens": 4000,
-        "chunk_size": 7000,
+        "max_tokens": 4096,
+        "chunk_size": 5000,
         "chunk_overlap": 400,
         "max_iterations": 100,
         "min_entity_length": 2,
@@ -42,7 +42,7 @@ def log_memory_usage(stage: str = ""):
         return
     
     usage = psutil.virtual_memory()
-    print(f"[MEMORY] {stage}: {usage.percent:.1f}% ({usage.used // (1024 ** 2)} MB used, {usage.available // (1024 ** 2)} MB free)")
+    print(f"📈 [MEMORY] {stage}: {usage.percent:.1f}% ({usage.used // (1024 ** 2)} MB used, {usage.available // (1024 ** 2)} MB free)")
 
 
 def generate_entity_id(name: str, entity_type: str) -> str:

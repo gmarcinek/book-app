@@ -185,7 +185,7 @@ class DocumentLoader:
                         if page_text.strip():
                             content_parts.append(page_text)
                     except Exception as e:
-                        print(f"Warning: Could not extract text from page {page_num + 1}: {e}")
+                        print(f"⚠️ Warning: Could not extract text from page {page_num + 1}: {e}")
                 
             content = "\n\n".join(content_parts)
             

@@ -50,6 +50,10 @@ Examples:
             Models.QWEN_CODER_32B, 
             Models.CODESTRAL,
             Models.CLAUDE_4_SONNET,
+            Models.CLAUDE_4_OPUS,
+            Models.CLAUDE_3_5_SONNET,
+            Models.CLAUDE_3_5_HAIKU,
+            Models.CLAUDE_3_HAIKU,
             Models.GPT_4O,
             Models.GPT_4O_MINI,
             Models.GPT_4_1_MINI

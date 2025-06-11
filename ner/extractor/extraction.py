@@ -15,7 +15,7 @@ from .validation import _validate_and_clean_entity
 logger = logging.getLogger(__name__)
 
 
-def _extract_entities_from_chunk_multi_domain(extractor, chunk: TextChunk, domains: List[BaseNER], domain_names: List[str]) -> List:
+def extract_entities_from_chunk_multi_domain(extractor, chunk: TextChunk, domains: List[BaseNER], domain_names: List[str]) -> List:
     """
     Extract entities from chunk using multiple domains or auto-classification
     """
@@ -86,7 +86,7 @@ def _extract_entities_from_chunk_single_domain_old_flow(extractor, chunk: TextCh
     """
     try:
         # ← KROK 1: ROZGRZEWKA - analiza chunka i generowanie custom promptu (OLD FLOW)
-        meta_prompt = _build_chunk_analysis_prompt(chunk.text, domain)  # ← DOMAIN-AWARE
+        meta_prompt = _build_chunk_analysis_prompt(chunk.text, domain)
         _log_prompt(extractor, meta_prompt, chunk.id, f"meta_prompt_{domain_name}")
         
         meta_response = extractor._call_llm(meta_prompt, extractor.extractor_config.get_meta_analysis_temperature())
@@ -96,12 +96,13 @@ def _extract_entities_from_chunk_single_domain_old_flow(extractor, chunk: TextCh
         extractor.meta_prompt_stats['by_domain'][domain_name]['generated'] += 1
         
         # Parse custom prompt from meta-response
-        custom_instructions = _parse_custom_prompt(meta_response)
+        use_raw = extractor.extractor_config.get_meta_prompt_mode() == "raw"
+        custom_instructions = _parse_custom_prompt(meta_response, force_raw=use_raw)
         
         if custom_instructions:
             # ← KROK 2A: EXTRACTION z custom promptem (OLD FLOW)
             prompt = _build_custom_extraction_prompt(chunk.text, custom_instructions, domain)  # ← DOMAIN-AWARE
-            logger.info(f"Using custom prompt for chunk {chunk.id}, domain '{domain_name}'")
+            logger.info(f"🎨 Using custom prompt for chunk {chunk.id}, domain '{domain_name}'")
         else:
             # ← KROK 2B: FALLBACK do standardowego promptu (OLD FLOW)
             prompt = _build_extraction_prompt(chunk.text, domain)  # ← DOMAIN-AWARE
@@ -111,7 +112,7 @@ def _extract_entities_from_chunk_single_domain_old_flow(extractor, chunk: TextCh
             extractor.meta_prompt_stats['fallback_to_standard_prompt'] += 1
             extractor.meta_prompt_stats['by_domain'][domain_name]['failed'] += 1
             
-            logger.warning(f"Meta-prompt failed for chunk {chunk.id}, domain '{domain_name}', using fallback")
+            logger.warning(f"🔴 Meta-prompt failed for chunk {chunk.id}, domain '{domain_name}', using fallback")
         
         # Call LLM for actual extraction (OLD FLOW)
         response = extractor._call_llm(prompt, extractor.extractor_config.get_entity_extraction_temperature())

@@ -4,8 +4,8 @@ Literary Domain Implementation - 1:1 Legacy Prompts
 
 from typing import List, Dict, Any
 
-from ner.domains.literary_consts import LITERARY_PHENOMENON_STRUCTURE, LITERARY_PHENOMENON_TYPES, LITERARY_ENTITY_TYPES_FLAT
-from .base import BaseNER, DomainConfig
+from .literary_consts import LITERARY_PHENOMENON_STRUCTURE, LITERARY_PHENOMENON_TYPES, LITERARY_ENTITY_TYPES_FLAT
+from ..base import BaseNER, DomainConfig
 
 
 class LiteraryNER(BaseNER):
@@ -136,17 +136,14 @@ FORMAT - TYLKO JSON:
       "type": "TYP_Z_LISTY_WYŻEJ",
       "description": "definicja encji 3-5 zdań z uwzględnieniem kontekstu otaczającego",
       "confidence": 0.X, // 0.2=bardzo niepewne, 0.5=umiarkowane, 0.8=pewne, 0.95=oczywiste
-      "context": "fragment_tekstu_gdzie_wystepuje",
       "aliases": ["wariant1", "wariant2", "skrót"],
       "phenomenon_structure": {{
         "main_type": "MYŚL",
         "subtype": "retrospekcja", 
-        "content": "nie miałem wtedy czasu"
       }} // tylko dla typu FENOMENON
     }}
   ]
 }}
-
 JSON:"""
         return prompt
     
@@ -170,7 +167,6 @@ WYMAGANY FORMAT JSON:
       "type": "TYP_Z_LISTY_WYŻEJ",
       "description": "definicja encji 3-5 zdań z uwzględnieniem kontekstu",
       "confidence": 0.85,
-      "context": "fragment_tekstu_gdzie_wystepuje",
       "aliases": ["wariant1", "wariant2", "skrót"],
       "phenomenon_structure": {{
         "main_type": "MYŚL",

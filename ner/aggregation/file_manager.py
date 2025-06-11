@@ -109,7 +109,6 @@ class EntityFileManager:
             "confidence": entity_data.get("confidence", 0.5),
             "aliases": entity_data.get("aliases", []),
             "source_info": {
-                "evidence": entity_data.get("source_info", {}).get("evidence", ""),
                 "chunk_references": chunk_refs,
                 "found_in_chunks": entity_data.get("source_info", {}).get("found_in_chunks", []),
                 "source_document": entity_data.get("source_info", {}).get("source_document", "unknown")
