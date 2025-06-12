@@ -43,8 +43,8 @@ MODEL_MAX_TOKENS = {
     Models.GPT_4_1_MINI: 32768,
     Models.GPT_4O: 16384,
     Models.GPT_4O_MINI: 16384,
-    Models.CLAUDE_4_SONNET: 8192,
-    Models.CLAUDE_4_OPUS: 8192,
+    Models.CLAUDE_4_SONNET: 64000,  # Updated from research: 64K output tokens
+    Models.CLAUDE_4_OPUS: 32000,    # Updated from research: 32K output tokens
     Models.CLAUDE_3_5_SONNET: 8192,
     Models.CLAUDE_3_5_HAIKU: 8192,
     Models.CLAUDE_3_HAIKU: 8192,
@@ -52,3 +52,26 @@ MODEL_MAX_TOKENS = {
     Models.QWEN_CODER_32B: 32768,
     Models.CODESTRAL: 32768,
 }
+
+# INPUT context window limits - rzeczywiste specyfikacje z dokumentacji
+MODEL_INPUT_CONTEXT = {
+    Models.GPT_4_1_MINI: 1000000,      # 1M tokens context window
+    Models.GPT_4O: 128000,             # 128K tokens context window  
+    Models.GPT_4O_MINI: 128000,        # 128K tokens context window
+    Models.CLAUDE_4_SONNET: 200000,    # 200K tokens context window
+    Models.CLAUDE_4_OPUS: 200000,      # 200K tokens context window
+    Models.CLAUDE_3_5_SONNET: 200000,  # 200K tokens context window
+    Models.CLAUDE_3_5_HAIKU: 200000,   # 200K tokens context window
+    Models.CLAUDE_3_HAIKU: 200000,     # 200K tokens context window
+    Models.QWEN_CODER: 32768,          # 32K estimated for local models
+    Models.QWEN_CODER_32B: 32768,      # 32K estimated for local models  
+    Models.CODESTRAL: 32768,           # 32K estimated for local models
+}
+
+def get_model_input_limit(model_name: str) -> int:
+    """Get input context window limit for model"""
+    return MODEL_INPUT_CONTEXT.get(model_name, 32768)  # safe fallback
+
+def get_model_output_limit(model_name: str) -> int:
+    """Get output tokens limit for model"""
+    return MODEL_MAX_TOKENS.get(model_name, 8192)  # safe fallback
