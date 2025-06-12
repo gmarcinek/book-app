@@ -1,11 +1,12 @@
 """
 NER Text Chunker - Intelligent text splitting with overlap
-Memory-efficient chunking for large documents
+Memory-efficient chunking for large documents using unified NER config
 """
 
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-from .utils import load_ner_config, log_memory_usage, validate_text_content
+from .utils import log_memory_usage, validate_text_content
+from .config import NERConfig, create_default_ner_config
 
 
 @dataclass
@@ -24,17 +25,23 @@ class TextChunker:
     Intelligent text chunker with configurable overlap
     
     Features:
-    - Configurable chunk size and overlap
+    - Configurable chunk size and overlap from NERConfig
     - Memory-safe processing
     - Smart boundary detection (sentences, paragraphs)
     - Metadata preservation
     """
     
-    def __init__(self, config_path: str = "ner/ner_config.json"):
-        self.config = load_ner_config(config_path)
-        self.chunk_size = self.config.get("chunk_size", 9000)
-        self.overlap_size = self.config.get("chunk_overlap", 400)
-        self.max_iterations = self.config.get("max_iterations", 100)
+    def __init__(self, config: Optional[NERConfig] = None):
+        """
+        Initialize chunker with NER configuration
+        
+        Args:
+            config: NERConfig object with chunking settings, creates default if None
+        """
+        self.config = config if config is not None else create_default_ner_config()
+        self.chunk_size = self.config.get_chunk_size()
+        self.overlap_size = self.config.get_chunk_overlap()
+        self.max_iterations = self.config.get_max_iterations()
     
     def chunk_text(self, text: str, smart_boundaries: bool = True) -> List[TextChunk]:
         """
@@ -50,7 +57,7 @@ class TextChunker:
         if not validate_text_content(text):
             return []
         
-        log_memory_usage("Chunking start")
+        log_memory_usage("🔄 Chunking start")
         
         text_len = len(text)
         chunks = []
@@ -88,13 +95,13 @@ class TextChunker:
             
             # Memory check every 10 chunks
             if (i + 1) % 10 == 0:
-                log_memory_usage(f"Processed {i+1} chunks")
+                log_memory_usage(f"📊 Processed {i+1} chunks")
             
             # If we've covered the whole text, stop
             if end >= text_len:
                 break
         
-        log_memory_usage(f"Chunking complete: {len(chunks)} chunks")
+        log_memory_usage(f"✅ Chunking complete: {len(chunks)} chunks")
         return chunks
     
     def _find_smart_boundary(self, text: str, start: int, proposed_end: int) -> int:

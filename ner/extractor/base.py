@@ -1,5 +1,5 @@
 """
-Base Entity Extractor - multi-domain extraction with Auto-Classification support
+Base Entity Extractor - multi-domain extraction with unified NER config
 """
 
 import logging
@@ -9,11 +9,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Local imports
-from ..utils import load_ner_config, log_memory_usage
+from ..utils import log_memory_usage
 from ..chunker import TextChunk
 from ..domains import DomainFactory, BaseNER
-from llm import Models
-from .config_extractor import ExtractorConfig
+from ..config import NERConfig, create_default_ner_config
+from llm import Models, LLMConfig
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -45,11 +45,12 @@ class EntityExtractor:
     
     def __init__(self, 
                  model: str = Models.QWEN_CODER, 
-                 config_path: str = "ner/ner_config.json",
+                 config: Optional[NERConfig] = None,
                  domain_names: List[str] = None):
         
-        self.config = load_ner_config(config_path)
-        self.extractor_config = ExtractorConfig()
+        # Use provided config or create default
+        self.config = config if config is not None else create_default_ner_config()
+        
         self.model = model
         self.llm_client = None
         
@@ -62,7 +63,7 @@ class EntityExtractor:
         # For auto mode, we don't pre-create domains (they'll be determined per chunk)
         if domain_names == ["auto"]:
             self.domains = []  # Will be populated per chunk
-            logger.info("Initialized extractor with auto-classification mode")
+            logger.info("🤖 Initialized extractor with auto-classification mode")
         else:
             # Regular multi-domain mode
             self.domains = DomainFactory.use(domain_names)
@@ -108,29 +109,55 @@ class EntityExtractor:
                 self.llm_client = LLMClient(self.model)
                 logger.info(f"🤖 Initialized LLM model: {self.model}")
             except Exception as e:
-                logger.error(f"❌ Failed to initialize LLM: {e}")
+                logger.error(f"💥 Failed to initialize LLM: {e}")
                 raise
     
-    def _call_llm(self, prompt: str, temperature: Optional[float] = None) -> str:
-        """Call LLM with prompt and return response"""
+    def _call_llm_for_meta_analysis(self, prompt: str) -> str:
+        """Call LLM for meta-analysis with dedicated config"""
         try:
             if self.llm_client is None:
                 self._initialize_llm()
             
-            if temperature is not None:
-                from llm import LLMConfig
-                config = LLMConfig(
-                    max_tokens=self.extractor_config.get_max_tokens(),
-                    temperature=temperature
-                )
-                response = self.llm_client.chat(prompt, config)
-            else:
-                response = self.llm_client.chat(prompt)
+            config = LLMConfig(
+                temperature=self.config.get_meta_analysis_temperature()
+            )
             
-            return response
+            return self.llm_client.chat(prompt, config)
             
         except Exception as e:
-            logger.error(f"❌ LLM call failed: {e}")
+            logger.error(f"🔥 Meta-analysis LLM call failed: {e}")
+            raise
+    
+    def _call_llm_for_entity_extraction(self, prompt: str) -> str:
+        """Call LLM for entity extraction with dedicated config"""
+        try:
+            if self.llm_client is None:
+                self._initialize_llm()
+            
+            config = LLMConfig(
+                temperature=self.config.get_entity_extraction_temperature()
+            )
+            
+            return self.llm_client.chat(prompt, config)
+            
+        except Exception as e:
+            logger.error(f"🔥 Entity extraction LLM call failed: {e}")
+            raise
+    
+    def _call_llm_for_auto_classification(self, prompt: str) -> str:
+        """Call LLM for auto-classification with dedicated config"""
+        try:
+            if self.llm_client is None:
+                self._initialize_llm()
+            
+            config = LLMConfig(
+                temperature=self.config.get_auto_classification_temperature()
+            )
+            
+            return self.llm_client.chat(prompt, config)
+            
+        except Exception as e:
+            logger.error(f"🎯 Auto-classification LLM call failed: {e}")
             raise
     
     def extract_entities(self, chunks: List[TextChunk]) -> List[ExtractedEntity]:
@@ -164,19 +191,19 @@ class EntityExtractor:
                 
                 # Log progress every 5 chunks
                 if self.extraction_stats["chunks_processed"] % 5 == 0:
-                    logger.info(f"Processed {self.extraction_stats['chunks_processed']}/{len(chunks)} chunks")
+                    logger.info(f"⏱️ Processed {self.extraction_stats['chunks_processed']}/{len(chunks)} chunks")
                 
                 # Memory management
                 log_memory_usage(f"After chunk {chunk.id}")
                 
             except Exception as e:
-                logger.error(f"❌ Error processing chunk {chunk.id}: {e}")
+                logger.error(f"💥 Error processing chunk {chunk.id}: {e}")
                 if self.domain_names == ["auto"]:
                     self.extraction_stats["auto_classification_failures"] += 1
                 continue
         
         # Deduplicate entities (across domains)
-        logger.info(f"Deduplicating {len(all_entities)} entities across domains...")
+        logger.info(f"🔄 Deduplicating {len(all_entities)} entities across domains...")
         deduplicated_entities = _deduplicate_entities(all_entities)
         
         # Final stats
@@ -206,21 +233,21 @@ class EntityExtractor:
                                 self.extraction_stats["auto_classifications"] 
                                 if self.extraction_stats["auto_classifications"] > 0 else 0)
             
-            logger.info(f"🟢 Auto-classification extraction complete:")
-            logger.info(f"  Chunks processed: {self.extraction_stats['chunks_processed']}")
-            logger.info(f"  Auto-classifications: {self.extraction_stats['auto_classifications']}")
-            logger.info(f"  Auto-classification success rate: {auto_success_rate:.1%}")
+            logger.info(f"🎯 Auto-classification extraction complete:")
+            logger.info(f"  📊 Chunks processed: {self.extraction_stats['chunks_processed']}")
+            logger.info(f"  🤖 Auto-classifications: {self.extraction_stats['auto_classifications']}")
+            logger.info(f"  ✅ Auto-classification success rate: {auto_success_rate:.1%}")
         else:
-            logger.info(f"🟢 Multi-domain extraction complete:")
-            logger.info(f"  Chunks processed: {self.extraction_stats['chunks_processed']}")
-            logger.info(f"  Domains used: {self.extraction_stats['domains_used']} {self.domain_names}")
+            logger.info(f"🎯 Multi-domain extraction complete:")
+            logger.info(f"  📊 Chunks processed: {self.extraction_stats['chunks_processed']}")
+            logger.info(f"  🗂️ Domains used: {self.extraction_stats['domains_used']} {self.domain_names}")
         
-        logger.info(f"  Raw entities: {self.extraction_stats['entities_extracted_raw']}")
-        logger.info(f"  Valid entities: {self.extraction_stats['entities_extracted_valid']}")
-        logger.info(f"  Final entities (after dedup): {len(deduplicated_entities)}")
-        logger.info(f"  Validation rate: {validation_rate:.1%}")
-        logger.info(f"  Context accuracy: {context_accuracy:.1%}")
-        logger.info(f"  Meta-prompt success rate: {meta_success_rate:.1%}")
+        logger.info(f"  📝 Raw entities: {self.extraction_stats['entities_extracted_raw']}")
+        logger.info(f"  ✅ Valid entities: {self.extraction_stats['entities_extracted_valid']}")
+        logger.info(f"  🎯 Final entities (after dedup): {len(deduplicated_entities)}")
+        logger.info(f"  📊 Validation rate: {validation_rate:.1%}")
+        logger.info(f"  🎯 Context accuracy: {context_accuracy:.1%}")
+        logger.info(f"  🧠 Meta-prompt success rate: {meta_success_rate:.1%}")
         
         # Per-domain stats (only for domains that were actually used)
         domains_used = set(entity.domain for entity in deduplicated_entities if entity.domain)
@@ -228,7 +255,7 @@ class EntityExtractor:
             domain_stats = self.extraction_stats["by_domain"].get(domain_name, {"raw": 0, "valid": 0})
             domain_rate = (domain_stats["valid"] / domain_stats["raw"] 
                           if domain_stats["raw"] > 0 else 0)
-            logger.info(f"  Domain '{domain_name}': {domain_stats['raw']} raw → {domain_stats['valid']} valid ({domain_rate:.1%})")
+            logger.info(f"  🏷️ Domain '{domain_name}': {domain_stats['raw']} raw → {domain_stats['valid']} valid ({domain_rate:.1%})")
     
     def get_extraction_stats(self) -> Dict[str, Any]:
         """Get detailed extraction statistics including auto-classification"""

@@ -1,0 +1,75 @@
+"""
+Unified NER Configuration - Single source of truth for all NER module settings
+"""
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Any
+
+
+@dataclass
+class NERConfig:
+    """
+    Unified configuration for entire NER module.
+    Contains all settings for extraction, chunking, and processing.
+    """
+    
+    # LLM settings
+    meta_analysis_temperature: float = 0.0
+    entity_extraction_temperature: float = 0.0
+    auto_classification_temperature: float = 0.0
+
+    
+    # Chunking settings
+    chunk_size: int = 9000
+    chunk_overlap: int = 400
+    
+    # Processing limits
+    max_iterations: int = 100
+    min_entity_length: int = 2
+    max_entity_length: int = 100
+    
+    # Feature flags
+    enable_memory_monitoring: bool = True
+    
+    # Getters for backward compatibility with ExtractorConfig API
+    def get_meta_analysis_temperature(self) -> float:
+        """Get temperature for meta-analysis phase"""
+        return self.meta_analysis_temperature
+    
+    def get_entity_extraction_temperature(self) -> float:
+        """Get temperature for entity extraction phase"""
+        return self.entity_extraction_temperature
+
+    def get_auto_classification_temperature(self) -> float:
+        """Get temperature for auto-classification phase"""
+        return self.auto_classification_temperature
+    
+    def get_chunk_size(self) -> int:
+        """Get chunk size for text processing"""
+        return self.chunk_size
+    
+    def get_chunk_overlap(self) -> int:
+        """Get chunk overlap size"""
+        return self.chunk_overlap
+    
+    def get_max_iterations(self) -> int:
+        """Get maximum processing iterations"""
+        return self.max_iterations
+    
+    def get_min_entity_length(self) -> int:
+        """Get minimum entity name length"""
+        return self.min_entity_length
+    
+    def get_max_entity_length(self) -> int:
+        """Get maximum entity name length"""
+        return self.max_entity_length
+    
+    def is_memory_monitoring_enabled(self) -> bool:
+        """Check if memory monitoring is enabled"""
+        return self.enable_memory_monitoring
+
+def create_default_ner_config() -> NERConfig:
+    """Create default NER configuration"""
+    return NERConfig()

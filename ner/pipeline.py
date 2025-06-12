@@ -1,5 +1,5 @@
 """
-NER Pipeline - Skompresowany text-to-knowledge processing
+NER Pipeline - Streamlined text-to-knowledge processing with unified config
 """
 
 from pathlib import Path
@@ -13,6 +13,7 @@ from .loaders import DocumentLoader, LoadedDocument
 from .chunker import TextChunker
 from .extractor import EntityExtractor
 from .aggregation import GraphAggregator
+from .config import NERConfig, create_default_ner_config
 
 class NERProcessingError(Exception):
     pass
@@ -21,29 +22,33 @@ def process_text_to_knowledge(
     input_source: Union[str, LoadedDocument],
     entities_dir: str = "entities",
     model: str = Models.QWEN_CODER,
-    config_path: str = "ner/ner_config.json",
+    config: NERConfig = None,
     output_aggregated: bool = True,
     domain_names: List[str] = None,
 ) -> Dict[str, Any]:
-    """Process text to entities"""
+    """Process text to entities using unified NER configuration"""
     try:
-        # Load
+        # Use provided config or create default
+        ner_config = config if config is not None else create_default_ner_config()
+        
+        # Load document
         document = DocumentLoader().load_document(input_source) if isinstance(input_source, str) else input_source
-        print(f"Loaded: {len(document.content):,} chars from {Path(document.source_file).name}")
+        print(f"📄 Loaded: {len(document.content):,} chars from {Path(document.source_file).name}")
 
-        # Chunk
-        chunks = TextChunker(config_path).chunk_text(document.content)
-        print(f"Created {len(chunks)} chunks")
+        # Chunk with unified config
+        chunker = TextChunker(ner_config)
+        chunks = chunker.chunk_text(document.content)
+        print(f"✂️ Created {len(chunks)} chunks")
         
         # Init aggregator
-        aggregator = GraphAggregator(entities_dir, config_path)
+        aggregator = GraphAggregator(entities_dir)
         aggregator.load_entity_index()
 
-        # Extract
-        extractor = EntityExtractor(model, config_path, domain_names)
+        # Extract with unified config
+        extractor = EntityExtractor(model, ner_config, domain_names)
         extractor.aggregator = aggregator
         entities = extractor.extract_entities(chunks)
-        print(f"Extracted {len(entities)} entities")
+        print(f"🎯 Extracted {len(entities)} entities")
         
         # Save entities
         created_ids = []
@@ -66,7 +71,7 @@ def process_text_to_knowledge(
             if entity_id:
                 created_ids.append(entity_id)
         
-        print(f"Created {len(created_ids)} entity files")
+        print(f"💾 Created {len(created_ids)} entity files")
         
         # Aggregate
         aggregation_result = None
@@ -97,10 +102,13 @@ def process_text_to_knowledge(
         }
 
 
-def process_file(file_path: str, **kwargs) -> Dict[str, Any]:
-    return process_text_to_knowledge(file_path, **kwargs)
+def process_file(file_path: str, config: NERConfig = None, **kwargs) -> Dict[str, Any]:
+    """Process single file with optional config override"""
+    return process_text_to_knowledge(file_path, config=config, **kwargs)
 
-def process_directory(directory_path: str, file_pattern: str = "*", **kwargs) -> Dict[str, Any]:
+
+def process_directory(directory_path: str, file_pattern: str = "*", config: NERConfig = None, **kwargs) -> Dict[str, Any]:
+    """Process directory of files with unified config"""
     directory = Path(directory_path)
     if not directory.exists():
         raise NERProcessingError(f"Directory not found: {directory_path}")
@@ -109,12 +117,12 @@ def process_directory(directory_path: str, file_pattern: str = "*", **kwargs) ->
     if not files:
         return {"status": "no_files", "message": f"No files found in {directory_path}"}
     
-    print(f"Processing {len(files)} files")
+    print(f"📂 Processing {len(files)} files")
     results = []
     for file_path in files:
-        print(f"Processing: {file_path.name}")
+        print(f"🔄 Processing: {file_path.name}")
         try:
-            results.append(process_text_to_knowledge(str(file_path), **kwargs))
+            results.append(process_text_to_knowledge(str(file_path), config=config, **kwargs))
         except Exception as e:
             results.append({"status": "error", "file": str(file_path), "error": str(e)})
     
@@ -126,22 +134,3 @@ def process_directory(directory_path: str, file_pattern: str = "*", **kwargs) ->
         "files_failed": len(results) - successful,
         "results": results
     }
-
-def _save_cleaned_text(document, entities_dir: str):
-    out_path = Path(entities_dir) / f"{Path(document.source_file).stem}_cleaned.txt"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(document.content, encoding="utf-8")
-    print(f"📄 Zapisano oczyszczony tekst do: {out_path}")
-
-def validate_configuration(config_path: str = "ner/ner_config.json") -> Dict[str, Any]:
-    try:
-        from .utils import load_ner_config
-        config = load_ner_config(config_path)
-        try:
-            from llm import LLMClient
-            llm_available = True
-        except ImportError:
-            llm_available = False
-        return {"status": "valid", "config": config, "llm_available": llm_available}
-    except Exception as e:
-        return {"status": "invalid", "error": str(e)}

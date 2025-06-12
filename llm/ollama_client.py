@@ -2,7 +2,7 @@ import requests
 import json
 
 from .base import BaseLLMClient, LLMConfig
-from .models import ModelProvider
+from .models import ModelProvider, MODEL_MAX_TOKENS
 
 class OllamaClient(BaseLLMClient):
     """Klient dla lokalnych coding models - zero kosztów, maksymalna wydajność"""
@@ -22,6 +22,9 @@ class OllamaClient(BaseLLMClient):
     def chat(self, prompt: str, config: LLMConfig) -> str:
         """Wyślij prompt do lokalnego coding model"""
         try:
+            # Handle None max_tokens with model-specific fallback
+            max_tokens = config.max_tokens or MODEL_MAX_TOKENS[self.model]
+            
             # Przygotuj messages
             messages = []
             if config.system_message:
@@ -35,7 +38,7 @@ class OllamaClient(BaseLLMClient):
                 "stream": False,
                 "options": {
                     "temperature": config.temperature,
-                    "num_predict": config.max_tokens,
+                    "num_predict": max_tokens,
                     # Coding-specific optimizations
                     "repeat_penalty": 1.1,  # unikaj powtórzeń w kodzie
                     "top_p": 0.9,           # zachowaj kreatywność ale z kontrolą
