@@ -5,7 +5,7 @@ Classifies text chunks to determine appropriate domains
 
 import json
 import logging
-from typing import List
+from typing import List, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -98,23 +98,23 @@ ZWRÓĆ TYLKO JSON:
             logger.error(f"❌ Failed to parse classification JSON: {e}")
             return ["simple"]  # fallback
         except Exception as e:
-            logger.error(f"E❌ rror parsing classification response: {e}")
+            logger.error(f"❌ Error parsing classification response: {e}")
             return ["simple"]  # fallback
     
-    def classify_chunk_with_llm(self, text: str, llm_client) -> List[str]:
+    def classify_chunk_with_llm(self, text: str, llm_call_function: Callable[[str], str]) -> List[str]:
         """
-        Classify chunk using provided LLM client
+        Classify chunk using provided LLM call function
         
         Args:
             text: Text to classify
-            llm_client: LLM client instance with chat() method
+            llm_call_function: Function that takes prompt and returns LLM response
             
         Returns:
             List of domain names
         """
         try:
             prompt = self._get_classification_prompt(text)
-            response = llm_client.chat(prompt)
+            response = llm_call_function(prompt)
             domains = self._parse_classification_response(response)
             
             logger.info(f"🔍 Auto-classified chunk: {domains}")

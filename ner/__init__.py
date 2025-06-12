@@ -11,17 +11,19 @@ from .chunker import TextChunker, TextChunk
 from .extractor import EntityExtractor
 from .aggregation import GraphAggregator
 from .resolver import EntityResolver  # Placeholder
-from .utils import load_ner_config, log_memory_usage
+from .utils import log_memory_usage
 
 # Import domain system
 from .domains import DomainFactory, BaseNER, DomainConfig
+
+# Import config system
+from .config import NERConfig, create_default_ner_config
 
 # Import main pipeline functions
 from .pipeline import (
     process_text_to_knowledge, 
     process_file, 
     process_directory, 
-    validate_configuration,
     NERProcessingError
 )
 
@@ -35,7 +37,6 @@ __all__ = [
     'process_text_to_knowledge',
     'process_file', 
     'process_directory',
-    'validate_configuration',
     'NERProcessingError',
     
     # Core components
@@ -50,13 +51,16 @@ __all__ = [
     'BaseNER',
     'DomainConfig',
     
+    # Config system
+    'NERConfig',
+    'create_default_ner_config',
+    
     # Data classes
     'TextChunk',
     'LoadedDocument',
     
     # Utilities
     'load_text',
-    'load_ner_config',
     'log_memory_usage',
     
     # Version

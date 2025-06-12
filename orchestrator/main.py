@@ -70,16 +70,10 @@ Examples:
     )
     
     parser.add_argument(
-        "--config",
-        default="ner/ner_config.json",
-        help="Path to NER config file (default: ner/ner_config.json)"
-    )
-    
-    parser.add_argument(
         "--domains", "-d",
         nargs="+",
         default=["auto"], 
-        help="Domains to use: literary, liric, auto (default: auto)"  # ← POPRAWIONE
+        help="Domains to use: literary, liric, simple, auto (default: auto)"
     )
     
     # Feature toggles
@@ -120,12 +114,6 @@ Examples:
         action="store_true",
         help="Output results as JSON"
     )
-
-    parser.add_argument(
-        "--clean",
-        action="store_true",
-        help="Enable semantic cleaning before chunking"
-    )
     
     return parser
 
@@ -147,11 +135,6 @@ def validate_arguments(args) -> bool:
     if not args.batch and input_path.is_dir():
         print(f"❌ Error: Input is directory, use --batch flag: {args.input}")
         return False
-    
-    # Check config file
-    config_path = Path(args.config)
-    if not config_path.exists():
-        print(f"⚠️  Warning: Config file not found, using defaults: {args.config}")
     
     return True
 
@@ -228,6 +211,7 @@ def main():
         print("🚀 Book Agent - Knowledge Graph Builder")
         print(f"📝 Input: {args.input}")
         print(f"🤖 Model: {args.model}")
+        print(f"🗂️ Domains: {args.domains}")
         if args.batch:
             print(f"📂 Batch mode: {args.pattern}")
         print()
@@ -241,7 +225,6 @@ def main():
                 file_pattern=args.pattern,
                 entities_dir=args.entities_dir,
                 model=args.model,
-                config_path=args.config,
                 domain_names=args.domains,
                 output_aggregated=not args.no_aggregation,
             )
@@ -251,7 +234,6 @@ def main():
                 args.input,
                 entities_dir=args.entities_dir,
                 model=args.model,
-                config_path=args.config,
                 domain_names=args.domains,
                 output_aggregated=not args.no_aggregation,
             )

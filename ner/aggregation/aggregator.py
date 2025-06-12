@@ -5,9 +5,10 @@ from .graph_builder import GraphBuilder
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+from ..config import NERConfig, create_default_ner_config
 
 class GraphAggregator:
-    def __init__(self, entities_dir: str = "entities", config_path: str = "ner/ner_config.json"):
+    def __init__(self, entities_dir: str = "entities", config: Optional[NERConfig] = None):
         timestamp = datetime.now().strftime("%Y%m%d-%H%M")
         self.entities_dir = Path(entities_dir) / timestamp
         self.entities_dir.mkdir(parents=True, exist_ok=True)
@@ -15,8 +16,11 @@ class GraphAggregator:
         self.log_dir = self.entities_dir / "log"
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
+        # Use provided config or create default
+        self.config = config if config is not None else create_default_ner_config()
+
         self.indexer = EntityIndex(self.entities_dir)
-        self.file_manager = EntityFileManager(self.entities_dir, config_path)
+        self.file_manager = EntityFileManager(self.entities_dir, self.config)
         self.symbol_index = SymbolIndex()
         self.graph_builder = GraphBuilder(self.entities_dir)
 
@@ -58,7 +62,8 @@ class GraphAggregator:
             "index_size": len(self.indexer.entity_index),
             "alias_index_size": len(self.indexer.alias_index),
             "config": {
-                "entities_directory": str(self.entities_dir)
+                "entities_directory": str(self.entities_dir),
+                "chunk_size": self.config.get_chunk_size(),
             }
         }
 

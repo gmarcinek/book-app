@@ -3,7 +3,7 @@ import os
 from openai import OpenAI
 
 from .base import BaseLLMClient, LLMConfig
-from .models import ModelProvider
+from .models import ModelProvider, MODEL_MAX_TOKENS
 
 class OpenAIClient(BaseLLMClient):
     """Klient dla modeli OpenAI - tylko elite models"""
@@ -18,6 +18,9 @@ class OpenAIClient(BaseLLMClient):
     def chat(self, prompt: str, config: LLMConfig) -> str:
         """Wyślij prompt do OpenAI"""
         try:
+            # Handle None max_tokens with model-specific fallback
+            max_tokens = config.max_tokens or MODEL_MAX_TOKENS[self.model]
+            
             # Przygotuj messages
             messages = []
             if config.system_message:
@@ -28,7 +31,7 @@ class OpenAIClient(BaseLLMClient):
             params = {
                 "model": self.model,
                 "messages": messages,
-                "max_tokens": config.max_tokens,
+                "max_tokens": max_tokens,
                 "temperature": config.temperature,
             }
             

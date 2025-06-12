@@ -3,7 +3,7 @@ import os
 from anthropic import Anthropic
 
 from .base import BaseLLMClient, LLMConfig
-from .models import ModelProvider
+from .models import ModelProvider, MODEL_MAX_TOKENS
 
 class AnthropicClient(BaseLLMClient):
     """Klient dla Claude 4 - scenario & planning powerhouse"""
@@ -51,10 +51,13 @@ class AnthropicClient(BaseLLMClient):
         try:
             api_model = self._get_api_model_name()
             
+            # Handle None max_tokens with model-specific fallback
+            max_tokens = config.max_tokens or MODEL_MAX_TOKENS[self.model]
+            
             # Przygotuj parametry - Claude 4 lubi duże limity
             params = {
                 "model": api_model,
-                "max_tokens": config.max_tokens,
+                "max_tokens": max_tokens,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": config.temperature,
                 "timeout": 600.0,  # 10 minut timeout

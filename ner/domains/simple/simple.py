@@ -23,51 +23,24 @@ class SimpleNER(BaseNER):
         return SIMPLE_ENTITY_TYPES_FLAT
 
     def get_meta_analysis_prompt(self, text: str) -> str:
-        """META-PROMPT: Spersonalizowany dla simple domain"""
-        logger.info(f"🧠 Building personalised meta prompt")
+        """META-PROMPT: Skrócony dla simple domain"""
         entity_types_str = ", ".join(SIMPLE_ENTITY_TYPES_FLAT)
-        format_examples = self._format_examples()
 
-        prompt = f"""Jesteś ekspertem od Named Entity Recognition. Twoim zadaniem jest przeanalizować podany fragment tekstu i utworzyć SPERSONALIZOWANY PROMPT do ekstrakcji encji specjalnie dopasowany do tego konkretnego fragmentu.
+        prompt = f"""Ekspert NER. Przeanalizuj tekst i stwórz SPERSONALIZOWANY PROMPT ekstrakcji.
 
-FRAGMENT TEKSTU DO ANALIZY:
-{text}
+TEKST: {text}
 
-TWOJE ZADANIA:
-1. STWÓRZ SPERSONALIZOWANY PROMPT NER który:
-- Jest dopasowany do treści tego konkretnego fragmentu
-- Zawiera konkretne instrukcje dla znalezionych wzorców
-- Uwzględnia zidentyfikowane wyzwania
-- Zawiera odpowiednie przykłady z kontekstu
-- wymagaj aliases dla *wszystkich* encji 
+ANALIZA:
+- Typy encji: osoby, miejsca, przedmioty, wydarzenia, czas, koncepcje
+- Wyzwania: aliasy osób/rzeczy, niejednoznaczne nazwy
+- MIEJSCE vs PRZEDMIOT: można tam być vs można dotknąć
 
-2. PRZEANALIZUJ treść fragmentu pod kątem:
-- Typów encji które prawdopodobnie wystąpią (osoby, miejsca, objekty)
+TYPY: {entity_types_str}
 
-3. ZIDENTYFIKUJ WYZWANIA dla ekstrakcji NER w tym fragmencie:
-   - Niejednoznaczne nazwy (np. \"dom\" jako obiekt vs miejsce)
-   - osoba/rzecz występuje pod kilkoma aliasami, ale z kontekstu można się domyślić ze chodzi o tą samą postać/rzecz (np. \"Jan\" vs \"Janek\" vs \"Jaś\", )
-   - osoba występuje pod kilkoma aliasami, związanymi z jej funkcją i nazwą (np. \"kapitan\" vs \"kapitan Kowalski\" vs \"Kowalski\")
-
-DOSTĘPNE TYPY ENCJI: {entity_types_str}
-
-{SIMPLE_PLACE_VS_OBJECT_GUIDE}
-
-WYMAGANIA DO CUSTOM PROMPTU:
-- Zaczynaj od \"Jesteś ekspertem od Named Entity Recognition. Zidentyfikuj encje w poniższym fragmencie...\"
-- Uwzględnij specyfikę tego fragmentu w instrukcjach
-- Dodaj konkretne przykłady z podobnego kontekstu
-- AGREGUJ WSZYSTKIE! rozpoznane encje w jedną jeśli są swoimi ALIASAMI
-
-NASTĘPNIE:
-4. Zidentyfikuj WSZYSTKIE! aliasy pomiędzy nazwami encji. Wygeneruj mapę aliasów dla znalezionych encji
-FORMAT:
-
-"Imię Nazwisko": [\"Imię\", \"Nazwisko\", \"nick\", "kolejny_wariant", ...]
-"nazwa": ["wariant1", "wariant2", ...]
-"wiertarka Jana": ["narzędzie", "wariant", ...]
-"Ola": ["nick1", ...]
-
+PROMPT: Zacznij "Jesteś ekspertem NER. Zidentyfikuj encje..."
+- Dopasuj do fragmentu
+- Wymagaj aliases
+- Agreguj duplikaty
 """
         return prompt
 

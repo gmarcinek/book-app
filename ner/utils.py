@@ -14,35 +14,14 @@ from typing import Dict, Any, Optional, List
 logger = logging.getLogger(__name__)
 
 
-def load_ner_config(config_path: str = "ner/ner_config.json") -> Dict[str, Any]:
-    """Load NER configuration from JSON file"""
-    try:
-        config_file = Path(config_path)
-        if config_file.exists():
-            with open(config_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    except Exception as e:
-        print(f"⚠️ Warning: Could not load config from {config_path}: {e}")
-    
-    return {
-        "max_tokens": 4096,
-        "chunk_size": 5000,
-        "chunk_overlap": 400,
-        "max_iterations": 100,
-        "min_entity_length": 2,
-        "max_entity_length": 100,
-        "enable_memory_monitoring": True
-    }
-
-
 def log_memory_usage(stage: str = ""):
     """Monitor RAM usage to detect memory leaks"""
-    config = load_ner_config()
-    if not config.get("enable_memory_monitoring", True):
-        return
-    
-    usage = psutil.virtual_memory()
-    print(f"📈 [MEMORY] {stage}: {usage.percent:.1f}% ({usage.used // (1024 ** 2)} MB used, {usage.available // (1024 ** 2)} MB free)")
+    try:
+        usage = psutil.virtual_memory()
+        print(f"📈 [MEMORY] {stage}: {usage.percent:.1f}% ({usage.used // (1024 ** 2)} MB used, {usage.available // (1024 ** 2)} MB free)")
+    except Exception:
+        # Fail silently if psutil not available
+        pass
 
 
 def generate_entity_id(name: str, entity_type: str) -> str:
@@ -58,12 +37,9 @@ def validate_entity_name(name: str) -> bool:
     if not name or not isinstance(name, str):
         return False
     
-    config = load_ner_config()
-    min_len = config.get("min_entity_length", 2)
-    max_len = config.get("max_entity_length", 100)
-    
     name_stripped = name.strip()
-    return min_len <= len(name_stripped) <= max_len
+    # Basic length validation - reasonable limits
+    return 2 <= len(name_stripped) <= 100
 
 
 def validate_file_exists(file_path: str) -> bool:
@@ -148,7 +124,7 @@ def load_entities_from_directory(entities_dir: Path) -> List[Dict[str, Any]]:
                 entity = json.load(f)
                 entities.append(entity)
         except Exception as e:
-            print(f"[WARN] Failed to load entity file {file.name}: {e}")
+            print(f"⚠️ [WARN] Failed to load entity file {file.name}: {e}")
     return entities
 
 
