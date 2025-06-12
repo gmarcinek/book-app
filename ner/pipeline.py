@@ -1,5 +1,5 @@
 """
-NER Pipeline - Streamlined text-to-knowledge processing with unified config
+NER Pipeline - Streamlined text-to-knowledge processing with model-aware chunking
 """
 
 from pathlib import Path
@@ -14,6 +14,7 @@ from .chunker import TextChunker
 from .extractor import EntityExtractor
 from .aggregation import GraphAggregator
 from .config import NERConfig, create_default_ner_config
+from .domains import DomainFactory
 
 class NERProcessingError(Exception):
     pass
@@ -21,30 +22,50 @@ class NERProcessingError(Exception):
 def process_text_to_knowledge(
     input_source: Union[str, LoadedDocument],
     entities_dir: str = "entities",
-    model: str = Models.QWEN_CODER,
+    model: str = None,
     config: NERConfig = None,
     output_aggregated: bool = True,
     domain_names: List[str] = None,
 ) -> Dict[str, Any]:
-    """Process text to entities using unified NER configuration"""
+    """Process text to entities using model-aware chunking and unified NER configuration"""
     try:
         # Use provided config or create default
         ner_config = config if config is not None else create_default_ner_config()
+        
+        # Use provided model or get default from config
+        model = model or ner_config.get_default_model()
         
         # Load document
         document = DocumentLoader().load_document(input_source) if isinstance(input_source, str) else input_source
         print(f"📄 Loaded: {len(document.content):,} chars from {Path(document.source_file).name}")
 
-        # Chunk with unified config
-        chunker = TextChunker(ner_config)
+        # Set up domains for chunker overhead calculation
+        if domain_names is None:
+            domain_names = ["auto"]
+        
+        # Create domains for overhead calculation (except for auto mode)
+        domains_for_chunker = []
+        if domain_names != ["auto"]:
+            try:
+                domains_for_chunker = DomainFactory.use(domain_names)
+            except Exception as e:
+                print(f"⚠️ Failed to load domains for chunker: {e}, using fallback")
+                domains_for_chunker = []
+        
+        # Chunk with model-aware sizing and real overhead calculation
+        chunker = TextChunker(
+            config=ner_config,
+            model_name=model,
+            domains=domains_for_chunker  # Pass domains for real overhead calculation
+        )
         chunks = chunker.chunk_text(document.content)
-        print(f"✂️ Created {len(chunks)} chunks")
+        print(f"✂️ Created {len(chunks)} chunks (avg: {sum(len(c.text) for c in chunks)//len(chunks) if chunks else 0} chars)")
         
         # Init aggregator
         aggregator = GraphAggregator(entities_dir)
         aggregator.load_entity_index()
 
-        # Extract with unified config
+        # Extract with model-aware extractor
         extractor = EntityExtractor(model, ner_config, domain_names)
         extractor.aggregator = aggregator
         entities = extractor.extract_entities(chunks)
@@ -63,7 +84,11 @@ def process_text_to_knowledge(
                     'chunk_references': [f"chunk_{entity.chunk_id}"] if entity.chunk_id is not None else [],
                     'source_document': document.source_file
                 },
-                'metadata': {'model_used': model, 'extraction_method': 'llm'}
+                'metadata': {
+                    'model_used': model, 
+                    'extraction_method': 'llm',
+                    'domain_used': getattr(entity, 'domain', 'unknown')
+                }
             }
 
             chunk_refs = [f"chunk_{entity.chunk_id}"] if entity.chunk_id is not None else []
@@ -72,6 +97,9 @@ def process_text_to_knowledge(
                 created_ids.append(entity_id)
         
         print(f"💾 Created {len(created_ids)} entity files")
+        
+        # Get chunker stats for reporting
+        chunk_stats = chunker.get_chunk_stats(chunks)
         
         # Aggregate
         aggregation_result = None
@@ -85,7 +113,16 @@ def process_text_to_knowledge(
             "status": "success",
             "timestamp": datetime.now().isoformat(),
             "source_file": document.source_file,
+            "model_used": model,
+            "domains_used": domain_names,
             "entities_created": len(created_ids),
+            "processing_stats": {
+                "document_chars": len(document.content),
+                "chunks_created": len(chunks),
+                "avg_chunk_size": chunk_stats.get("avg_chunk_size", 0),
+                "model_config": chunk_stats.get("model_config", {}),
+                "extraction_stats": extractor.get_extraction_stats() if hasattr(extractor, 'get_extraction_stats') else {}
+            },
             "output": {
                 "entities_dir": entities_dir,
                 "entity_ids": created_ids,
@@ -98,6 +135,8 @@ def process_text_to_knowledge(
             "status": "error",
             "timestamp": datetime.now().isoformat(),
             "error": str(e),
+            "model_used": model,
+            "domains_used": domain_names,
             "source_file": getattr(input_source, 'source_file', str(input_source))
         }
 

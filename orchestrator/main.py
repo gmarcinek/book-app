@@ -58,7 +58,7 @@ Examples:
             Models.GPT_4O_MINI,
             Models.GPT_4_1_MINI
         ],
-        default=Models.QWEN_CODER,
+        default=Models.GPT_4O_MINI,
         help="LLM model to use (default: qwen2.5-coder)"
     )
     
