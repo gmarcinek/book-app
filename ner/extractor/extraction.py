@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 import logging
 from typing import List
-from ..chunker import TextChunk
+from ..semantic import TextChunk
 from ..domains import BaseNER, DomainFactory
 from ..domains.auto import AutoNER
 from .meta_prompt import _build_chunk_analysis_prompt, _parse_custom_prompt, _build_custom_extraction_prompt, _build_extraction_prompt

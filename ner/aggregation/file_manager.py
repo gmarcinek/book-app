@@ -83,7 +83,10 @@ class EntityFileManager:
         # 📝 Description - wybierz dłuższy
         if len(new.get("description", "")) > len(existing.get("description", "")):
             existing["description"] = new["description"]
-
+        
+        if len(new.get("evidence", "")) > len(existing.get("evidence", "")):
+            existing["evidence"] = new["evidence"]
+    
         # 🏷️ Aliases - merge wszystkich
         old_aliases = set(existing.get("aliases", []))
         new_aliases = set(new.get("aliases", []))
@@ -111,6 +114,7 @@ class EntityFileManager:
             "name": entity_data["name"],
             "type": entity_data["type"],
             "description": entity_data.get("description", ""),
+            "evidence": entity_data.get("evidence", ""),
             "confidence": entity_data.get("confidence", 0.5),
             "aliases": entity_data.get("aliases", []),
             "source_info": {

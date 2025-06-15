@@ -1,0 +1,323 @@
+# Poprawiony system ekstrakcji wiedzy z dokumentów
+
+## KONFIGURACJA POCZĄTKOWA
+
+Mam bazę danych, ale jeszcze jest pusta. Mam graf wiedzy, ale on też jest pusty. Nie ma żadnych encji, bo treść nie była jeszcze analizowana.
+
+### Struktura danych:
+- **chunks.jsonl** - jeden chunk per linia: `{"id": "chunk_001", "text": "...", "start": 0, "end": 1547, "entities": [], "domain": "technical", "quality_score": 0.85, "embedding_id": "emb_001"}`
+- **entities.db** - SQLite z tabelą: `id, canonical_name, type, aliases_json, confidence, source_chunks, embedding_vector, created_at`
+- **relations.db** - SQLite z tabelą: `id, source_entity, target_entity, relation_type, confidence, source_chunk, context, bidirectional`
+- **faiss_index.bin** - indeks wektorowy FAISS
+- **knowledge_graph.gexf** - graf wiedzy w formacie GEXF
+
+### Parametry konfiguracyjne:
+- **semantic_threshold**: 0.15 (próg różnicy podobieństwa dla gradientu cięcia)
+- **min_chunk_size**: 1000 znaków (minimum dla sensownej analizy)
+- **max_chunk_size**: 3000 znaków (limit kontekstu LLM)
+- **entity_similarity_threshold**: 0.85 (próg dla deduplikacji encji)
+- **relation_confidence_threshold**: 0.7 (minimum pewności relacji)
+- **top_k_similar**: 5 (ilość podobnych chunków do pobrania z FAISS)
+
+### Predefiniowane domeny tekstu:
+- **wspomnienia** - narracja pierwszoosobowa, wydarzenia z przeszłości
+- **techniczne** - dokumentacja, instrukcje, specyfikacje
+- **poetyckie** - utwory literackie, metafory, rytm
+- **fabularne** - opowiadania, powieści, dialogi
+- **korespondencja** - e-maile, listy, komunikacja
+- **raportowe** - raporty, analizy, dane liczbowe
+
+---
+
+## PREPROCESSING - SEMANTYCZNE DZIELENIE TEKSTU
+
+Biorę plik `test.pdf` i wyciągam z niego surowy tekst przy pomocy biblioteki PyPDF2 lub pdfplumber. Wrzucam ten tekst do embeddera `all-MiniLM-L6-v2`, tnąc go wcześniej na pojedyncze zdania przy użyciu spaCy lub NLTK.
+
+Dla każdego zdania generuję embedding o wymiarze 384. Potem, iterując przez embeddingi, liczę podobieństwo cosinusowe pomiędzy sąsiednimi zdaniami. Tam, gdzie różnica (gradient) jest większa niż `semantic_threshold = 0.15`, rozważam postawienie punktu odcięcia.
+
+### Algorytm cięcia z walidacją jakości:
+
+Nie tnę jednak od razu, bo chunk może być jeszcze zbyt mały (poniżej `min_chunk_size = 1000` znaków), albo lokalny spadek podobieństwa to tylko wtrąt stylistyczny lub zmiana narratora.
+
+**Dodatkowe kryteria walidacji chunku:**
+- Długość między 1000-3000 znaków
+- Zawiera minimum 3 kompletne zdania
+- Stosunek rzeczowników do wszystkich słów > 0.2 (wskaźnik gęstości encji)
+- Brak przerwania w środku cytatu lub listy
+
+Kontynuuję analizę, aż uzyskam fragment o wystarczającej długości, gdzie gradient semantyczny wskazuje realną zmianę tematu. Wtedy tnę - powstaje pierwszy semantyczny chunk. 
+
+Zapisuję:
+- Embedding chunku do FAISS z ID `emb_001`
+- Metadane do `chunks.jsonl`: pozycję w tekście, długość, wstępną ocenę jakości
+- Mapowanie chunk_id -> embedding_id w bazie danych
+
+---
+
+## LOOP 1 - PIERWSZY CHUNK (COLD START)
+
+### Etap 1A: Sprawdzenie kontekstu
+Zanim przejdę do ekstrakcji encji, pytam FAISS o `top_k_similar = 5` najbardziej podobnych dotychczasowych chunków. Ponieważ to cold start, baza FAISS ma tylko jeden wpis lub jest jeszcze pusta. Nie dostaję więc żadnych podobnych kontekstów - zwracam pustą listę.
+
+### Etap 1B: Klasyfikacja domeny
+Przed wysłaniem chunku do dużego LLM, uruchamiam mały lokalny model klasyfikacyjny (fine-tuned DistilBERT) do analizy treści pod kątem przypisania do jednej z predefiniowanych domen: wspomnienia, techniczne, poetyckie, fabularne, korespondencja, raportowe.
+
+**Przykład wynikowy:** `{"domain": "korespondencja", "confidence": 0.89}`
+
+Na tej podstawie wybieram strategię ekstrakcji i odpowiedni wariant meta-promptu.
+
+### Etap 1C: Meta-analiza jakości
+Wysyłam chunk do LLM (Claude 4 Sonnet) z **meta-promptem analitycznym**:
+
+```
+Przeanalizuj poniższy tekst pod kątem przydatności do ekstrakcji encji. Oceń:
+1. Czy zawiera materiał semantycznie wystarczający do wykrycia encji?
+2. Jakie typy encji mogą się pojawić (PERSON, ORG, LOCATION, EVENT, CONCEPT)?
+3. Jaka jest jakość tekstu (1-5) i czy wymaga czyszczenia?
+4. Jaki styl językowy dominuje?
+5. Czy fragment jest kompletny semantycznie?
+
+Z powiązanych podobieństwem chunków znane są następujące encje: brak
+
+TEKST: [chunk_content]
+```
+
+### Etap 1D: Właściwa ekstrakcja encji (NER)
+Jeśli meta-analiza potwierdzi przydatność (jakość >= 3/5), uruchamiam właściwy NER z **promptem domenowym** (dostosowanym do wykrytej domeny):
+
+```
+Dla domeny KORESPONDENCJA - wyodrębnij encje z tekstu:
+- PERSON: imiona, nazwiska, pseudonimy (ze wszystkimi aliasami)
+- ORG: firmy, instytucje, zespoły
+- LOCATION: miejsca, adresy, lokalizacje
+- ACTION: główne akcje/zdarzenia
+- CONCEPT: kluczowe pojęcia/tematy
+
+Dla każdej encji podaj:
+- canonical_name (nazwa główna)
+- type (typ encji)
+- aliases (wszystkie warianty nazw w tekście)
+- confidence (pewność 0-1)
+- context (kontekst wystąpienia)
+
+Format odpowiedzi: JSON
+
+TEKST: [chunk_content]
+```
+
+### Etap 1E: Zapis pierwszych encji
+LLM zwraca listę encji z aliasami. Zapisuję je do `entities.db`:
+- Każda encja dostaje unikalny ID (`ent_001`, `ent_002`, ...)
+- Embedding nazwy kanonicznej (dla późniejszej deduplikacji)
+- Źródłowy `chunk_id`
+- Status: `verified=false` (wymagana późniejsza weryfikacja)
+
+Aktualizuję graf wiedzy - encje jako wierzchołki bez relacji. Baza FAISS zostaje wzbogacona o embeddingi nazw encji.
+
+---
+
+## LOOP 2 - DRUGI CHUNK (PIERWSZA KONTEKSTALIZACJA)
+
+### Etap 2A: Pozyskanie kontekstu
+Nowy chunk został już wyodrębniony metodą gradientu semantycznego. Tym razem baza FAISS ma już wpisy, więc pytanie o podobieństwo może zwrócić sensowne konteksty.
+
+Pytam FAISS o `top_k_similar = 5` chunków podobnych do bieżącego. Dostaję listę: `[{"chunk_id": "chunk_001", "similarity": 0.73}]`
+
+Na podstawie chunk_id pobieram z bazy encje znalezione w podobnych chunkach:
+```sql
+SELECT canonical_name, aliases_json, type 
+FROM entities 
+WHERE source_chunks LIKE '%chunk_001%'
+```
+
+### Etap 2B: Meta-analiza z kontekstem
+Wysyłam chunk z **wzbogaconym meta-promptem**:
+
+```
+Przeanalizuj poniższy tekst pod kątem przydatności do ekstrakcji encji. Oceń:
+[jak wcześniej...]
+
+Z powiązanych podobieństwem chunków znane są następujące encje:
+- Jan Kowalski (PERSON, aliasy: Janek, J.K.)
+- Firma ABC (ORG, aliasy: ABC, ABC Sp. z o.o.)
+
+Zwróć uwagę na możliwe nawiązania do tych encji.
+
+TEKST: [chunk_content]
+```
+
+### Etap 2C: Kontekstowa ekstrakcja NER
+Po potwierdzeniu jakości uruchamiam NER z **promptem kontekstowym**:
+
+```
+Wyodrębnij encje z tekstu, uwzględniając znane już encje:
+
+ZNANE ENCJE:
+- Jan Kowalski (aliasy: Janek, J.K.)
+- Firma ABC (aliasy: ABC, ABC Sp. z o.o.)
+
+INSTRUKCJE:
+1. Jeśli w tekście pojawia się "Jan", "Janek" lub "J.K." - to prawdopodobnie Jan Kowalski
+2. Wykryj nowe encje które nie są na liście znanych
+3. Zidentyfikuj potencjalne relacje między encjami
+4. Przypisz każdej encji poziom pewności
+
+TEKST: [chunk_content]
+```
+
+### Etap 2D: Deduplikacja i aktualizacja
+Po otrzymaniu encji z tego chunku:
+
+**Algorytm deduplikacji:**
+1. Dla każdej nowej encji oblicz podobieństwo nazwy do istniejących encji
+2. Jeśli podobieństwo > `entity_similarity_threshold = 0.85`:
+   - Sprawdź kontekst wystąpienia
+   - Jeśli kontekst pasuje - dodaj jako alias do istniejącej encji
+   - Jeśli kontekst różny - utwórz nową encję z uwagą o potencjalnym konflikcie
+3. Aktualizuj `source_chunks` dla zmodyfikowanych encji
+
+**Wykrywanie relacji:**
+- Analizuj zdania zawierające 2+ encji
+- Szukaj wzorców relacyjnych: "X napisał do Y", "X pracuje w Y"
+- Zapisz relacje do `relations.db` z kontekstem
+
+Nowa encja trafia do bazy, alias zostaje dopisany, relacja trafia jako krawędź do grafu wiedzy. Baza FAISS zostaje wzbogacona o nowy embedding chunku.
+
+---
+
+## LOOP 3+ - PEŁNA KONTEKSTALIZACJA
+
+### Etap 3A: Zaawansowane wyszukiwanie kontekstu
+Pytam FAISS o `top_k_similar = 5` najbardziej podobnych embeddingów. Dostaję bogatszą listę wcześniej przetworzonych chunków.
+
+Z metadanych wyciągam encje i aliasy używając bardziej zaawansowanego zapytania:
+```sql
+SELECT e.canonical_name, e.aliases_json, e.type, e.confidence,
+       COUNT(r.id) as relation_count
+FROM entities e
+LEFT JOIN relations r ON (e.id = r.source_entity OR e.id = r.target_entity)
+WHERE e.source_chunks LIKE '%chunk_001%' OR e.source_chunks LIKE '%chunk_002%'
+GROUP BY e.id
+ORDER BY e.confidence DESC, relation_count DESC
+LIMIT 20
+```
+
+### Etap 3B: Zaawansowana meta-analiza
+Buduję **bogaty meta-prompt**:
+
+```
+Przeanalizuj poniższy tekst pod kątem ekstrakcji encji.
+
+Z powiązanych podobieństwem chunków znane są następujące encje:
+- Jan Kowalski (PERSON, aliasy: Janek, J.K., pewność: 0.95, relacje: 3)
+- Maria Nowak (PERSON, aliasy: Maria, M.N., pewność: 0.87, relacje: 1)
+- Firma ABC (ORG, aliasy: ABC, ABC Sp. z o.o., pewność: 0.92, relacje: 2)
+
+ZNANE RELACJE:
+- Jan Kowalski → NAPISAŁ_EMAIL_DO → Maria Nowak
+- Jan Kowalski → PRACUJE_W → Firma ABC
+
+Oceń czy tekst:
+1. Zawiera nowe informacje o znanych encjach
+2. Wprowadza nowe encje
+3. Ujawnia nowe relacje
+4. Wymaga aktualizacji pewności istniejących encji
+
+TEKST: [chunk_content]
+```
+
+### Etap 3C: Inteligentny NER z pełnym kontekstem
+LLM, mający pełen kontekst, może:
+- Rozpoznać, że "Jan" to "Jan Kowalski" a nie nowa encja
+- Wykryć nowe aliasy ("JK" jako skrót od "J.K.")
+- Zidentyfikować hierarchie encji (Jan jako manager w ABC)
+- Wykryć relacje pośrednie przez kontekst
+
+### Etap 3D: Inteligentna aktualizacja bazy
+**Zaawansowana deduplikacja:**
+- Podobieństwo nazw + analiza kontekstu
+- Wykrywanie hierarchii encji (Jan Kowalski → Jan Kowalski z ABC)
+- Rozwiązywanie konfliktów aliasów
+- Aktualizacja poziomów pewności na podstawie liczby potwierdzeń
+
+**Zarządzanie relacjami:**
+- Aktualizacja relacji dwukierunkowych
+- Deduplikacja podobnych relacji
+- Budowanie łańcuchów relacji (A→B→C)
+- Wykrywanie relacji pośrednich
+
+---
+
+## SYSTEM JAKOŚCI I WALIDACJI
+
+### Metryki jakości chunków:
+- **Semantic completeness**: 0-1 (czy chunk jest semantycznie kompletny)
+- **Entity density**: stosunek encji do słów
+- **Readability score**: czytelność tekstu
+- **Domain confidence**: pewność klasyfikacji domenowej
+
+### Metryki jakości encji:
+- **Confidence score**: pewność istnienia encji (0-1)  
+- **Alias consistency**: spójność aliasów
+- **Context relevance**: trafność kontekstu
+- **Cross-chunk validation**: potwierdzenie w wielu chunkach
+
+### Walidacja relacji:
+- **Confidence threshold**: minimum 0.7 dla zapisu relacji
+- **Bidirectional consistency**: zgodność relacji w obu kierunkach
+- **Context validation**: sprawdzenie kontekstu relacji
+- **Temporal consistency**: spójność czasowa relacji
+
+---
+
+## INTEGRACJA I ROZSZERZALNOŚĆ
+
+### API systemu:
+- **GET /entities** - lista wszystkich encji z filtrami
+- **GET /relations** - lista relacji z opcjami filtrowania  
+- **POST /query** - zapytania do grafu wiedzy
+- **GET /similar-chunks/{chunk_id}** - podobne fragmenty
+- **POST /extract** - ekstrakcja z nowego dokumentu
+
+### Możliwe rozszerzenia:
+- **RAG (Retrieval-Augmented Generation)** - używanie grafu jako źródła wiedzy dla generowania odpowiedzi
+- **Book-writer** - automatyczne generowanie narracji na podstawie grafu
+- **Timeline builder** - budowanie chronologii wydarzeń z encji temporalnych
+- **Recommendation engine** - rekomendacja powiązanych dokumentów
+- **Visualization dashboard** - interaktywna wizualizacja grafu
+- **Export modules** - eksport do Neo4j, Gephi, NetworkX
+
+### Cache i optymalizacja:
+- **Embedding cache** - cache dla często używanych embeddingów
+- **LLM response cache** - cache odpowiedzi LLM dla podobnych chunków
+- **Batch processing** - grupowanie podobnych chunków
+- **Incremental updates** - aktualizacje tylko zmienionych fragmentów
+
+---
+
+## PRZYKŁAD PRZEPŁYWU DANYCH
+
+```
+test.pdf → [text extraction] → raw_text
+raw_text → [sentence splitting] → sentences[]
+sentences[] → [embedding] → embeddings[]
+embeddings[] → [semantic chunking] → chunks[]
+
+chunk_001 → [domain classification] → "korespondencja"
+chunk_001 → [FAISS query] → [] (empty - cold start)
+chunk_001 → [meta-analysis] → "quality: 4/5, proceed with NER"
+chunk_001 → [NER] → entities: [Jan Kowalski, Maria Nowak, ABC Corp]
+entities → [save to DB] → entities.db updated
+entities → [update graph] → knowledge_graph.gexf updated
+chunk_001 → [save to FAISS] → faiss_index.bin updated
+
+chunk_002 → [domain classification] → "techniczne"  
+chunk_002 → [FAISS query] → [chunk_001: similarity 0.73]
+chunk_002 → [context injection] → "known entities: Jan Kowalski..."
+chunk_002 → [contextual NER] → entities: [Jan Kowalski (alias: JK), System XYZ]
+entities → [deduplication] → "JK" added as alias to existing "Jan Kowalski"
+entities → [relation extraction] → "Jan Kowalski → ZARZĄDZA → System XYZ"
+relations → [save to DB] → relations.db updated
+```
+
+System staje się coraz bardziej precyzyjny i inteligentny z każdą iteracją, budując rozbudowaną bazę wiedzy z automatyczną deduplikacją i kontekstualizacją.

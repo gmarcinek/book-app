@@ -2,11 +2,13 @@
 Unified NER Configuration - Single source of truth for all NER module settings
 """
 
-import json
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, Any
+from enum import Enum
 
+class ChunkingStrategy(Enum):
+    """Available semantic chunking strategies"""
+    GRADIENT = "gradient"
+    PERCENTILE = "percentile"
 
 @dataclass
 class NERConfig:
@@ -24,6 +26,8 @@ class NERConfig:
     # Chunking settings
     chunk_size: int = 9000
     chunk_overlap: int = 400
+    chunking_mode: str = "semantic"  # "model_aware" or "semantic"
+    semantic_strategy: ChunkingStrategy = ChunkingStrategy.PERCENTILE
     
     # Processing limits
     max_iterations: int = 100

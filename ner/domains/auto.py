@@ -40,6 +40,7 @@ MOŻLIWE GRUPY:
 1. literary - proza, narracja, opisy, dialogi, wspomnienia, autobiografia, tekst literacki
 2. liric - poezja, wersy, rymy, figury poetyckie, symbolika, tekst poetycki
 3. simple - podstawowe encje (osoby, miejsca, organizacje, przedmioty, wydarzenia, czas)
+4. owu - dokumenty prawne, regulaminy, OWU, polisy, definicje formalne, artykuły, świadczenia, ograniczenia
 
 TEKST DO KLASYFIKACJI:
 {text}
@@ -50,6 +51,7 @@ ZASADY:
 - Jeśli tekst zawiera głównie podstawowe informacje → ["simple"]
 - Jeśli niepewny lub mieszany → ["literary", "simple"]
 - Jeśli bardzo niepewny → ["simple"] (fallback)
+- Jeśli tekst zawiera terminy prawne (np. „Ubezpieczyciel”, „Polisa”, „świadczenie”, „OWU”) → ["owu"]
 
 ZWRÓĆ TYLKO JSON:
 {{"domains": ["domain1", "domain2"]}}"""
@@ -81,7 +83,7 @@ ZWRÓĆ TYLKO JSON:
             
             # Validate domains
             valid_domains = []
-            available_domains = ["literary", "liric", "simple"]
+            available_domains = ["literary", "liric", "simple", "owu"]
             
             for domain in domains:
                 if isinstance(domain, str) and domain in available_domains:
