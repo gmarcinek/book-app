@@ -1,0 +1,46 @@
+CHUNK 21 - 1592 chars
+Type: unknown
+==================================================
+G. Uszkodzenia brzucha i ich następstwa
+35. Uszkodzenia powłok jamy brzusznej:
+a) rany skóry lub tkanki podskórnej zaopatrzone chirurgicznie – każda
+b) oparzenie od stopnia II – za 2% TBSA (całkowitej powierzchni ciała/PC)
+c) rany skóry oraz powięzi lub mięśni leczone operacyjnie, bez otwarcia jamy otrzewnowej
+d) rany brzucha leczone operacyjnie, z otwarciem jamy otrzewnowej1
+1
+2
+5
+36. Uszkodzenia żołądka, jelit, sieci, krezki jelita:
+a) leczone endoskopowo
+b) leczone operacyjnie, bez utraty narządów jamy brzusznej
+c) utrata części żołądka, jelita cienkiego lub grubego2
+5
+10
+37. Uszkodzenie dużych naczyń krwionośnych jamy brzusznej i miednicy (aorty brzusznej, tętnic biodrowych
+wspólnych, zewnętrznych i wewnętrznych, żyły głównej dolnej i żył biodrowych wspólnych) leczone
+operacyjnie 10
+38. Uszkodzenie odbytnicy, odbytu, zwieracza odbytu:
+a) uszkodzenia zaopatrzone chirurgicznie
+b) uszkodzenia leczone operacyjnie z otwarciem jamy brzusznej
+c) uszkodzenia wymagające odbytu sztucznego3
+5
+20
+39. Uszkodzenia śledziony:
+a) leczone zachowawczo (krwiak, pęknięcie narządu), potwierdzone w badaniach obrazowych (USG, CT,
+RM)
+b) leczone operacyjnie z zachowaniem całości narządu
+c) utrata śledziony2
+5
+15
+40. Uszkodzenie wątroby, przewodów żółciowych, pęcherzyka żółciowego lub trzustki:
+a) leczone zachowawczo (krwiak, pęknięcie narządu), potwierdzone badaniem obrazowym (USG, CT)
+b) leczone operacyjnie z zachowaniem całości narządu
+c) pourazowa utrata pęcherzyka żółciowego lub fragmentu wątroby
+d) utrata fragmentu trzustki
+e) utrata całkowita wątroby lub trzustki2
+5
+10
+30
+100
+
+13

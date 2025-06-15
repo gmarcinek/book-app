@@ -1,0 +1,30 @@
+CHUNK 18 - 680 chars
+Type: unknown
+==================================================
+D. Uszkodzenia narządu słuchu
+22. Urazy małżowiny usznej:
+a) rana zaopatrzona chirurgicznie (każda)
+b) oparzenie małżowiny od stopnia II
+c) utrata części małżowiny
+d) utrata części małżowiny operowana rekonstrukcyjnie
+e) całkowita utrata jednej małżowiny
+f) całkowita utrata obu małżowin1
+1
+2
+7
+15
+30
+23. Uszkodzenie pourazowe ucha środkowego, błony bębenkowej, kosteczek słuchowych, ucha wewnętrznego:
+a) bez utraty słuchu, jednostronne
+b) z częściową jednostronną utratą słuchu
+c) z całkowitą jednostronną utratą słuchu
+d) z częściową obustronną utratą słuchu
+e) z całkowitą obustronną utratą słuchu2
+5
+20
+10
+50
+24. Porażenie nerwu twarzowego:
+a) jednostronne
+b) dwustronne20
+40

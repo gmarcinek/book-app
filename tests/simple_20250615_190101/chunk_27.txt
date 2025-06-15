@@ -1,0 +1,125 @@
+CHUNK 27 - 2303 chars
+Type: unknown
+==================================================
+M. Porażenia lub niedowłady poszczególnych nerwów obwodowych
+116. Uszkodzenie częściowe lub całkowite – w zależności od stopnia zaburzeń:
+a) nerwu przeponowego poniżej jego połączenia z nerwem podobojczykowym:
+I) częściowe
+II) całkowite
+b) nerwu piersiowego długiego:
+I) częściowe
+II) całkowite
+c) nerwu pachowego:
+I) częściowe
+II) całkowite
+d) nerwu mięśniowo-skórnego:
+I) częściowe
+II) całkowite
+e) nerwu promieniowego powyżej odejścia gałązki do mięśnia trójgłowego ramienia:
+I) częściowe
+II) całkowite
+f) nerwu promieniowego poniżej odejścia gałązki do mięśnia trójgłowego ramienia:
+I) częściowe
+II) całkowite
+g) nerwu promieniowego nad wejściem do kanału mięśnia odwracacza przedramienia:
+I) częściowe
+II) całkowite
+h) nerwu promieniowego po wyjściu z kanału mięśnia odwracacza przedramienia:
+I) częściowe
+II) całkowite
+i) nerwu pośrodkowego w zakresie ramienia:
+I) częściowe
+II) całkowite5
+15
+5
+10
+5
+20
+3
+15
+5
+30
+3
+20
+3
+15
+2
+10
+5
+25
+
+Nationale-Nederlanden Towarzystwo Ubezpieczeń S.A.; ul. Topiel 12, 00-342 Warszawa; www.nn.pl; Sąd Rejonowy dla m.st.
+Warszawy; XII Wydział Gospodarczy Krajowego Rejestru Sądowego KRS 0000647311, NIP: 525-26-85-595; Kapitał zakładowy
+– 39 000 000 zł, wpłacony w całości.
+RR117-B23
+Jacek Koronkiewicz
+Członek Zarządu UbezpieczycielaEdyta Fundowicz
+Członek Zarządu Ubezpieczycielaj) nerwu pośrodkowego w zakresie nadgarstka:
+I) częściowe
+II) całkowite
+k) nerwu łokciowego:
+I) częściowe
+II) całkowite
+l) splotu barkowego części nadobojczykowej (górnej):
+I) częściowe
+II) całkowite
+m) splotu barkowego części podobojczykowej (dolnej):
+I) częściowe
+II) całkowite
+n) pozostałych nerwów odcinka szyjno-piersiowego:
+I) częściowe
+II) całkowite
+o) nerwu zasłonowego:
+I) częściowe
+II) całkowite
+p) nerwu udowego:
+I) częściowe
+II) całkowite
+q) nerwów pośladkowych (górnego i dolnego):
+I) częściowe
+II) całkowite
+r) nerwu sromowego wspólnego:
+I) częściowe
+II) całkowite
+s) nerwu kulszowego przed podziałem na nerw piszczelowy i strzałkowy:
+I) częściowe
+II) całkowite
+t) nerwu piszczelowego:
+I) częściowe
+II) całkowite
+u) nerwu strzałkowego:
+I) częściowe
+II) całkowite
+v) splotu lędźwiowo-krzyżowego:
+I) częściowe
+II) całkowite
+w) pozostałych nerwów odcinka lędźwiowo-krzyżowego:
+I) częściowe
+II) całkowite3
+15
+5
+20
+5
+20
+7
+40
+2
+15
+5
+15
+5
+30
+3
+20
+3
+20
+10
+50
+5
+30
+5
+20
+10
+60
+2
+10

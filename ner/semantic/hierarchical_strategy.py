@@ -28,14 +28,28 @@ class HierarchicalChunker(SemanticChunkingStrategy):
         super().__init__(config)
         self.llm_client = None
         self._last_llm_response = ""
+        
+    def _get_llm_client(self):
+        """Get LLM client, initialize if needed"""
+        if not self.llm_client:
+            try:
+                from llm import LLMClient, Models
+                self.llm_client = LLMClient(Models.GPT_4_1_NANO)
+                print(f"🤖 HIERARCHICAL: Initialized LLM client with {Models.GPT_4_1_NANO}")
+            except Exception as e:
+                print(f"💥 HIERARCHICAL: Failed to initialize LLM: {e}")
+                raise
+        return self.llm_client
     
     def chunk(self, text: str, domains: List[BaseNER] = None) -> List[TextChunk]:
         """Chunk text using simplified hierarchical approach"""
         
         print(f"🏛️ HIERARCHICAL: Starting analysis for {len(text):,} chars")
         
-        if not self.llm_client:
-            print(f"⚠️ HIERARCHICAL: No LLM client, falling back to semantic chunking")
+        try:
+            llm_client = self._get_llm_client()
+        except Exception as e:
+            print(f"⚠️ HIERARCHICAL: LLM initialization failed, falling back to semantic chunking")
             return self._fallback_semantic_chunk(text)
         
         # Phase 1: Analyze document structure with LLM
@@ -113,8 +127,8 @@ ZWRÓĆ JSON:
 TYLKO JSON:"""
         
         try:
-            response = self.llm_client.chat(prompt)
-            self._last_llm_response = response
+            llm_client = self._get_llm_client()
+            response = llm_client.chat(prompt)
             
             # Parse response
             clean_response = response.strip()

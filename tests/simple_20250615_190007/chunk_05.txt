@@ -1,0 +1,17 @@
+CHUNK 5 - 989 chars
+Type: unknown
+==================================================
+Artykuł 6. Opłacanie składek
+1. Składkę ustala Ubezpieczyciel z uwzględnieniem zakresu, wysokości udzielanej ochrony ubezpieczeniowej, wyłączeń
+i ograniczeń odpowiedzialności Ubezpieczyciela, okresów odroczenia odpowiedzialności, okresu ubezpieczenia, poziomu
+ryzyka ubezpieczeniowego, wieku osób uprawnionych do zawarcia Umowy oraz opłat i kosztów zawarcia i obsługi Umowy .
+2. Składka płatna jest przez Ubezpieczonego, za pośrednictwem Agenta, z góry za okres obowiązywania Umowy, w wysokości
+określonej w Polisie .
+3. Składka powinna być opłacona w terminie płatności składki .
+4. Datą opłacenia składki jest dzień przekazania składki Agentowi przez Ubezpieczonego .
+5. Ubezpieczonemu , który opłaci składkę przed upływem 14 dni liczonych od terminu płatności składki, Umowa jest
+przedłużona na kolejny okres rozliczeniowy.
+6. Nieopłacenie składki spowoduje wygaśnięcie Umowy i ochrony ubezpieczeniowej z upływem okresu rozliczeniowego , za
+który została zapłacona ostatnia składka .
+
+6

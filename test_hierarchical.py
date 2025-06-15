@@ -1,3 +1,4 @@
+
 """
 Simple test for Intelligent HierarchicalChunker
 FILE: test_simple_hierarchical.py
@@ -16,7 +17,7 @@ from llm import LLMClient, Models
 def test_simple():
     # Load document
     loader = DocumentLoader()
-    document = loader.load_document("docs/owu.pdf")
+    document = loader.load_document("docs/owu2.pdf")
     print(f"Loaded: {len(document.content):,} chars")
     
     # Config
@@ -24,14 +25,14 @@ def test_simple():
         strategy=ChunkingStrategy.HIERARCHICAL,
         model_name="sentence-transformers/all-MiniLM-L6-v2",
         threshold=0.15,
-        percentile=95.0,
+        percentile=97.0,
         min_chunk_size=100,
         max_chunk_size=100000
     )
     
     # Chunker + LLM
     chunker = HierarchicalChunker(config)
-    llm_client = LLMClient(Models.GPT_4_1_NANO)
+    llm_client = LLMClient(Models.GPT_4O_MINI)
     chunker.set_llm_client(llm_client)
     
     # Output dir

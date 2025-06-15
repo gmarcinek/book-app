@@ -1,0 +1,48 @@
+CHUNK 17 - 1382 chars
+Type: unknown
+==================================================
+C. Uszkodzenia narządu wzroku (nie podlegają sumowaniu)
+14. Porażenie nastawności (akomodacji) przy braku zaburzeń ostrości wzroku po korekcji:
+a) jednego oka
+b) obu oczu15
+30
+
+1115. Uszkodzenie gałki ocznej wskutek urazów tępych, drążących, urazów chemicznych, termicznych,
+spowodowanych promieniowaniem elektromagnetycznym oraz energią elektryczną:
+a) bez zaburzeń ostrości wzroku
+b) z częściowym obniżeniem ostrości wzroku jednego oka
+c) z częściowym obniżeniem ostrości wzroku obu oczu
+d) z całkowitą utratą widzenia jednego oka
+e) z całkowitą utratą widzenia obu oczu
+f) utrata gałki ocznej2
+5
+15
+35
+100
+40
+16. Ubytki pola widzenia:
+a) dwuskroniowe
+b) dwunosowe
+c) jednoimienne
+d) inne ubytki pola widzenia (jednooczne)50
+25
+25
+5
+17. Bezsoczewkowość pourazowa:
+a) w jednym oku
+b) w obu oczach15
+30
+18. Uszkodzenie przewodów łzowych leczone operacyjnie:
+a) w jednym oku
+b) w obu oczach5
+15
+19. Odwarstwienie siatkówki jednego oka wyłącznie po urazie oka lub głowy:
+a) bez zaburzeń ostrości wzroku
+b) z częściowym obniżeniem ostrości wzroku jednego oka
+c) z całkowitą utratą widzenia jednego oka2
+5
+35
+20. Jaskra wtórna pourazowa wyłącznie po urazie oka lub głowy 3
+21. Wytrzeszcz tętniący pourazowy 40
+Uwaga: Ostrość wzroku zawsze określa się po korekcji szkłami zarówno przy zmętnieniu rogówki lub soczewki, jak i przy
+współistnieniu uszkodzenia siatkówki lub nerwu wzrokowego.

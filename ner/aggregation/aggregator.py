@@ -10,7 +10,7 @@ from ..config import NERConfig, create_default_ner_config
 class GraphAggregator:
     def __init__(self, entities_dir: str = "entities", config: Optional[NERConfig] = None):
         timestamp = datetime.now().strftime("%Y%m%d-%H%M")
-        self.entities_dir = Path(entities_dir) / timestamp
+        self.entities_dir = Path(entities_dir) / f"{timestamp}"
         self.entities_dir.mkdir(parents=True, exist_ok=True)
 
         self.log_dir = self.entities_dir / "log"

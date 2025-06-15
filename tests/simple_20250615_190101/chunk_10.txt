@@ -1,0 +1,10 @@
+CHUNK 10 - 650 chars
+Type: unknown
+==================================================
+Artykuł 11. Wypowiedzenie Umowy
+1. Ubezpieczony może wypowiedzieć Umowę w dowolnym momencie jej obowiązywania.
+2. Ubezpieczony może złożyć oświadczenie o wypowiedzeniu Umowy ustnie za pośrednictwem Infolinii Ubezpieczyciela lub
+pisemnie, wysyłając je na adres Ubezpieczyciela lub Agenta . Oświadczenie o wypowiedzeniu Umowy powinno zawierać
+co najmniej: imię i nazwisko Ubezpieczonego , numer PESEL oraz numer Polisy .
+3. Wypowiedzenie Umowy jest skuteczne i ochrona ubezpieczeniowa wygasa z końcem okresu rozliczeniowego , w którym
+oświadczenie o wypowiedzeniu zostało zgłoszone na Infolinii Ubezpieczyciela, wpłynęło do Ubezpieczyciela lub Agenta .

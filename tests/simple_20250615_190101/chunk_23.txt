@@ -1,0 +1,42 @@
+CHUNK 23 - 1748 chars
+Type: unknown
+==================================================
+I. Uszkodzenia kręgosłupa, rdzenia kręgowego i ich następstwa
+51. Urazy rdzenia kręgowego:
+a) uszkodzenie rdzenia kręgowego jednoznacznie rozpoznane w szpitalu, potwierdzone w badaniach
+obrazowych rdzenia (TK, RM), leczone zachowawczo
+b) uszkodzenie rdzenia kręgowego jednoznacznie rozpoznane w szpitalu, potwierdzone w badaniach
+obrazowych rdzenia (TK, RM), leczone operacyjnie10
+20
+c) uszkodzenie rdzenia kręgowego jednoznacznie rozpoznane w szpitalu, potwierdzone w badaniach
+obrazowych rdzenia (TK, RM), skutkujące częściowym niedowładem co najmniej 2 kończyn (ocena
+niedowładu utrzymującego się powyżej 6 miesięcy od urazu, potwierdzona w dokumentacji leczenia)
+d) uszkodzenie rdzenia kręgowego jednoznacznie rozpoznane w szpitalu, potwierdzone w badaniach
+obrazowych rdzenia (TK, RM), skutkujące całkowitym porażeniem co najmniej 2 kończyn (ocena
+niedowładu utrzymującego się powyżej 6 miesięcy od urazu, potwierdzona w dokumentacji leczenia)30
+100
+52. Uszkodzenie kręgosłupa szyjnego:
+a) skręcenie lub zwichnięcie
+b) złamanie trzonów i łuków kręgów leczone zachowawczo (każdy)
+c) złamanie trzonów i łuków kręgów leczone operacyjnie (każdy)
+d) złamanie wyrostków kolczystych i poprzecznych (każdy)2
+5
+7
+1
+
+1453. Uszkodzenia kręgosłupa w odcinku piersiowym (Th1–Th10):
+a) skręcenie
+b) złamanie trzonów i łuków kręgów leczone zachowawczo (każdy)
+c) złamanie trzonów i łuków kręgów leczone operacyjnie (każdy)
+d) złamanie wyrostków kolczystych i poprzecznych (każdy)1
+4
+7
+1
+54. Uszkodzenia kręgosłupa w odcinku piersiowo-lędźwiowym (Th11–L5):
+a) skręcenie
+b) złamanie trzonów i łuków kręgów leczone zachowawczo (każdy)
+c) złamanie trzonów i łuków kręgów leczone operacyjnie (każdy)
+d) złamanie wyrostków kolczystych i poprzecznych (każdy)2
+5
+7
+1

@@ -132,21 +132,21 @@ class TextChunker:
         
         from .gradient_strategy import GradientChunker
         from .percentile_strategy import PercentileChunker
-        from .hierarchical_strategy import HierarchicalChunker  # ← DODANE
+        from .hierarchical_strategy import HierarchicalChunker
         print(f"🕐 {datetime.now()}: Strategies imported")
         
         domain_name = self.domains[0].config.name if self.domains else "auto"
         semantic_config = create_semantic_config(domain_name)
-        print(f"🔍 DEBUG: domain_name='{domain_name}', strategy='{semantic_config.strategy.value}'")  # ← DODAJ
+        print(f"🔍 DEBUG: domain_name='{domain_name}', strategy='{semantic_config.strategy.value}'")
         print(f"🕐 {datetime.now()}: Domain config: {domain_name}")
         
         if semantic_config.strategy.value == "gradient":
             chunker = GradientChunker(semantic_config)
-        elif semantic_config.strategy.value == "hierarchical":  # ← DODANE
+        elif semantic_config.strategy.value == "hierarchical":
             chunker = HierarchicalChunker(semantic_config)
-            # Inject LLM client for structure analysis
-            if hasattr(self, 'llm_client'):
-                chunker.set_llm_client(self.llm_client)
+            # Przekaż model do HierarchicalChunker
+            chunker.llm_model = self.model_name
+            print(f"🤖 HIERARCHICAL: Using model {self.model_name}")
         else:
             chunker = PercentileChunker(semantic_config)
         print(f"🕐 {datetime.now()}: Chunker created")

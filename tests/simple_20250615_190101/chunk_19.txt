@@ -1,0 +1,22 @@
+CHUNK 19 - 549 chars
+Type: unknown
+==================================================
+E. Uszkodzenia szyi, krtani, tchawicy i przełyku
+25. Uszkodzenie gardła, krtani, tchawicy leczone operacyjnie:
+a) leczone endoskopowo
+b) leczone operacyjnie (wyłączając leczenie endoskopowe)
+c) leczone rekonstrukcyjnie, odtwórczo2
+7
+30
+26. Uszkodzenie przełyku:
+a) leczone endoskopowo
+b) leczone operacyjnie (wyłączając leczenie endoskopowe)
+c) leczone rekonstrukcyjnie, odtwórczo2
+7
+30
+27. Uszkodzenie skóry szyi:
+a) rany skóry zaopatrzone chirurgicznie – każda
+b) oparzenie od stopnia II – za każdy 1% TBSA (całkowitej powierzchni ciała/PC)1
+2
+
+12

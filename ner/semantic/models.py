@@ -27,7 +27,7 @@ DOMAIN_EMBEDDING_CONFIGS = {
         "strategy": ChunkingStrategy.HIERARCHICAL,
         "percentile": 95.0,  # Very precise - separate legal sections
         "threshold": 0.15,   # Sharp boundaries
-        "description": "Hierarchical chunking for Polish legal documents"
+        "description": "Multilingual model for Polish legal documents"
     },
     
     "liric": {
@@ -78,8 +78,8 @@ def create_semantic_config(domain_name: str, available_ram_mb: int = None) -> Se
         model_name=model_name,
         threshold=domain_config["threshold"],
         percentile=domain_config["percentile"],
-        min_chunk_size=100,
-        max_chunk_size=100000
+        min_chunk_size=2000,
+        max_chunk_size=10000
     )
 
 
