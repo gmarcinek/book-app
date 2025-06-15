@@ -93,12 +93,14 @@ def check_memory_available(required_mb: float = 100.0) -> bool:
 
 
 def cleanup_text(text: str) -> str:
-    """Clean text for processing - remove extra whitespace, normalize"""
+    """Clean text for processing - preserve line breaks but normalize spacing"""
     if not text:
         return ""
     
-    cleaned = " ".join(text.split())
-    return cleaned.strip()
+    # Split by lines, clean each line individually, rejoin with \n
+    lines = text.split('\n')
+    cleaned_lines = [' '.join(line.split()) for line in lines]  # Normalize spaces within each line
+    return '\n'.join(cleaned_lines).strip()
 
 
 def safe_filename(name: str, max_length: int = 50) -> str:
