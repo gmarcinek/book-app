@@ -1,7 +1,0 @@
-CHUNK 2 - 336 chars
-Type: unknown
-==================================================
-Artykuł 3. Przedmiot ubezpieczenia i zakres terytorialny
-1. Przedmiotem tego ubezpieczenia jest ochrona zdrowia Ubezpieczonego oraz odpowiednio Małżonka lub Partnera
-Ubezpieczonego lub Dziecka Ubezpieczonego, o ile Ubezpieczony wybrał Pakiet Duet lub Rodzinny.
-2. Ochrona ubezpieczeniowa trwa przez 24 godziny na dobę, na całym świecie.

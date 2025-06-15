@@ -1,7 +1,0 @@
-CHUNK 26 - 359 chars
-Type: unknown
-==================================================
-Art. 2 Kogo ubezpiecza Nationale‑Nederlanden w ramach Umowy tymczasowej? Co obejmuje ubezpieczenie?
-1. Nationale‑Nederlanden ubezpiecza życie Ubezpieczonego.
-2. Ubezpieczenie obejmuje śmierć Ubezpieczonego oraz śmierć Ubezpieczonego wskutek Nieszczęśliwego wypadku,
-pod warunkiem że Nieszczęśliwy wypadek i śmierć nastąpiły w czasie trwania Umowy tymczasowej.
