@@ -3,7 +3,7 @@ from .base import BaseNER
 from .literary import LiteraryNER
 from .liric import LiricNER
 from .simple import SimpleNER
-from .owuner import OWUNER
+from .owu import OWUNER
 
 
 class DomainFactory:
