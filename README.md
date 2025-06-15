@@ -193,16 +193,16 @@ export OPENAI_API_KEY="your-key"
 export ANTHROPIC_API_KEY="your-key"
 
 # Użyj lokalnego modelu
-python main.py file.txt --model qwen2.5-coder
+poetry run app file.txt --model qwen2.5-coder
 ```
 
 ### Problemy z pamięcią
 ```bash
 # Użyj mniejszego modelu
-python main.py large.pdf --model claude-3.5-haiku
+poetry run app large.pdf --model claude-3.5-haiku
 
 # Lokalny model z mniejszymi chunkami
-python main.py huge.txt --model qwen2.5-coder
+poetry run app huge.txt --model qwen2.5-coder
 ```
 
 ### Model Ollama niedostępny
@@ -221,9 +221,9 @@ ollama list
 
 ```bash
 # Wszystkie opcje
-python main.py --help
+poetry run app --help
 
 # Test z prostym plikiem
 echo "Jan Kowalski mieszka w Warszawie." > test.txt
-python main.py test.txt --verbose
+poetry run app test.txt --verbose
 ```

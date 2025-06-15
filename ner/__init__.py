@@ -7,7 +7,7 @@ Supports multiple document formats and domain-specific extraction strategies.
 
 # Import all components
 from .loaders import DocumentLoader, LoadedDocument, load_text
-from .chunker import TextChunker, TextChunk
+from .semantic import TextChunker, TextChunk
 from .extractor import EntityExtractor
 from .aggregation import GraphAggregator
 from .resolver import EntityResolver  # Placeholder

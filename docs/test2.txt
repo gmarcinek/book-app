@@ -1,17 +1,10 @@
-Szkoda kasy na makbooka. Jesli tylko montaz to nawet super monit nie potrzebny. Monit 2.7k wystarcza dla amatorskiego kreatora. Trzeba tez monitor referencyjny jako podgląd. Monitor powinien miec wiecej niz 6bit kolor czyli 8bit. Bo 10 to juz hdr. Procesor wazniejszy od ramu ale 32gb to musi miec. Grafika gtx jakas minimum 3080
-
-Jak by sie ktoś chciał zabrać na Bońka w niedzielę. Na Bońka lub na Birów HGW i tak wszędzie bedzie tłok pewnie. W każdym razie 2 msca w aucie są. 
-Boniek, BIrów lub Zielona Góra, lub coś innego fajnego
-
-Pierwszy zaczyna się Kaskadami ale idzie skosem do Maszyny Prostej - to logiczna linia idąca skosem po "łatwościach" aż do końcowego cruxa Maszyny. 
-Drugi wariant to Star Maszyną a zakończenie Kaskadami. 
-Dlaczego?  
-Bo jak już się zrobi pierwszy crux Maszyny Prostej to jest się w sumie prawie na kaskadach i logiczne było by kontynuowanie do góry po Kaskadach
-
-Oblaki, kompresja i mała banieczka. Klatą po ringach. Albo miałem gorszy czas albo spokojnie to mogło by mieć VI.3+. Ostatecznie sam nie rozkminiłem jak zrobić wejscie w cruxa i dopiero w RP7 poprowadziłem w 2giej wstawce tego dnia. Znalazłem trudności raczej z 7a+ ale w skutecznej próbie wydawało się już łatwe. PS. Jeśli stojąc na palcach z wyciągniętą nad głowę ręką nie masz przynajmniej ~225cm to może być ci trudniej. PS. Trudniejsze od "Flaczki z Mnicha" w Dolinie Wiercicy ;P
-
-Urozmaicone wspinanie. SPOJLER: Trzy baldy oddzielone restami. Pierwszy bald na starcie z gatunku "skok do oblaka", drugi bald wchodzi w dość bezchwytowy typowo chujowo jurajski teren ale to tylko 2-3 przechwyty i sam w sobie jest ostatecznie też badzo satysfakcjonujący, trzeci bald to sekwencja 10-12 ruchów która ma charakter narastająco pompujący.
-
-SOFT. Mam to w dupie, że piszecie 6b :-) . Pierwszy os na 7a. Na górze w lewo bez prawego kantu, który miał być chyba ogranicznikiem naturalnym, ale nawet nie przyszło mi do głowy żeby go użyć. Przewijka przez mantlę raczej łatwa, natomiast dół i środek jest raczej cruxem jeśli już. Wydaje sie być łatwiejsza od lekko przewieszonej Hakuny mataty natomiast znacznie łatwiejsza od spirali :-) ... Rysa nie może być ogranicznikiem naturalnym ponieważ leci wzdłuż drogi. Kant na prawo od rysy natomiast jak najbardziej wychodzi już poza obszar drogi i ma szansę być ogranicznikiem. Nie mniej wszystkie trudności na tej drodze są poniżej tego więc wtf?
-
-VI.2+/VI.3 za cruxa i 6b+ za resztę drogi co razem da chyba już VI.3. Ciężko powiedzieć coś o pięknie tej drogi. Na dole jest cholernie męski statyczny problem, na którym można stęknąć. Potem są już prawie same klamy ale przewieszenie robi swoje. W wilgotniejsze dni błoto a w suche piach może trochę popsuć nam przygodę
+Artykuł 2. Definicje
+1.  Abonent – osoba fizyczna, która zawarła z T-Mobile Polska S.A. Umowę o świadczenie usług telekomunikacyjnych,
+2.  Agent – T-Mobile Polska S.A. z siedzibą w Warszawie (02-674), przy ul. Marynarskiej 12, operator sieci T-Mobile, który wykonuje czynności pośrednictwa ubezpieczeniowego jako agent ubezpieczeniowy w imieniu i na rzecz Ubezpieczyciela, zarejestrowana w Sądzie Rejonowym dla m.st. Warszawy XIII Wydział Gospodarczy Krajowego Rejestru Sądowego, pod nr. KRS: 0000391193, NIP 526-10-40-567, REGON 011417295, kapitał zakładowy 711 210 000 złotych, kapitał wpłacony w całości,3.  data rozpoczęcia ochrony ubezpieczeniowej – data określona w Polisie, która jest datą zawarcia Umowy lub datą zmiany 
+Umowy,
+4.  data zawarcia Umowy – 10. dzień po dniu, w którym Ubezpieczony zgodził się na zawarcie Umowy,5.  data zmiany Umowy – data określona w Polisie, która jest datą wejścia w życie zmiany zgodnie z artykułem 4 punkt 5,
+6.  Dziecko – każde z dzieci Ubezpieczonego, własne lub przysposobione, które w dniu zajścia zdarzenia ubezpieczeniowego 
+ukończyło 6. miesiąc życia, a nie ukończyło 21. roku życia,
+7.  Infolinia  Ubezpieczyciela  – telefoniczne centrum informacji Ubezpieczyciela, odpowiedzialne za obsługę Umowy. 
+Podmiotem odpowiedzialnym za prowadzenie Infolinii Ubezpieczyciela może być osoba trzecia, która działa na zlecenie 
+Ubezpieczyciela,

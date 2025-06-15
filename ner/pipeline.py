@@ -10,7 +10,7 @@ load_dotenv()
 
 from llm import Models
 from .loaders import DocumentLoader, LoadedDocument
-from .chunker import TextChunker
+from .semantic import TextChunker
 from .extractor import EntityExtractor
 from .aggregation import GraphAggregator
 from .config import NERConfig, create_default_ner_config
@@ -56,7 +56,8 @@ def process_text_to_knowledge(
         chunker = TextChunker(
             config=ner_config,
             model_name=model,
-            domains=domains_for_chunker  # Pass domains for real overhead calculation
+            domains=domains_for_chunker,  # Pass domains for real overhead calculation
+            chunking_mode="semantic"
         )
         chunks = chunker.chunk_text(document.content)
         print(f"✂️ Created {len(chunks)} chunks (avg: {sum(len(c.text) for c in chunks)//len(chunks) if chunks else 0} chars)")

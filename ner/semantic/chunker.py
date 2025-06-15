@@ -1,25 +1,18 @@
+# ner/semantic/chunker.py
+
 """
 NER Text Chunker - Intelligent text splitting with model-aware sizing
 Memory-efficient chunking for large documents with automatic chunk size calculation
 """
+import json
+from datetime import datetime
 
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-from .utils import log_memory_usage, validate_text_content
-from .config import NERConfig, create_default_ner_config
+from ..utils import log_memory_usage, validate_text_content
+from ..config import NERConfig, create_default_ner_config
 from llm.models import Models, get_model_input_limit
-
-
-@dataclass
-class TextChunk:
-    """Represents a text chunk with metadata"""
-    id: int
-    start: int
-    end: int
-    text: str
-    overlap_start: bool = False  # True if this chunk starts with overlap
-    overlap_end: bool = False    # True if this chunk ends with overlap
-
+from .base import TextChunk
 
 class TextChunker:
     """
@@ -30,12 +23,14 @@ class TextChunker:
     - Accounts for real meta-prompt overhead from domains
     - Memory-safe processing
     - Smart boundary detection (sentences, paragraphs)
+    - Semantic chunking support
     """
     
     def __init__(self, 
                  config: Optional[NERConfig] = None, 
                  model_name: str = None, 
-                 domains: List = None):
+                 domains: List = None,
+                 chunking_mode: str = "model_aware"):
         """
         Initialize chunker with model-aware configuration
         
@@ -43,10 +38,12 @@ class TextChunker:
             config: NERConfig object with chunking settings, creates default if None
             model_name: LLM model name for auto-sizing (defaults to GPT_4O_MINI)
             domains: List of domain objects for overhead calculation
+            chunking_mode: "model_aware" or "semantic"
         """
         self.config = config if config is not None else create_default_ner_config()
         self.model_name = model_name or Models.GPT_4O_MINI
         self.domains = domains or []
+        self.chunking_mode = chunking_mode
         
         # Calculate REAL meta-prompt overhead from domains
         self.meta_overhead = self._calculate_meta_overhead()
@@ -106,7 +103,7 @@ class TextChunker:
     
     def chunk_text(self, text: str, smart_boundaries: bool = True) -> List[TextChunk]:
         """
-        Split text into overlapping chunks with model-aware sizing
+        Split text into overlapping chunks with model-aware sizing or semantic chunking
         
         Args:
             text: Input text to chunk
@@ -120,6 +117,39 @@ class TextChunker:
         
         log_memory_usage("🔄 Chunking start")
         
+        # Use semantic chunking if enabled
+        if self.chunking_mode == "semantic":
+            return self._semantic_chunk_text(text)
+        else:
+            return self._model_aware_chunk_text(text, smart_boundaries)
+    
+    def _semantic_chunk_text(self, text: str) -> List[TextChunk]:
+        from datetime import datetime
+        print(f"🕐 {datetime.now()}: Starting semantic chunking...")
+        
+        from .models import create_semantic_config
+        print(f"🕐 {datetime.now()}: Config created")
+        
+        from .gradient_strategy import GradientChunker
+        from .percentile_strategy import PercentileChunker
+        print(f"🕐 {datetime.now()}: Strategies imported")
+        
+        domain_name = self.domains[0].config.name if self.domains else "auto"
+        semantic_config = create_semantic_config(domain_name)
+        print(f"🕐 {datetime.now()}: Domain config: {domain_name}")
+        
+        if semantic_config.strategy.value == "gradient":
+            chunker = GradientChunker(semantic_config)
+        else:
+            chunker = PercentileChunker(semantic_config)
+        print(f"🕐 {datetime.now()}: Chunker created")
+        
+        result = chunker.chunk(text, self.domains)
+        print(f"🕐 {datetime.now()}: Chunking complete")
+        return result
+    
+    def _model_aware_chunk_text(self, text: str, smart_boundaries: bool) -> List[TextChunk]:
+        """Original model-aware chunking logic"""
         text_len = len(text)
         chunks = []
         
@@ -227,6 +257,7 @@ class TextChunker:
             "min_chunk_size": min(chunk_sizes),
             "max_chunk_size": max(chunk_sizes),
             "overlapping_chunks": sum(1 for chunk in chunks if chunk.overlap_start or chunk.overlap_end),
+            "chunking_mode": self.chunking_mode,
             "model_config": {
                 "model_name": self.model_name,
                 "model_input_limit": get_model_input_limit(self.model_name),
@@ -260,3 +291,20 @@ class TextChunker:
             return chunk1.text[overlap_start - chunk1.start:overlap_end - chunk1.start]
         
         return None
+
+    def _log_chunks(self, chunks: List[TextChunk], strategy_name: str = "unknown"):
+        """Save chunks to log folder for debugging"""
+        if hasattr(self, "aggregator") and hasattr(self.aggregator, "log_dir"):
+            timestamp = datetime.now().strftime("%H%M%S")
+            file_name = f"chunks_{strategy_name}_{timestamp}.json"
+            log_path = self.aggregator.log_dir / file_name
+            
+            chunks_data = {
+                "strategy": strategy_name,
+                "total_chunks": len(chunks),
+                "chunking_mode": self.chunking_mode,
+                "chunks": [self.chunk_to_dict(chunk) for chunk in chunks]
+            }
+            
+            log_path.write_text(json.dumps(chunks_data, indent=2, ensure_ascii=False), encoding="utf-8")
+            print(f"📝 Saved {len(chunks)} chunks to {file_name}")

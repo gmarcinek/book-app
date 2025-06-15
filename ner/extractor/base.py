@@ -10,7 +10,7 @@ load_dotenv()
 
 # Local imports
 from ..utils import log_memory_usage
-from ..chunker import TextChunk
+from ..semantic import TextChunk
 from ..domains import DomainFactory, BaseNER
 from ..config import NERConfig, create_default_ner_config
 from llm import Models, LLMConfig
@@ -72,7 +72,7 @@ class EntityExtractor:
         # Stats - initialize with available domains for non-auto mode
         if domain_names == ["auto"]:
             # For auto mode, initialize with all possible domains
-            available_domains = ["literary", "liric", "simple"]
+            available_domains = ["literary", "liric", "simple", "owu"]
         else:
             available_domains = domain_names
         

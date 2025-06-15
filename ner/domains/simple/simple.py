@@ -3,8 +3,7 @@ from ..base import BaseNER, DomainConfig
 from .simple_consts import (
     SIMPLE_ENTITY_TYPES_FLAT, 
     format_simple_entity_types, 
-    SIMPLE_EXAMPLES, 
-    SIMPLE_PLACE_VS_OBJECT_GUIDE
+    SIMPLE_EXAMPLES,
 )
 
 import logging
