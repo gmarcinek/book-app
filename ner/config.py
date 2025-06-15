@@ -9,6 +9,7 @@ class ChunkingStrategy(Enum):
     """Available semantic chunking strategies"""
     GRADIENT = "gradient"
     PERCENTILE = "percentile"
+    HIERARCHICAL = "hierarchical"
 
 @dataclass
 class NERConfig:
@@ -27,7 +28,7 @@ class NERConfig:
     chunk_size: int = 9000
     chunk_overlap: int = 400
     chunking_mode: str = "semantic"  # "model_aware" or "semantic"
-    semantic_strategy: ChunkingStrategy = ChunkingStrategy.PERCENTILE
+    semantic_strategy: ChunkingStrategy = ChunkingStrategy.HIERARCHICAL
     
     # Processing limits
     max_iterations: int = 100

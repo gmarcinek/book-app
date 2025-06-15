@@ -56,9 +56,10 @@ Examples:
             Models.CLAUDE_3_HAIKU,
             Models.GPT_4O,
             Models.GPT_4O_MINI,
-            Models.GPT_4_1_MINI
+            Models.GPT_4_1_MINI,
+            Models.GPT_4_1_NANO,
         ],
-        default=Models.GPT_4O_MINI,
+        default=Models.QWEN_CODER,
         help="LLM model to use (default: qwen2.5-coder)"
     )
     

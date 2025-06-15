@@ -24,10 +24,10 @@ DOMAIN_EMBEDDING_CONFIGS = {
     
     "owu": {
         "model_name": DEFAULT_MODEL,
-        "strategy": ChunkingStrategy.PERCENTILE,
-        "percentile": 97.0,  # Very precise - separate legal sections
-        "threshold": 0.18,   # Sharp boundaries
-        "description": "Multilingual model for Polish legal documents"
+        "strategy": ChunkingStrategy.HIERARCHICAL,
+        "percentile": 95.0,  # Very precise - separate legal sections
+        "threshold": 0.15,   # Sharp boundaries
+        "description": "Hierarchical chunking for Polish legal documents"
     },
     
     "liric": {
@@ -78,8 +78,8 @@ def create_semantic_config(domain_name: str, available_ram_mb: int = None) -> Se
         model_name=model_name,
         threshold=domain_config["threshold"],
         percentile=domain_config["percentile"],
-        min_chunk_size=5000,
-        max_chunk_size=10000
+        min_chunk_size=100,
+        max_chunk_size=100000
     )
 
 

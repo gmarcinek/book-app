@@ -14,135 +14,98 @@ class OWUNER(BaseNER):
     def get_entity_types(self) -> List[str]:
         return OWU_ENTITY_TYPES
 
-    def extract_definitions_only(self, text: str) -> str:
-        """Specjalna metoda do ekstrakcji tylko definicji z sekcji DEFINICJE."""
-        return f"""Jesteś ekspertem NER specjalizującym się w ekstrakcji DEFINICJI z tekstów OWU.
-
-ZADANIE: Znajdź wszystkie zdefiniowane terminy i ich definicje w poniższym tekście.
-
-TEKST:
-{text}
-
-PRIORYTET: DEFINICJE
-- Szukaj wzorców: "oznacza", "rozumie się", "przez ... rozumie się"
-- Każdy zdefiniowany termin to encja typu TERMIN_ZDEFINIOWANY
-- Definicja to opis kontekstowy encji
-
-DODATKOWE TYPY ENCJI (poza definicjami):
-{format_owu_entity_types()}
-
-ZASADY:
-1. GŁÓWNY PRIORYTET: definicje terminów
-2. Forma podstawowa terminów
-3. Pełny opis definicji w "description"
-4. Wysoką pewność (0.8+) dla jasnych definicji
-
-FORMAT JSON:
-{{
-  "entities": [
-    {{
-      "name": "termin_w_formie_podstawowej",
-      "type": "TERMIN_ZDEFINIOWANY",
-      "description": "pełna definicja z tekstu",
-      "confidence": 0.X,
-      "evidence": "DOKŁADNA LOKALIZACJA w tekście (np. 'rozdz 1, art 9, p 13') + krótki cytat",
-      "aliases": ["możliwe inne nazwy"]
-    }}
-  ]
-}}"""
-
     def get_meta_analysis_prompt(self, text: str) -> str:
-        entity_types_str = ", ".join(OWU_ENTITY_TYPES)
-        return f"""Ekspert NER. Przeanalizuj tekst OWU i stwórz SPERSONALIZOWANY PROMPT ekstrakcji.
+        """META-PROMPT: Skrócony o ~60% ale zachowuje kluczowe elementy"""
+        return f"""Ekspert NER dla OWU. Przeanalizuj tekst i stwórz SPERSONALIZOWANY PROMPT.
 
 TEKST: {text}
 
 ANALIZA:
-- PRIORYTET: definicje terminów (TERMIN_ZDEFINIOWANY)
-- Typy encji: {entity_types_str}
-- Język formalno-prawny, sformalizowane definicje
-- Wzorce definicji: "oznacza", "rozumie się", "przez ... rozumie się"
-- Duża liczba nazw własnych i abstrakcji
+- PRIORYTET 1: definicje terminów (wzorce: "oznacza", "rozumie się")
+- PRIORYTET 2: wyłączenia z umowy (sekcje wyłączeń + listy punktów)
+- Język formalno-prawny, precyzyjne definicje
+- Struktury list: a), 1., -, • = osobne encje w wyłączeniach
 
-PROMPT: Zacznij 'Jesteś ekspertem NER...' i skoncentruj się na:
-1. GŁÓWNIE na definicjach terminów
-2. Kontekście ubezpieczeniowym
-3. Zachowaniu aliasów i opisu kontekstowego każdej encji"""
+DOSTĘPNE TYPY: {format_owu_entity_types()}
 
-    def build_custom_extraction_prompt(self, text: str, custom_instructions: str, known_aliases: dict = None) -> str:
-        entity_types_str = format_owu_entity_types()
-        aliases_info = ""
-        if known_aliases:
-            aliases_lines = "\n".join(f"- {k}: {', '.join(v)}" for k, v in known_aliases.items())
-            aliases_info = f"\n\nUWAGA: Znalezione aliasy:\n{aliases_lines}\n"
+PROMPT: Zacznij "Zidentyfikuj encje OWU..." i uwzględnij:
+1. Definicje terminów jako TERMIN_ZDEFINIOWANY
+2. Każdy punkt listy wyłączeń jako WYŁĄCZENIE_Z_UMOWY
+3. Kontekst ubezpieczeniowy + aliasy
 
-        return f"""Jesteś ekspertem NER specjalizującym się w tekstach OWU.
+JSON: {{"prompt": "Twój spersonalizowany prompt..."}}"""
 
-GŁÓWNY PRIORYTET: DEFINICJE TERMINÓW
-- Szukaj wzorców definicji: "oznacza", "rozumie się", "przez ... rozumie się"
-- Każdy zdefiniowany termin = TERMIN_ZDEFINIOWANY
-- Wysoka pewność (0.8+) dla jasnych definicji
+    def get_base_extraction_prompt(self, text: str) -> str:
+        """FALLBACK: Skrócony o ~50% z fokusem na wyłączenia"""
+        return f"""Zidentyfikuj encje OWU w tekście. PRIORYTET: definicje i wyłączenia.
 
-{custom_instructions}
-{aliases_info}
-DOSTĘPNE TYPY ENCJI:
-{entity_types_str}
+TEKST: {text}
 
-TEKST:
-{text}
+**INSTRUKCJE SPECJALNE DLA WYŁĄCZEŃ:**
+- W sekcjach "wyłączenia"/"nie obejmuje"/"odmowa" każdy punkt listy = osobna encja
+- Formaty: a), b), 1., 2., -, •, lub inne - każdy punkt to WYŁĄCZENIE_Z_UMOWY
+- Przykład: "a) choroby, b) wypadek" = 2 osobne encje wyłączeń
+
+**PRIORYTET TYPÓW:**
+1. TERMIN_ZDEFINIOWANY (wzorce: "oznacza", "rozumie się")
+2. WYŁĄCZENIE_Z_UMOWY (listy + kontekst wyłączeń)
+3. Inne typy OWU
+
+TYPY: {format_owu_entity_types()}
 
 ZASADY:
-1. **PRIORYTET: definicje terminów** (TERMIN_ZDEFINIOWANY)
-2. Tylko jawne lub jednoznacznie implikowane encje
-3. Forma podstawowa
-4. Uwzględnij aliasy (np. "Ubezpieczyciel" = "Towarzystwo", "Firma")
-5. **EVIDENCE: lokalizacja + cytat** - podaj adres paragrafu (np. "rozdz 1, art 9, p 13") + krótki cytat
+- Forma podstawowa, wysokie confidence dla definicji (0.8+)
+- Każdy punkt listy wyłączeń = osobna encja
+- EVIDENCE: lokalizacja + cytat (np. "art 9, pkt a")
+- Aliases obowiązkowe
 
-FORMAT JSON:
+JSON:
 {{
   "entities": [
     {{
-      "name": "nazwa_w_formie_podstawowej",
-      "type": "TYP_Z_LISTY_WYŻEJ", 
-      "description": "opis 3-5 zdań (pełna definicja dla TERMIN_ZDEFINIOWANY)",
+      "name": "nazwa_podstawowa",
+      "type": "TYP_Z_LISTY",
+      "description": "pełny opis lub treść",
       "confidence": 0.X,
-      "evidence": "LOKALIZACJA w dokumencie (rozdz X, art Y, p Z) + fragment tekstu uzasadniający istnienie tej encji",
+      "evidence": "lokalizacja + precyzyjny cytat",
       "aliases": ["alias1", "alias2"]
     }}
   ]
 }}"""
 
-    def get_base_extraction_prompt(self, text: str) -> str:
-        entity_types_str = ", ".join(OWU_ENTITY_TYPES)
-        return f"""Jesteś ekspertem NER. Wykonaj ekstrakcję encji OWU z poniższego tekstu.
+    def build_custom_extraction_prompt(self, text: str, custom_instructions: str, known_aliases: dict = None) -> str:
+        """CUSTOM: Skrócony z fokusem na wyłączenia"""
+        aliases_info = ""
+        if known_aliases:
+            aliases_lines = "\n".join(f"- {k}: {', '.join(v)}" for k, v in known_aliases.items())
+            aliases_info = f"\nZnane aliasy: {aliases_lines}\n"
 
-**GŁÓWNY PRIORYTET: DEFINICJE TERMINÓW**
-- Wzorce: "oznacza", "rozumie się", "przez ... rozumie się"
-- Typ: TERMIN_ZDEFINIOWANY
-- Wysoką pewność dla jasnych definicji
+        return f"""{custom_instructions}
 
-TEKST:
-{text}
+**WYŁĄCZENIA - INSTRUKCJA SPECJALNA:**
+Każdy punkt w listach wyłączeń = osobna encja WYŁĄCZENIE_Z_UMOWY:
+- a) choroba → encja: "wyłączenie_choroba"  
+- b) wypadek → encja: "wyłączenie_wypadek"
+- Format: a), 1., -, • - rozpoznaj wszystkie
 
-TYPY ENCJI:
-{entity_types_str}
+{aliases_info}
+TEKST: {text}
 
-ZASADY:
-- **PRIORYTET: definicje terminów**
-- **PRIORYTET: wyłączenia z umowy**
-- Tylko encje obecne lub implikowane  
-- Wymagaj aliasów i kontekstu
-- **EVIDENCE: adres paragrafu + cytat**
-- JSON zgodnie ze wzorem z dokumentacji"""
+TYPY: {format_owu_entity_types()}
 
-    def is_definition_section(self, text: str) -> bool:
-        """Sprawdza czy tekst to sekcja definicji."""
-        definition_markers = [
-            "definicje", "definicji", "pojęcia użyte", "znaczenie pojęć",
-            "oznacza", "rozumie się", "przez", "należy przez to rozumieć"
-        ]
-        text_lower = text.lower()
-        return any(marker in text_lower for marker in definition_markers)
+JSON (EVIDENCE obowiązkowy):
+{{
+  "entities": [
+    {{
+      "name": "nazwa_podstawowa",
+      "type": "TYP_Z_LISTY", 
+      "description": "pełny opis",
+      "confidence": 0.X,
+      "evidence": "art X, pkt Y + cytat",
+      "aliases": ["alias1"]
+    }}
+  ]
+}}"""
 
     def should_use_cleaning(self) -> bool:
         return False

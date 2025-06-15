@@ -8,6 +8,7 @@ class ModelProvider(Enum):
 class Models:
     # OpenAI - emergency backup
     GPT_4_1_MINI = "gpt-4.1-mini"
+    GPT_4_1_NANO = "gpt-4.1-nano"
     GPT_4O = "gpt-4o"
     GPT_4O_MINI = "gpt-4o-mini"
     
@@ -26,6 +27,7 @@ class Models:
 # Mapowanie modeli na providerów
 MODEL_PROVIDERS = {
     Models.GPT_4_1_MINI: ModelProvider.OPENAI,
+    Models.GPT_4_1_NANO: ModelProvider.OPENAI,
     Models.GPT_4O: ModelProvider.OPENAI,
     Models.GPT_4O_MINI: ModelProvider.OPENAI,
     Models.CLAUDE_4_SONNET: ModelProvider.ANTHROPIC,
@@ -41,6 +43,7 @@ MODEL_PROVIDERS = {
 # Maksymalne limity OUTPUT tokenów
 MODEL_MAX_TOKENS = {
     Models.GPT_4_1_MINI: 32768,
+    Models.GPT_4_1_NANO: 32768,
     Models.GPT_4O: 16384,
     Models.GPT_4O_MINI: 16384,
     Models.CLAUDE_4_SONNET: 64000,  # Updated from research: 64K output tokens
@@ -56,6 +59,7 @@ MODEL_MAX_TOKENS = {
 # INPUT context window limits - rzeczywiste specyfikacje z dokumentacji
 MODEL_INPUT_CONTEXT = {
     Models.GPT_4_1_MINI: 1000000,      # 1M tokens context window
+    Models.GPT_4_1_NANO: 1047576,      # ~1.047M tokens context window
     Models.GPT_4O: 128000,             # 128K tokens context window  
     Models.GPT_4O_MINI: 128000,        # 128K tokens context window
     Models.CLAUDE_4_SONNET: 200000,    # 200K tokens context window
