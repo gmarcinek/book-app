@@ -30,7 +30,8 @@ class ExtractedEntity:
     aliases: List[str] = None
     chunk_id: Optional[int] = None
     context: Optional[str] = None
-    domain: Optional[str] = None  # ← Which domain extracted this entity
+    domain: Optional[str] = None
+    evidence: Optional[str] = None
     
     def __post_init__(self):
         """Initialize aliases as empty list if None"""

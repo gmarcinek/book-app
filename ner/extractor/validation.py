@@ -95,5 +95,6 @@ def _validate_and_clean_entity(entity_data: Dict[str, Any], domain: BaseNER = No
         'type': entity_type,
         'description': description,
         'confidence': confidence,
-        'aliases': cleaned_aliases
+        'aliases': cleaned_aliases,
+        'evidence': entity_data.get('evidence', '')
     }

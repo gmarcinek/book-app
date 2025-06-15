@@ -144,7 +144,8 @@ def _extract_entities_from_chunk_single_domain_old_flow(extractor, chunk: TextCh
                     aliases=cleaned_entity['aliases'],
                     chunk_id=chunk.id,
                     context=entity_context,
-                    domain=domain_name  # Set domain name
+                    domain=domain_name ,
+                    evidence=cleaned_entity.get('evidence', '')
                 )
                 valid_entities.append(entity)
                 extractor.extraction_stats["entities_extracted_valid"] += 1

@@ -81,6 +81,7 @@ def process_text_to_knowledge(
                 'description': entity.description,
                 'confidence': entity.confidence,
                 'aliases': entity.aliases,
+                'evidence': entity.evidence,
                 'source_info': {
                     'chunk_references': [f"chunk_{entity.chunk_id}"] if entity.chunk_id is not None else [],
                     'source_document': document.source_file
