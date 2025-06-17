@@ -24,6 +24,7 @@ poetry run app book.docx --domains literary liric
 |---------------------|-----------|----------------|-------------|------|------|
 | `gpt-4o-mini`      | OpenAI    | 128K/16K      | ⭐⭐⭐       | $$   | **Default** - dobry balans |
 | `gpt-4.1-mini`     | OpenAI    | 1M/32K        | ⭐⭐⭐       | $$   | Duży context window |
+| `gpt-4.1-nano`     | OpenAI    | 1M/32K        | ⭐⭐⭐       | $   | Duży context window |
 | `gpt-4o`           | OpenAI    | 128K/16K      | ⭐⭐⭐⭐     | $$$  | Wysoka jakość |
 | `claude-4-sonnet`  | Anthropic | 200K/64K      | ⭐⭐⭐⭐⭐   | $$$  | **Najlepszy do kodowania** |
 | `claude-4-opus`    | Anthropic | 200K/32K      | ⭐⭐⭐⭐⭐   | $$$$$ | **Najinteligentniejszy** |
@@ -65,7 +66,6 @@ poetry run app book.docx --domains literary liric
 ```bash
 --batch                     # Tryb wsadowy dla folderów
 --pattern PATTERN          # Wzorzec plików (default: *)
---no-aggregation           # Pomiń tworzenie grafu wiedzy
 ```
 
 ### Output

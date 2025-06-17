@@ -22,6 +22,7 @@ class NERConfig:
     meta_analysis_temperature: float = 0.0
     entity_extraction_temperature: float = 0.0
     auto_classification_temperature: float = 0.0
+    default_model: str = "gpt-4o-mini"  # Default model for processing
 
     
     # Chunking settings
@@ -50,6 +51,10 @@ class NERConfig:
     def get_auto_classification_temperature(self) -> float:
         """Get temperature for auto-classification phase"""
         return self.auto_classification_temperature
+    
+    def get_default_model(self) -> str:
+        """Get default model for processing"""
+        return self.default_model
     
     def get_chunk_size(self) -> int:
         """Get chunk size for text processing"""

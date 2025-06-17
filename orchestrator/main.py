@@ -20,6 +20,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from ner import process_text_to_knowledge, process_file, process_directory, NERProcessingError
 from llm import Models
+from ner.storage import SemanticStore  # ← dodaj tutaj
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -39,6 +40,7 @@ Examples:
     # Positional argument
     parser.add_argument(
         "input",
+        nargs="?",  # <- ZAMIANA: teraz argument jest opcjonalny
         help="File path or directory to process"
     )
     
@@ -66,8 +68,8 @@ Examples:
     # Processing options
     parser.add_argument(
         "--entities-dir", "-e",
-        default="entities",
-        help="Directory to store entity files (default: entities)"
+        default="semantic_store",
+        help="Directory to store entity files (default: semantic_store)"
     )
     
     parser.add_argument(
@@ -75,13 +77,6 @@ Examples:
         nargs="+",
         default=["auto"], 
         help="Domains to use: literary, liric, simple, auto (default: auto)"
-    )
-    
-    # Feature toggles
-    parser.add_argument(
-        "--no-aggregation",
-        action="store_true",
-        help="Skip creating aggregated graph file"
     )
     
     # Batch processing
@@ -114,6 +109,23 @@ Examples:
         "--json",
         action="store_true",
         help="Output results as JSON"
+    )
+    
+    parser.add_argument(
+        "--interactive", "-i",
+        action="store_true", 
+        help="Interactive mode for continuous text processing"
+    )
+
+    parser.add_argument(
+        "--query", "-Q",
+        choices=["stats", "entities", "search", "graph"],
+        help="Query existing knowledge base"
+    )
+
+    parser.add_argument(
+        "--search-term",
+        help="Search term for --query search"
     )
     
     return parser
@@ -162,7 +174,7 @@ def print_results(result: Dict[str, Any], args) -> None:
         # Single file results
         print(f"📄 Source: {Path(result.get('source_file', 'unknown')).name}")
         print(f"🔍 Entities created: {result.get('entities_created', 0)}")
-        print(f"📁 Entities directory: {result.get('output', {}).get('entities_dir', 'entities')}")
+        print(f"📁 Entities directory: {result.get('output', {}).get('entities_dir', 'semantic_store')}")
         
         if result.get('output', {}).get('aggregated_graph'):
             print(f"📊 Aggregated graph: {result['output']['aggregated_graph']}")
@@ -191,15 +203,130 @@ def print_results(result: Dict[str, Any], args) -> None:
             print(f"File: {result.get('source_file', 'unknown')}")
             print(f"Timestamp: {result.get('timestamp', 'unknown')}")
 
+def interactive_mode(args):
+    """Interactive text processing mode"""
+    print("🚀 Interactive NER Mode")
+    print("📝 Wpisz tekst, naciśnij Enter. 'quit' aby wyjść.")
+    print("📊 'stats' - statystyki, 'search <term>' - wyszukaj")
+    print()
+    
+    # Initialize store
+    storage_dir = f"{args.entities_dir}/interactive"
+    store = SemanticStore(storage_dir=storage_dir)
+    
+    session_count = 0
+    
+    while True:
+        try:
+            user_input = input("📝 > ").strip()
+            
+            if not user_input:
+                continue
+                
+            if user_input.lower() == 'quit':
+                print("👋 Żegnaj!")
+                break
+                
+            elif user_input.lower() == 'stats':
+                stats = store.get_stats()
+                print(f"📊 Encje: {stats['entities']}, Chunki: {stats['chunks']}")
+                continue
+                
+            elif user_input.lower().startswith('search '):
+                term = user_input[7:]
+                results = store.search_entities_by_name(term)
+                if results:
+                    for entity, similarity in results[:5]:
+                        print(f"🔍 {entity.name} ({entity.type}) - {similarity:.3f}")
+                else:
+                    print(f"❌ Nie znaleziono: {term}")
+                continue
+            
+            # Process as text
+            session_count += 1
+            print(f"🔄 Przetwarzam tekst #{session_count}...")
+            
+            result = process_text_input(user_input, store, args, session_count)
+            
+            if result["status"] == "success":
+                print(f"✅ Znaleziono {result['entities_found']} encji")
+                
+                # Show new entities
+                if result.get('new_entities'):
+                    print("🆕 Nowe encje:")
+                    for entity in result['new_entities'][:3]:
+                        print(f"   • {entity['name']} ({entity['type']})")
+                        
+                # Show relationships
+                if result.get('relationships_found', 0) > 0:
+                    print(f"🔗 Znaleziono {result['relationships_found']} nowych relacji")
+                    
+            else:
+                print(f"❌ Błąd: {result.get('error', 'Nieznany błąd')}")
+                
+        except KeyboardInterrupt:
+            print("\n👋 Żegnaj!")
+            break
+        except Exception as e:
+            print(f"❌ Błąd: {e}")
 
+
+def process_text_input(text: str, store: SemanticStore, args, session_id: int) -> dict:
+    """Process single text input in interactive mode"""
+    try:
+        # Create mock document
+        from ner.loaders import LoadedDocument
+        document = LoadedDocument(
+            content=text,
+            source_file=f"interactive_session_{session_id}",
+            file_type="text",
+            metadata={"session_id": session_id}
+        )
+        
+        # Process with existing pipeline logic but return enhanced results
+        from ner import process_text_to_knowledge
+        
+        result = process_text_to_knowledge(
+            document,
+            entities_dir=args.entities_dir,
+            model=args.model,
+            domain_names=args.domains,
+            output_aggregated=False
+        )
+        
+        if result["status"] == "success":
+            # Enhance result with detailed entity info
+            new_entities = []
+            for entity_id, entity in store.entities.items():
+                if any(session_id in chunk_id for chunk_id in entity.source_chunk_ids):
+                    new_entities.append({
+                        'name': entity.name,
+                        'type': entity.type,
+                        'confidence': entity.confidence
+                    })
+            
+            result['entities_found'] = len(new_entities)
+            result['new_entities'] = new_entities
+            result['relationships_found'] = store.relationship_manager.get_relationship_stats().get('total_relationships', 0)
+        
+        return result
+        
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+    
 def main():
     """Main entry point"""
     parser = create_parser()
     
     # Handle no arguments
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
+    if len(sys.argv) == 1 or ("--interactive" in sys.argv or "-i" in sys.argv):
+        args = parser.parse_args()
+        if args.interactive:
+            interactive_mode(args)
+            sys.exit(0)
+        else:
+            parser.print_help()
+            sys.exit(1)
     
     args = parser.parse_args()
     
@@ -227,7 +354,6 @@ def main():
                 entities_dir=args.entities_dir,
                 model=args.model,
                 domain_names=args.domains,
-                output_aggregated=not args.no_aggregation,
             )
         else:
             # Single file processing
@@ -236,7 +362,6 @@ def main():
                 entities_dir=args.entities_dir,
                 model=args.model,
                 domain_names=args.domains,
-                output_aggregated=not args.no_aggregation,
             )
         
         # Print results
@@ -265,7 +390,6 @@ def main():
             import traceback
             traceback.print_exc()
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

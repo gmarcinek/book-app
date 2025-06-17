@@ -1,5 +1,5 @@
 """
-NER Pipeline - Streamlined text-to-knowledge processing with model-aware chunking
+NER Pipeline - Streamlined text-to-knowledge processing with SemanticStore only
 """
 
 from pathlib import Path
@@ -12,7 +12,7 @@ from llm import Models
 from .loaders import DocumentLoader, LoadedDocument
 from .semantic import TextChunker
 from .extractor import EntityExtractor
-from .aggregation import GraphAggregator
+from .storage import SemanticStore
 from .config import NERConfig, create_default_ner_config
 from .domains import DomainFactory
 
@@ -21,13 +21,13 @@ class NERProcessingError(Exception):
 
 def process_text_to_knowledge(
     input_source: Union[str, LoadedDocument],
-    entities_dir: str = "entities",
+    entities_dir: str = "semantic_store",
     model: str = None,
     config: NERConfig = None,
     output_aggregated: bool = True,
     domain_names: List[str] = None,
 ) -> Dict[str, Any]:
-    """Process text to entities using model-aware chunking and unified NER configuration"""
+    """Process text to entities using SemanticStore with model-aware chunking"""
     try:
         # Use provided config or create default
         ner_config = config if config is not None else create_default_ner_config()
@@ -56,60 +56,67 @@ def process_text_to_knowledge(
         chunker = TextChunker(
             config=ner_config,
             model_name=model,
-            domains=domains_for_chunker,  # Pass domains for real overhead calculation
+            domains=domains_for_chunker,
             chunking_mode="semantic"
         )
         chunks = chunker.chunk_text(document.content)
         print(f"✂️ Created {len(chunks)} chunks (avg: {sum(len(c.text) for c in chunks)//len(chunks) if chunks else 0} chars)")
         
-        # Init aggregator
-        aggregator = GraphAggregator(entities_dir)
-        aggregator.load_entity_index()
-
-        # Extract with model-aware extractor
-        extractor = EntityExtractor(model, ner_config, domain_names)
-        extractor.aggregator = aggregator
+        # Create timestamp-based storage directory
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M")
+        storage_dir = entities_dir
+        
+        # Extract with SemanticStore
+        extractor = EntityExtractor(
+            model=model, 
+            config=ner_config, 
+            domain_names=domain_names,
+            storage_dir=storage_dir,
+            enable_semantic_store=True
+        )
+        
         entities = extractor.extract_entities(chunks)
         print(f"🎯 Extracted {len(entities)} entities")
         
-        # Save entities
-        created_ids = []
-        for entity in entities:
-            entity_dict = {
-                'name': entity.name,
-                'type': entity.type,
-                'description': entity.description,
-                'confidence': entity.confidence,
-                'aliases': entity.aliases,
-                'evidence': entity.evidence,
-                'source_info': {
-                    'chunk_references': [f"chunk_{entity.chunk_id}"] if entity.chunk_id is not None else [],
-                    'source_document': document.source_file
-                },
-                'metadata': {
-                    'model_used': model, 
-                    'extraction_method': 'llm',
-                    'domain_used': getattr(entity, 'domain', 'unknown')
-                }
-            }
-
-            chunk_refs = [f"chunk_{entity.chunk_id}"] if entity.chunk_id is not None else []
-            entity_id = aggregator.create_entity_file(entity_dict, chunk_refs)
-            if entity_id:
-                created_ids.append(entity_id)
+        # Get final results from SemanticStore
+        semantic_store = extractor.get_semantic_store()
+        if not semantic_store:
+            raise NERProcessingError("SemanticStore not available")
         
-        print(f"💾 Created {len(created_ids)} entity files")
+        # Generate aggregated output if requested
+        aggregated_file = None
+        if output_aggregated:
+            timestamp_file = datetime.now().strftime("%Y%m%d_%H%M%S")
+            safe_name = Path(document.source_file).stem[:20]
+            aggregated_file = Path(storage_dir) / f"knowledge_graph_{safe_name}_{timestamp_file}.json"
+            
+            # Export knowledge graph
+            graph_data = semantic_store.relationship_manager.export_graph_data()
+            
+            # Create comprehensive output
+            output_data = {
+                "metadata": {
+                    "created": datetime.now().isoformat(),
+                    "source_file": document.source_file,
+                    "model_used": model,
+                    "domains_used": domain_names,
+                    "entities_count": len(entities),
+                    "chunks_processed": len(chunks)
+                },
+                "entities": [entity_dict for entity_dict in semantic_store.entities.values()],
+                "chunks": [chunk_dict for chunk_dict in semantic_store.chunks.values()],
+                "knowledge_graph": graph_data,
+                "statistics": semantic_store.get_stats()
+            }
+            
+            # Save to file
+            aggregated_file.parent.mkdir(parents=True, exist_ok=True)
+            import json
+            with open(aggregated_file, 'w', encoding='utf-8') as f:
+                json.dump(output_data, f, indent=2, ensure_ascii=False, default=str)
         
         # Get chunker stats for reporting
         chunk_stats = chunker.get_chunk_stats(chunks)
-        
-        # Aggregate
-        aggregation_result = None
-        if output_aggregated:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            safe_name = Path(document.source_file).stem[:20]
-            output_file = aggregator.entities_dir / f"knowledge_graph_{safe_name}_{timestamp}.json"
-            aggregation_result = aggregator.create_aggregated_graph(output_file)
         
         return {
             "status": "success",
@@ -117,18 +124,20 @@ def process_text_to_knowledge(
             "source_file": document.source_file,
             "model_used": model,
             "domains_used": domain_names,
-            "entities_created": len(created_ids),
+            "entities_created": len(entities),
             "processing_stats": {
                 "document_chars": len(document.content),
                 "chunks_created": len(chunks),
                 "avg_chunk_size": chunk_stats.get("avg_chunk_size", 0),
                 "model_config": chunk_stats.get("model_config", {}),
-                "extraction_stats": extractor.get_extraction_stats() if hasattr(extractor, 'get_extraction_stats') else {}
+                "extraction_stats": extractor.get_extraction_stats(),
+                "semantic_store_stats": semantic_store.get_stats()
             },
             "output": {
-                "entities_dir": entities_dir,
-                "entity_ids": created_ids,
-                "aggregated_graph": str(output_file) if aggregation_result else None
+                "storage_dir": storage_dir,
+                "entities_count": len(semantic_store.entities),
+                "chunks_count": len(semantic_store.chunks),
+                "aggregated_graph": str(aggregated_file) if aggregated_file else None
             }
         }
     
@@ -144,12 +153,12 @@ def process_text_to_knowledge(
 
 
 def process_file(file_path: str, config: NERConfig = None, **kwargs) -> Dict[str, Any]:
-    """Process single file with optional config override"""
+    """Process single file with SemanticStore"""
     return process_text_to_knowledge(file_path, config=config, **kwargs)
 
 
 def process_directory(directory_path: str, file_pattern: str = "*", config: NERConfig = None, **kwargs) -> Dict[str, Any]:
-    """Process directory of files with unified config"""
+    """Process directory of files with SemanticStore"""
     directory = Path(directory_path)
     if not directory.exists():
         raise NERProcessingError(f"Directory not found: {directory_path}")
