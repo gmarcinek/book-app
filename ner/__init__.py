@@ -1,15 +1,16 @@
 """
-NER (Named Entity Recognition) Package - Domain-based version
+NER (Named Entity Recognition) Package - SemanticStore-based version
 
 A multi-domain package for extracting entities from text using LLMs.
 Supports multiple document formats and domain-specific extraction strategies.
+Enhanced with semantic similarity and cross-document knowledge persistence.
 """
 
 # Import all components
 from .loaders import DocumentLoader, LoadedDocument, load_text
 from .semantic import TextChunker, TextChunk
 from .extractor import EntityExtractor
-from .aggregation import GraphAggregator
+from .storage import SemanticStore
 from .resolver import EntityResolver  # Placeholder
 from .utils import log_memory_usage
 
@@ -28,10 +29,10 @@ from .pipeline import (
 )
 
 # Version info
-__version__ = "0.4.0"  # Bumped version for domain-based release
+__version__ = "0.5.0"  # Bumped version for SemanticStore-based release
 __author__ = "NER Team"
 
-# Public API - domain-based
+# Public API - SemanticStore-based
 __all__ = [
     # Main pipeline functions
     'process_text_to_knowledge',
@@ -41,7 +42,7 @@ __all__ = [
     
     # Core components
     'EntityExtractor',
-    'GraphAggregator',
+    'SemanticStore',
     'EntityResolver',  # Placeholder
     'TextChunker',
     'DocumentLoader',
