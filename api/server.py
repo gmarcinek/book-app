@@ -85,7 +85,6 @@ async def get_stats():
         "relationships": stats['relationships'].get('total_relationships', 0),
         "storage_size_mb": round(stats['storage'].get('total_size_mb', 0), 2),
         "embedding_model": stats['embedder']['model_name'],
-        "thresholds": stats['thresholds']
     }
 
 @app.get("/entities", response_model=List[EntityResponse])

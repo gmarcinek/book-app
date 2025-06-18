@@ -170,6 +170,9 @@ class RelationType:
     CO_OCCURS = "co_occurs"        # entities appear together frequently
     MENTIONED_WITH = "mentioned_with"  # entities mentioned in same context
     
+    # Clustering relationships
+    MERGED_FROM = "merged_from"    # canonical entity merged from other entity
+    
     # Domain-specific relationships (can be extended)
     LOCATED_IN = "located_in"      # geographical/spatial relationships
     ACTED_BY = "acted_by"          # character-actor relationships
