@@ -56,15 +56,20 @@ class RelationshipManager:
            logger.error(f"❌ Failed to add entity node {entity.id}: {e}")
            return False
    
-   def add_structural_relationship(self, source_id: str, target_id: str, rel_type: str, **metadata) -> bool:
-       """Add structural relationship between entities"""
+   def add_structural_relationship(self, source_id: str, target_id: str, rel_type: str, 
+                                 confidence: float = 1.0, **metadata) -> bool:
+       """Add structural relationship between entities - FIXED"""
        try:
+           # Extract discovery_method from metadata if present
+           discovery_method = metadata.pop('discovery_method', 'structural')
+           
            relationship = EntityRelationship(
                source_id=source_id,
                target_id=target_id,
                relation_type=rel_type,
-               discovery_method="structural",
-               **metadata
+               confidence=confidence,
+               discovery_method=discovery_method,
+               **metadata  # Pass remaining metadata
            )
            self._add_relationship_to_graph(relationship)
            return True
