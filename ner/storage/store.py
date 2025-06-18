@@ -10,7 +10,7 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any
 
-from .models import StoredEntity, StoredChunk, create_entity_id, create_chunk_id
+from .models import StoredEntity, StoredChunk, RelationType, create_entity_id, create_chunk_id
 from .embedder import EntityEmbedder
 from .indices import FAISSManager  
 from .relations import RelationshipManager
@@ -116,6 +116,12 @@ class SemanticStore:
             # Union with all similar entities
             for similar_id, similarity in similar_entities:
                 self.union_find.union(entity_id, similar_id)
+                
+                self.relationship_manager.add_structural_relationship(
+                    entity_id, similar_id, RelationType.SIMILAR_TO, 
+                    confidence=similarity, discovery_method="semantic_similarity"
+                )
+                
                 logger.debug(f"🔗 Linked {name} with {self.entities[similar_id].name} (sim: {similarity:.3f})")
             
             # Get canonical entity from cluster
