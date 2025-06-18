@@ -57,7 +57,8 @@ def process_text_to_knowledge(
             config=ner_config,
             model_name=model,
             domains=domains_for_chunker,
-            chunking_mode="semantic"
+            chunking_mode="semantic",
+            document_source=document.source_file  # ← ONLY CHANGE
         )
         chunks = chunker.chunk_text(document.content)
         print(f"✂️ Created {len(chunks)} chunks (avg: {sum(len(c.text) for c in chunks)//len(chunks) if chunks else 0} chars)")

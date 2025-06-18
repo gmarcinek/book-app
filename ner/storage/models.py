@@ -189,9 +189,11 @@ def create_entity_id(name: str, entity_type: str) -> str:
 
 
 def create_chunk_id(document_source: str, chunk_index: int) -> str:
-    """Generate chunk ID"""
     import hashlib
+    import time
     
+    timestamp = int(time.time() * 1000)  # milliseconds
     safe_doc = document_source.replace('/', '_').replace('\\', '_')
-    hash_suffix = hashlib.md5(f"{safe_doc}_{chunk_index}".encode()).hexdigest()[:8]
-    return f"chunk.{chunk_index}.{hash_suffix}"
+    hash_input = f"{safe_doc}_{chunk_index}_{timestamp}"
+    hash_suffix = hashlib.md5(hash_input.encode()).hexdigest()[:8]
+    return f"chunk.{timestamp}.{chunk_index}.{hash_suffix}"

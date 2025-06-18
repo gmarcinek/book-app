@@ -1,137 +1,51 @@
-<!--
-  Static single‑file visualiser (no build step)
-  - Loads D3 v7 directly from CDN.
-  - Accepts raw backend format and normalises on the fly.
-  - Inputs now "żyją" (zmiana pola automatycznie przeładowuje graf; Enter nie jest już potrzebny).
--->
 <!DOCTYPE html>
 <html lang="pl">
 <head>
   <meta charset="utf-8" />
   <title>🕸️ NER Knowledge Graph</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/static/graph.css">
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-  <style>
-    :root{--bg:#f9fafb;--fg:#111827;--muted:#6b7280;--accent:#6366f1;}
-    *{box-sizing:border-box;font-family:Inter,Arial,sans-serif;}
-    body{margin:0;padding:1rem;display:flex;flex-direction:column;gap:1rem;background:var(--bg);color:var(--fg);}
-    h1{margin:0;font-size:1.5rem;display:flex;align-items:center;gap:.4rem;}
-    #controls{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;background:#fff;padding:.8rem 1rem;border-radius:.5rem;box-shadow:0 1px 3px rgba(0,0,0,.08);}
-    button,input{padding:.35rem .6rem;border:1px solid #d1d5db;border-radius:.375rem;background:#fff;font-size:.875rem;}
-    button{cursor:pointer;display:flex;align-items:center;gap:.3rem;}
-    button.primary{background:var(--accent);color:#fff;border:none;}
-    button:disabled{opacity:.55;cursor:default;}
-    #graph{border:1px solid #e5e7eb;border-radius:.5rem;background:#fff;user-select:none;}
-    .tooltip{position:fixed;pointer-events:none;background:rgba(17,24,39,.92);color:#fff;padding:.6rem .8rem;border-radius:.5rem;font-size:.75rem;max-width:320px;line-height:1.35;z-index:999;}
-    .node-entity{stroke:#1f2937;stroke-width:2;fill:#6366f1;cursor:pointer;}
-    .node-chunk{stroke:#374151;stroke-width:1;fill:#facc15;cursor:pointer;}
-    .link{stroke:#9ca3af;stroke-opacity:.6;}
-  </style>
 </head>
 <body>
-  <h1>🕸️ NER Knowledge Graph</h1>
-
   <div id="controls">
+    <h1>🕸️ Knowledge Graph</h1>
     <button id="reloadBtn" class="primary">🔄 Odśwież</button>
-    <label>Typy <input id="typeInput" placeholder="OSOBA,MIEJSCE" style="width:180px" /></label>
-    <label>Max n <input id="maxNodes" type="number" min="50" max="500" value="200" style="width:80px" /></label>
+    
+    <div class="dropdown-container">
+      <div class="dropdown">
+        <button type="button" id="typeDropdownBtn" class="dropdown-btn">
+          <span id="typeDropdownText">Wszystkie typy</span>
+          <span class="dropdown-arrow">▼</span>
+        </button>
+        <div id="typeDropdownMenu" class="dropdown-menu">
+          <label class="dropdown-item">
+            <input type="checkbox" value="" checked> Wszystkie typy
+          </label>
+        </div>
+      </div>
+    </div>
+    
+    <label>Max węzłów <input id="maxNodes" type="number" min="50" max="500" value="200" style="width:80px" /></label>
     <label><input type="checkbox" id="chunksToggle" /> Pokaż chunki</label>
     <label>Szukaj <input id="searchInput" placeholder="fraza…" style="width:150px" /></label>
+    
+    <div class="filter-group">
+      <span style="font-weight:500;">Relacje:</span>
+      <label><input type="checkbox" id="filter-contains" checked /> contains</label>
+      <label><input type="checkbox" id="filter-similar_to" checked /> similar</label>
+      <label><input type="checkbox" id="filter-co_occurs" checked /> co-occurs</label>
+      <label><input type="checkbox" id="filter-located_in" checked /> located</label>
+      <label><input type="checkbox" id="filter-authored_by" checked /> authored</label>
+      <label><input type="checkbox" id="filter-mentioned_with" checked /> mentioned</label>
+    </div>
+    
     <span id="stats" style="margin-left:auto;font-size:.8rem;color:var(--muted);"></span>
   </div>
 
-  <svg id="graph" width="100%" height="700"></svg>
+  <svg id="graph" width="100%" height="100%"></svg>
   <div id="tooltip" class="tooltip" style="display:none"></div>
 
-<script>
-(function(){
-  const svg=d3.select('#graph'); const tooltip=d3.select('#tooltip');
-  const width=svg.node().clientWidth; const height=svg.node().clientHeight;
-  const sim=d3.forceSimulation()
-    .force('link',d3.forceLink().id(d=>d.id).distance(90))
-    .force('charge',d3.forceManyBody().strength(-350))
-    .force('center',d3.forceCenter(width/2,height/2))
-    .force('collision',d3.forceCollide().radius(d=>d.uiType==='entity'?20:10));
-
-  let showChunks=false; let pending; // debounce handle
-
-  /* ---------- Helpers ---------- */
-  function normaliseNode(n){
-    const raw=(n.type||'UNKNOWN').toUpperCase(); const ui=raw==='CHUNK'?'chunk':'entity';
-    const d=n.data||{}; d.name=d.name||n.name||n.id; d.aliases=d.aliases||n.aliases||[];
-    d.confidence=d.confidence??n.confidence??0; d.rawType=raw; d.text=d.text||n.description||'';
-    return {...n,uiType:ui,data:d};
-  }
-
-  function showTip(evt,d){ tooltip.style('display','block').html(d.uiType==='entity'
-    ? `<strong>${d.data.name}</strong><br>Typ: ${d.data.rawType}<br>Conf: ${d.data.confidence.toFixed(2)}<br>Alias: ${d.data.aliases.slice(0,3).join(', ')||'—'}`
-    : `<strong>Chunk</strong><br>${d.data.text.slice(0,120)}…`);
-  }
-  const hideTip=()=>tooltip.style('display','none');
-
-  function dragStarted(e,d){ if(!e.active) sim.alphaTarget(.3).restart(); d.fx=d.x; d.fy=d.y; }
-  function dragged(e,d){ d.fx=e.x; d.fy=e.y; }
-  function dragEnded(e,d){ if(!e.active) sim.alphaTarget(0); d.fx=d.fy=null; }
-
-  function render(nodes,edges){
-    svg.selectAll('*').remove();
-    const link=svg.append('g').attr('stroke-width',1.2).selectAll('line').data(edges).enter().append('line').attr('class','link');
-    const node=svg.append('g').selectAll('circle').data(nodes).enter().append('circle')
-      .attr('class',d=>d.uiType==='entity'?'node-entity':'node-chunk').attr('r',d=>d.uiType==='entity'?10:5)
-      .call(d3.drag().on('start',dragStarted).on('drag',dragged).on('end',dragEnded))
-      .on('mouseover',showTip).on('mouseout',hideTip)
-      .on('click',d=>d.uiType==='entity'&&window.open(`/entities/${d.id}`,'_blank'));
-    const label=svg.append('g').selectAll('text').data(nodes.filter(d=>d.uiType==='entity'))
-      .enter().append('text').attr('font-size','10px').attr('text-anchor','middle').attr('fill','#374151')
-      .text(d=>d.data.name.length>20?d.data.name.slice(0,17)+'…':d.data.name);
-    sim.nodes(nodes).on('tick',()=>{
-      link.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y).attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
-      node.attr('cx',d=>d.x=Math.max(10,Math.min(width-10,d.x))).attr('cy',d=>d.y=Math.max(10,Math.min(height-10,d.y)));
-      label.attr('x',d=>d.x).attr('y',d=>d.y+14);
-    }); sim.force('link').links(edges); sim.alpha(1).restart();
-  }
-
-  /* ---------- Load ---------- */
-  async function loadGraph(){
-    document.getElementById('reloadBtn').disabled=true;
-    try{
-      const t=document.getElementById('typeInput').value.trim();
-      const max=document.getElementById('maxNodes').value||200;
-      showChunks=document.getElementById('chunksToggle').checked;
-      const url=`/graph?max_nodes=${max}${t?`&entity_types=${t}`:''}`;
-      const res=await fetch(url);
-      const json=await res.json();
-      let nodes=json.nodes.map(normaliseNode);
-      if(!showChunks) nodes=nodes.filter(n=>n.uiType==='entity');
-      const q=document.getElementById('searchInput').value.trim().toLowerCase();
-      if(q){
-        const keep=new Set();
-        nodes.forEach(n=>{ if(n.data.name.toLowerCase().includes(q)){keep.add(n.id);} });
-        json.edges.forEach(e=>{ if(keep.has(e.source)||keep.has(e.target)){ keep.add(e.source); keep.add(e.target); } });
-        nodes=nodes.filter(n=>keep.has(n.id));
-      }
-      const ids=new Set(nodes.map(n=>n.id));
-      const edges=json.edges.filter(e=>ids.has(e.source)&&ids.has(e.target));
-      render(nodes,edges);
-      document.getElementById('stats').textContent=`n=${nodes.length} | e=${edges.length}`;
-    }catch(err){ console.error(err); alert('Błąd ładowania grafu'); }
-    document.getElementById('reloadBtn').disabled=false;
-  }
-
-  /* ---------- Debounce wrapper ---------- */
-  function schedule(ms=500){ clearTimeout(pending); pending=setTimeout(loadGraph,ms); }
-
-  /* ---------- Bindings ---------- */
-  document.getElementById('reloadBtn').onclick=loadGraph;
-  document.getElementById('chunksToggle').onchange=loadGraph;
-  ['typeInput','maxNodes','searchInput'].forEach(id=>{
-    const el=document.getElementById(id);
-    el.addEventListener('input',()=>schedule(id==='searchInput'?300:600));
-  });
-
-  /* ---------- First paint ---------- */
-  loadGraph();
-})();
-</script>
+  <script src="/static/graph.js"></script>
 </body>
 </html>

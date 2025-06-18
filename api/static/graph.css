@@ -1,0 +1,271 @@
+:root {
+  --bg: #f9fafb;
+  --fg: #111827;
+  --muted: #6b7280;
+  --accent: #6366f1;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: Inter, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  overflow: hidden;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  align-items: center;
+  background: #fff;
+  padding: .6rem .8rem;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+button,
+input,
+select {
+  padding: .35rem .6rem;
+  border: 1px solid #d1d5db;
+  border-radius: .375rem;
+  background: #fff;
+  font-size: .875rem;
+}
+
+button {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+}
+
+button.primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+
+button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+select {
+  min-width: 120px;
+}
+
+/* Dropdown styles */
+.dropdown-container {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  position: relative;
+}
+
+.dropdown-container label {
+  font-size: .875rem;
+  font-weight: 500;
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 160px;
+  padding: .35rem .6rem;
+  border: 1px solid #d1d5db;
+  border-radius: .375rem;
+  background: #fff;
+  font-size: .875rem;
+  cursor: pointer;
+}
+
+.dropdown-btn:hover {
+  border-color: #9ca3af;
+}
+
+.dropdown-btn.open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.dropdown-arrow {
+  transition: transform 0.2s;
+  font-size: .7rem;
+  color: var(--muted);
+}
+
+.dropdown-btn.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: .375rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  display: none;
+}
+
+.dropdown-menu.open {
+  display: block;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem .75rem;
+  font-size: .875rem;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.dropdown-item:hover {
+  background: #f3f4f6;
+}
+
+.dropdown-item input[type="checkbox"] {
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.type-name {
+  flex: 1;
+}
+
+.type-count {
+  background: #e5e7eb;
+  color: #374151;
+  font-size: .75rem;
+  padding: .1rem .4rem;
+  border-radius: .25rem;
+  font-weight: 500;
+  min-width: 20px;
+  text-align: center;
+}
+
+#graph {
+  flex: 1;
+  background: #fff;
+  user-select: none;
+  border: none;
+}
+
+.tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(17, 24, 39, .95);
+  color: #fff;
+  padding: .6rem .8rem;
+  border-radius: .5rem;
+  font-size: .75rem;
+  max-width: 320px;
+  line-height: 1.35;
+  z-index: 999;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .3);
+}
+
+.node-entity {
+  stroke: #1f2937;
+  stroke-width: 2;
+  fill: #6366f1;
+  cursor: pointer;
+}
+
+.node-chunk {
+  stroke: #374151;
+  stroke-width: 1;
+  fill: #facc15;
+  cursor: pointer;
+}
+
+.link {
+  stroke-opacity: .8;
+  cursor: pointer;
+  stroke-width: 2;
+}
+
+.link-contains {
+  stroke: #10b981;
+}
+
+.link-similar_to {
+  stroke: #f59e0b;
+}
+
+.link-co_occurs {
+  stroke: #8b5cf6;
+}
+
+.link-located_in {
+  stroke: #ef4444;
+}
+
+.link-authored_by {
+  stroke: #06b6d4;
+}
+
+.link-mentioned_with {
+  stroke: #84cc16;
+}
+
+.link-default {
+  stroke: #374151;
+}
+
+.link-label {
+  font-size: 9px;
+  fill: #1f2937;
+  text-anchor: middle;
+  pointer-events: none;
+  font-weight: 500;
+}
+
+.filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+  align-items: center;
+  background: #f3f4f6;
+  padding: .4rem .6rem;
+  border-radius: .375rem;
+}
+
+.filter-group label {
+  display: flex;
+  align-items: center;
+  gap: .2rem;
+  font-size: .75rem;
+  cursor: pointer;
+}
