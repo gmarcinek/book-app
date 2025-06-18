@@ -1,7 +1,6 @@
 """
-ner/storage/indices.py
-
-FAISS indices management for dual entity embeddings and chunk embeddings
+FAISS indices management with SemanticConfig thresholds
+Dual entity embeddings and chunk embeddings
 """
 
 import logging
@@ -13,31 +12,19 @@ import faiss
 import numpy as np
 
 from .models import StoredEntity, StoredChunk
+from ..semantic.config import get_default_semantic_config
 
 logger = logging.getLogger(__name__)
 
 
 class FAISSManager:
-    """
-    Manages FAISS indices for semantic search
-    
-    Indices:
-    - entity_name_index: Fast entity matching by name+type
-    - entity_context_index: Rich entity discovery by context
-    - chunk_index: Chunk similarity for contextual enhancement
-    """
+    """FAISS indices with SemanticConfig thresholds"""
     
     def __init__(self, embedding_dim: int, storage_dir: Path):
-        """
-        Initialize FAISS indices
-        
-        Args:
-            embedding_dim: Dimension of embeddings
-            storage_dir: Directory for persistent storage
-        """
         self.embedding_dim = embedding_dim
         self.storage_dir = storage_dir
         self.storage_dir.mkdir(parents=True, exist_ok=True)
+        self.semantic_config = get_default_semantic_config()  # NEW: semantic config
         
         # Initialize FAISS indices (using Inner Product for normalized embeddings)
         self.entity_name_index = faiss.IndexFlatIP(embedding_dim)
@@ -61,15 +48,7 @@ class FAISSManager:
         logger.info(f"📊 FAISS Manager initialized (dim: {embedding_dim})")
     
     def add_entity(self, entity: StoredEntity) -> bool:
-        """
-        Add entity embeddings to FAISS indices
-        
-        Args:
-            entity: StoredEntity with embeddings set
-            
-        Returns:
-            True if successfully added
-        """
+        """Add entity embeddings to FAISS indices"""
         if entity.name_embedding is None or entity.context_embedding is None:
             logger.warning(f"⚠️ Entity {entity.id} missing embeddings, skipping FAISS add")
             return False
@@ -97,15 +76,7 @@ class FAISSManager:
             return False
     
     def add_chunk(self, chunk: StoredChunk) -> bool:
-        """
-        Add chunk embedding to FAISS index
-        
-        Args:
-            chunk: StoredChunk with embedding set
-            
-        Returns:
-            True if successfully added
-        """
+        """Add chunk embedding to FAISS index"""
         if chunk.text_embedding is None:
             logger.warning(f"⚠️ Chunk {chunk.id} missing embedding, skipping FAISS add")
             return False
@@ -128,19 +99,14 @@ class FAISSManager:
     
     def search_similar_entities_by_name(self, 
                                       query_embedding: np.ndarray,
-                                      threshold: float = 0.8,
-                                      max_results: int = 10) -> List[Tuple[str, float]]:
-        """
-        Search for similar entities by name embedding
-        
-        Args:
-            query_embedding: Query embedding to search for
-            threshold: Minimum similarity threshold
-            max_results: Maximum number of results
+                                      threshold: float = None,
+                                      max_results: int = None) -> List[Tuple[str, float]]:
+        """Search for similar entities by name using config defaults"""
+        if threshold is None:
+            threshold = self.semantic_config.name_search_threshold
+        if max_results is None:
+            max_results = self.semantic_config.name_search_max_results
             
-        Returns:
-            List of (entity_id, similarity_score) tuples
-        """
         return self._search_entities(
             self.entity_name_index, 
             self.name_idx_to_entity_id,
@@ -151,19 +117,14 @@ class FAISSManager:
     
     def search_similar_entities_by_context(self, 
                                          query_embedding: np.ndarray,
-                                         threshold: float = 0.6,
-                                         max_results: int = 20) -> List[Tuple[str, float]]:
-        """
-        Search for similar entities by context embedding
-        
-        Args:
-            query_embedding: Query embedding to search for
-            threshold: Minimum similarity threshold
-            max_results: Maximum number of results
+                                         threshold: float = None,
+                                         max_results: int = None) -> List[Tuple[str, float]]:
+        """Search for similar entities by context using config defaults"""
+        if threshold is None:
+            threshold = self.semantic_config.context_search_threshold
+        if max_results is None:
+            max_results = self.semantic_config.context_search_max_results
             
-        Returns:
-            List of (entity_id, similarity_score) tuples
-        """
         return self._search_entities(
             self.entity_context_index,
             self.context_idx_to_entity_id,
@@ -176,17 +137,7 @@ class FAISSManager:
                             query_embedding: np.ndarray,
                             threshold: float = 0.7,
                             max_results: int = 5) -> List[Tuple[str, float]]:
-        """
-        Search for similar chunks
-        
-        Args:
-            query_embedding: Query embedding to search for
-            threshold: Minimum similarity threshold
-            max_results: Maximum number of results
-            
-        Returns:
-            List of (chunk_id, similarity_score) tuples
-        """
+        """Search for similar chunks"""
         if self.chunk_index.ntotal == 0:
             return []
         
@@ -209,15 +160,7 @@ class FAISSManager:
             return []
     
     def remove_entity(self, entity_id: str) -> bool:
-        """
-        Mark entity indices as removed (FAISS doesn't support true removal)
-        
-        Args:
-            entity_id: Entity ID to remove
-            
-        Returns:
-            True if successfully marked for removal
-        """
+        """Mark entity indices as removed"""
         try:
             # Mark indices as removed
             if entity_id in self.entity_id_to_name_idx:
@@ -240,15 +183,7 @@ class FAISSManager:
             return False
     
     def remove_chunk(self, chunk_id: str) -> bool:
-        """
-        Mark chunk index as removed
-        
-        Args:
-            chunk_id: Chunk ID to remove
-            
-        Returns:
-            True if successfully marked for removal
-        """
+        """Mark chunk index as removed"""
         try:
             if chunk_id in self.chunk_id_to_idx:
                 chunk_idx = self.chunk_id_to_idx[chunk_id]
@@ -269,19 +204,7 @@ class FAISSManager:
                         query_embedding: np.ndarray,
                         threshold: float,
                         max_results: int) -> List[Tuple[str, float]]:
-        """
-        Generic entity search implementation
-        
-        Args:
-            index: FAISS index to search
-            idx_to_entity_id: Mapping from FAISS index to entity ID
-            query_embedding: Query embedding
-            threshold: Similarity threshold
-            max_results: Maximum results
-            
-        Returns:
-            List of (entity_id, similarity_score) tuples
-        """
+        """Generic entity search implementation"""
         if index.ntotal == 0:
             return []
         
@@ -307,16 +230,7 @@ class FAISSManager:
     
     def rebuild_indices_if_needed(self, entities: Dict[str, StoredEntity], 
                                 chunks: Dict[str, StoredChunk]) -> bool:
-        """
-        Rebuild indices if too many removals have accumulated
-        
-        Args:
-            entities: Current entities dictionary
-            chunks: Current chunks dictionary
-            
-        Returns:
-            True if indices were rebuilt
-        """
+        """Rebuild indices if too many removals have accumulated"""
         # Check if rebuild needed (>20% removals)
         name_removal_ratio = len(self.removed_entity_indices) / max(self.entity_name_index.ntotal, 1)
         chunk_removal_ratio = len(self.removed_chunk_indices) / max(self.chunk_index.ntotal, 1)
@@ -329,16 +243,7 @@ class FAISSManager:
     
     def _rebuild_indices(self, entities: Dict[str, StoredEntity], 
                         chunks: Dict[str, StoredChunk]) -> bool:
-        """
-        Rebuild all FAISS indices from scratch
-        
-        Args:
-            entities: Entities to re-index
-            chunks: Chunks to re-index
-            
-        Returns:
-            True if rebuild successful
-        """
+        """Rebuild all FAISS indices from scratch"""
         try:
             # Create new indices
             self.entity_name_index = faiss.IndexFlatIP(self.embedding_dim)
@@ -371,12 +276,7 @@ class FAISSManager:
             return False
     
     def save_to_disk(self) -> bool:
-        """
-        Save FAISS indices and mappings to disk
-        
-        Returns:
-            True if save successful
-        """
+        """Save FAISS indices and mappings to disk"""
         try:
             # Save FAISS indices
             faiss.write_index(self.entity_name_index, str(self.storage_dir / "entity_name.faiss"))
@@ -406,12 +306,7 @@ class FAISSManager:
             return False
     
     def load_from_disk(self) -> bool:
-        """
-        Load FAISS indices and mappings from disk
-        
-        Returns:
-            True if load successful
-        """
+        """Load FAISS indices and mappings from disk"""
         try:
             # Check if files exist
             index_files = [

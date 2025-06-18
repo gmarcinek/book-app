@@ -1,10 +1,8 @@
 """
 ner/extractor/extraction.py
 
-Enhanced entity extraction with SemanticStore integration for real-time semantic enhancement
+Clean entity extraction - batch processing without per-entity clustering
 """
-from pathlib import Path
-from datetime import datetime
 import logging
 from typing import List
 from ..semantic import TextChunk
@@ -18,389 +16,252 @@ logger = logging.getLogger(__name__)
 
 
 def extract_entities_from_chunk_multi_domain(extractor, chunk: TextChunk, domains: List[BaseNER], domain_names: List[str], chunk_id: str = None) -> List:
-    """
-    Enhanced entity extraction with 3-phase semantic enhancement:
-    1. Auto-classification (if needed)
-    2. Semantic context enhancement for prompts
-    3. Semantic deduplication during entity processing
-    """
-    
-    # AUTO-CLASSIFICATION LOGIC
-    if domain_names == ["auto"]:
-        logger.info(f"🤖 Auto-classifying chunk {chunk.id}")
-        
-        try:
-            # Use AutoNER classifier to determine domains for this chunk
-            classifier = AutoNER()
-            detected_domains = classifier.classify_chunk_with_llm(chunk.text, extractor._call_llm_for_auto_classification)
-            
-            # Get actual domain instances
-            domains = DomainFactory.use(detected_domains)
-            domain_names = detected_domains
-            
-            logger.info(f"🎯 Chunk {chunk.id} auto-classified to domains: {domain_names}")
-            
-        except Exception as e:
-            logger.error(f"💥 Auto-classification failed for chunk {chunk.id}: {e}")
-            # Fallback to literary domain
-            domains = DomainFactory.use(["literary"])
-            domain_names = ["literary"]
-            logger.info(f"🔄 Using fallback domain 'literary' for chunk {chunk.id}")
-    
-    # ENHANCED MULTI-DOMAIN EXTRACTION WITH SEMANTIC ENHANCEMENT
-    all_entities = []
-    
-    logger.info(f"⚙️ Processing chunk {chunk.id} with {len(domains)} domains: {domain_names}")
-    
-    for domain, domain_name in zip(domains, domain_names):
-        try:
-            logger.info(f"🏷️ Extracting with domain '{domain_name}' for chunk {chunk.id}")
-            
-            # Extract entities using ENHANCED FLOW with semantic store
-            entities_from_domain = _extract_entities_from_chunk_single_domain_enhanced_flow(
-                extractor, chunk, domain, domain_name, chunk_id
-            )
-            
-            # Add domain info to entities
-            for entity in entities_from_domain:
-                entity.domain = domain_name
-            
-            all_entities.extend(entities_from_domain)
-            
-            # Update per-domain stats
-            raw_count = len(entities_from_domain)
-            valid_count = sum(1 for e in entities_from_domain if e.confidence >= 0.3)
-            
-            extractor.extraction_stats["by_domain"][domain_name]["raw"] += raw_count
-            extractor.extraction_stats["by_domain"][domain_name]["valid"] += valid_count
-            
-            logger.info(f"📊 Domain '{domain_name}' extracted {raw_count} entities from chunk {chunk.id}")
-            
-        except Exception as e:
-            logger.error(f"💥 Error extracting with domain '{domain_name}' for chunk {chunk.id}: {e}")
-            continue
-    
-    logger.info(f"✅ Chunk {chunk.id}: Total {len(all_entities)} entities from {len(domains)} domains")
-    return all_entities
+   """Extract entities from chunk with auto-classification support"""
+   
+   # Auto-classification if needed
+   if domain_names == ["auto"]:
+       domains, domain_names = _auto_classify_chunk(extractor, chunk)
+   
+   # Multi-domain extraction
+   all_entities = []
+   logger.info(f"⚙️ Processing chunk {chunk.id} with {len(domains)} domains: {domain_names}")
+   
+   for domain, domain_name in zip(domains, domain_names):
+       try:
+           entities = _extract_entities_single_domain(extractor, chunk, domain, domain_name)
+           
+           for entity in entities:
+               entity.domain = domain_name
+           
+           all_entities.extend(entities)
+           _update_domain_stats(extractor, domain_name, entities)
+           
+           logger.info(f"📊 Domain '{domain_name}': {len(entities)} entities from chunk {chunk.id}")
+           
+       except Exception as e:
+           logger.error(f"💥 Error with domain '{domain_name}' for chunk {chunk.id}: {e}")
+           continue
+   
+   logger.info(f"✅ Chunk {chunk.id}: {len(all_entities)} total entities from {len(domains)} domains")
+   return all_entities
 
 
-def _extract_entities_from_chunk_single_domain_enhanced_flow(extractor, chunk: TextChunk, domain: BaseNER, domain_name: str, chunk_id: str = None) -> List:
-    """
-    Enhanced single domain extraction with 3-phase semantic enhancement:
-    
-    PHASE 1: Semantic context enhancement for meta-prompt
-    PHASE 2: Known aliases enhancement for extraction prompt  
-    PHASE 3: Semantic deduplication during entity processing
-    """
-    try:
-        # PHASE 1: SEMANTIC CONTEXT ENHANCEMENT FOR META-PROMPT
-        contextual_entities = []
-        if extractor.semantic_store:
-            try:
-                contextual_entities = extractor.semantic_store.get_contextual_entities_for_ner(chunk.text, max_entities=8)
-                if contextual_entities:
-                    extractor.extraction_stats["semantic_enhancements"] += 1
-                    logger.info(f"🧠 Found {len(contextual_entities)} contextual entities for chunk {chunk.id}")
-            except Exception as e:
-                logger.warning(f"⚠️ Contextual entity lookup failed: {e}")
-        
-        # Build enhanced meta-prompt with contextual entities
-        base_meta_prompt = _build_chunk_analysis_prompt(chunk.text, domain)
-        enhanced_meta_prompt = _build_meta_prompt_with_context(base_meta_prompt, contextual_entities)
-        _log_prompt(extractor, enhanced_meta_prompt, chunk.id, f"enhanced_meta_prompt_{domain_name}")
-        
-        # Use enhanced meta-analysis
-        meta_response = extractor._call_llm_for_meta_analysis(enhanced_meta_prompt)
-        _log_response(extractor, meta_response, chunk.id, f"enhanced_meta_prompt_{domain_name}")
-        
-        extractor.meta_prompt_stats['meta_prompts_generated'] += 1
-        extractor.meta_prompt_stats['by_domain'][domain_name]['generated'] += 1
-        
-        # Parse custom prompt from meta-response
-        custom_instructions = _parse_custom_prompt(meta_response, force_raw=True)
-        
-        # PHASE 2: KNOWN ALIASES ENHANCEMENT FOR EXTRACTION PROMPT
-        known_aliases = {}
-        if extractor.semantic_store:
-            try:
-                known_aliases = extractor.semantic_store.get_known_aliases_for_chunk(chunk.text)
-                if known_aliases:
-                    logger.info(f"🏷️ Found {len(known_aliases)} entities with known aliases for chunk {chunk.id}")
-            except Exception as e:
-                logger.warning(f"⚠️ Known aliases lookup failed: {e}")
-        
-        if custom_instructions:
-            # Build custom extraction prompt with known aliases
-            if hasattr(domain, 'build_custom_extraction_prompt') and len(known_aliases) > 0:
-                try:
-                    prompt = domain.build_custom_extraction_prompt(chunk.text, custom_instructions, known_aliases)
-                    logger.info(f"🧠 Using enhanced custom prompt with aliases for chunk {chunk.id}, domain '{domain_name}'")
-                except:
-                    # Fallback if enhanced method fails
-                    prompt = _build_custom_extraction_prompt(chunk.text, custom_instructions, domain)
-                    logger.info(f"🧠 Using standard custom prompt for chunk {chunk.id}, domain '{domain_name}'")
-            else:
-                prompt = _build_custom_extraction_prompt(chunk.text, custom_instructions, domain)
-                logger.info(f"🧠 Using custom prompt for chunk {chunk.id}, domain '{domain_name}'")
-        else:
-            # Fallback to standard prompt
-            prompt = _build_extraction_prompt(chunk.text, domain)
-            _log_prompt(extractor, prompt, chunk.id, f"extraction_prompt_{domain_name}")
-            
-            extractor.meta_prompt_stats['meta_prompts_failed'] += 1
-            extractor.meta_prompt_stats['fallback_to_standard_prompt'] += 1
-            extractor.meta_prompt_stats['by_domain'][domain_name]['failed'] += 1
-            
-            logger.warning(f"🔴 Meta-prompt failed for chunk {chunk.id}, domain '{domain_name}', using fallback")
-        
-        # Execute extraction
-        response = extractor._call_llm_for_entity_extraction(prompt)
-        _log_response(extractor, response, chunk.id, f"extraction_prompt_{domain_name}")
-        
-        # Parse response
-        raw_entities = _parse_llm_response(response)
-        extractor.extraction_stats["entities_extracted_raw"] += len(raw_entities)
-        
-        # PHASE 3: SEMANTIC DEDUPLICATION DURING ENTITY PROCESSING
-        valid_entities = []
-        for entity_data in raw_entities:
-            cleaned_entity = _validate_and_clean_entity(entity_data, domain)
-            
-            if cleaned_entity:
-                # Find entity context
-                entity_context = _find_entity_context(cleaned_entity['name'], chunk.text)
-                
-                # Update context statistics
-                _update_context_stats(extractor, cleaned_entity['name'], entity_context)
-                
-                # SEMANTIC STORE INTEGRATION: Add entity with deduplication
-                semantic_store_id = None
-                if extractor.semantic_store and chunk_id:
-                    try:
-                        entity_data_for_store = {
-                            **cleaned_entity,
-                            'context': entity_context
-                        }
-                        semantic_store_id, is_new, discovered_aliases = extractor.semantic_store.add_entity_with_deduplication(
-                            entity_data_for_store, chunk_id
-                        )
-                        
-                        if not is_new:
-                            extractor.extraction_stats["semantic_deduplication_hits"] += 1
-                            logger.info(f"🔗 Semantic deduplication: '{cleaned_entity['name']}' merged with existing entity")
-                        
-                        if discovered_aliases:
-                            logger.info(f"🏷️ Discovered new aliases: {discovered_aliases}")
-                            # Add discovered aliases to cleaned entity for consistency
-                            cleaned_entity['aliases'].extend(discovered_aliases)
-                        
-                    except Exception as e:
-                        logger.warning(f"⚠️ Semantic store add failed for '{cleaned_entity['name']}': {e}")
-                
-                # Create ExtractedEntity object
-                from .base import ExtractedEntity
-                entity = ExtractedEntity(
-                    name=cleaned_entity['name'],
-                    type=cleaned_entity['type'],
-                    description=cleaned_entity['description'],
-                    confidence=cleaned_entity['confidence'],
-                    aliases=cleaned_entity['aliases'],
-                    chunk_id=chunk.id,
-                    context=entity_context,
-                    domain=domain_name,
-                    evidence=cleaned_entity.get('evidence', '')
-                )
-                
-                # Store semantic store reference for later use
-                if semantic_store_id:
-                    entity.semantic_store_id = semantic_store_id
-                
-                valid_entities.append(entity)
-                extractor.extraction_stats["entities_extracted_valid"] += 1
-            else:
-                extractor.extraction_stats["entities_rejected"] += 1
-        
-        logger.info(f"🎯 Domain '{domain_name}', Chunk {chunk.id}: {len(raw_entities)} raw → {len(valid_entities)} valid entities")
-        return valid_entities
-        
-    except Exception as e:
-        logger.error(f"💥 Failed to extract entities from chunk {chunk.id} with domain '{domain_name}': {e}")
-        extractor.extraction_stats["failed_extractions"] += 1
-        return []
+def _auto_classify_chunk(extractor, chunk: TextChunk):
+   """Auto-classify chunk to determine domains"""
+   logger.info(f"🤖 Auto-classifying chunk {chunk.id}")
+   
+   try:
+       classifier = AutoNER()
+       detected_domains = classifier.classify_chunk_with_llm(chunk.text, extractor._call_llm_for_auto_classification)
+       domains = DomainFactory.use(detected_domains)
+       logger.info(f"🎯 Chunk {chunk.id} classified as: {detected_domains}")
+       return domains, detected_domains
+   except Exception as e:
+       logger.error(f"💥 Auto-classification failed for chunk {chunk.id}: {e}")
+       fallback_domains = DomainFactory.use(["literary"])
+       logger.info(f"🔄 Using fallback domain 'literary'")
+       return fallback_domains, ["literary"]
 
 
-def _build_meta_prompt_with_context(base_prompt: str, contextual_entities: List[dict]) -> str:
-    """
-    Enhance meta-prompt with contextual entities from semantic store
-    
-    Args:
-        base_prompt: Original meta-analysis prompt
-        contextual_entities: List of relevant entities from semantic store
-        
-    Returns:
-        Enhanced meta-prompt with contextual information
-    """
-    if not contextual_entities:
-        return base_prompt
-    
-    # Build context section
-    context_lines = ["KONTEKST Z POPRZEDNICH DOKUMENTÓW:"]
-    context_lines.append("Znane encje które mogą być powiązane z tym fragmentem:")
-    
-    for entity in contextual_entities[:5]:  # Limit to 5 most relevant
-        entity_info = f"- {entity['name']} ({entity['type']})"
-        if entity.get('aliases'):
-            entity_info += f" [aliasy: {', '.join(entity['aliases'][:3])}]"
-        if entity.get('description'):
-            entity_info += f" - {entity['description'][:80]}..."
-        context_lines.append(entity_info)
-    
-    context_lines.append("")
-    context_lines.append("UWZGLĘDNIJ te informacje podczas tworzenia spersonalizowanego promptu.")
-    context_lines.append("Szukaj powiązań z tymi znanymi encjami i sprawdź czy w tekście występują ich aliasy.")
-    context_lines.append("")
-    
-    # Insert context after the initial instruction but before the text
-    enhanced_prompt = base_prompt.replace(
-        "FRAGMENT TEKSTU DO ANALIZY:",
-        "\n".join(context_lines) + "FRAGMENT TEKSTU DO ANALIZY:"
-    )
-    
-    return enhanced_prompt
+def _extract_entities_single_domain(extractor, chunk: TextChunk, domain: BaseNER, domain_name: str) -> List:
+   """Extract entities for single domain"""
+   try:
+       # Build enhanced prompts
+       extraction_prompt = _build_extraction_prompt_with_context(extractor, chunk, domain, domain_name)
+       
+       # Execute extraction
+       response = extractor._call_llm_for_entity_extraction(extraction_prompt)
+       
+       # Parse and validate
+       raw_entities = _parse_llm_response(response)
+       extractor.extraction_stats["entities_extracted_raw"] += len(raw_entities)
+       
+       valid_entities = _validate_entities(extractor, raw_entities, domain, chunk, domain_name)
+       
+       logger.info(f"🎯 Domain '{domain_name}': {len(raw_entities)} raw → {len(valid_entities)} valid")
+       return valid_entities
+       
+   except Exception as e:
+       logger.error(f"💥 Extraction failed for domain '{domain_name}': {e}")
+       extractor.extraction_stats["failed_extractions"] += 1
+       return []
 
 
-def _extract_entities_from_chunk_single_domain_old_flow(extractor, chunk: TextChunk, domain: BaseNER, domain_name: str) -> List:
-    """
-    Original single domain extraction logic - kept for backward compatibility
-    This is the same logic as old _extract_entities_from_chunk() but domain-aware
-    """
-    try:
-        # ← KROK 1: ROZGRZEWKA - analiza chunka i generowanie custom promptu (OLD FLOW)
-        meta_prompt = _build_chunk_analysis_prompt(chunk.text, domain)
-        _log_prompt(extractor, meta_prompt, chunk.id, f"meta_prompt_{domain_name}")
-        
-        # Use dedicated meta-analysis LLM method
-        meta_response = extractor._call_llm_for_meta_analysis(meta_prompt)
-        _log_response(extractor, meta_response, chunk.id, f"meta_prompt_{domain_name}")
-        
-        extractor.meta_prompt_stats['meta_prompts_generated'] += 1
-        extractor.meta_prompt_stats['by_domain'][domain_name]['generated'] += 1
-        
-        # Parse custom prompt from meta-response (always raw mode now)
-        custom_instructions = _parse_custom_prompt(meta_response, force_raw=True)
-        
-        if custom_instructions:
-            # ← KROK 2A: EXTRACTION z custom promptem (OLD FLOW)
-            prompt = _build_custom_extraction_prompt(chunk.text, custom_instructions, domain)
-            logger.info(f"🧠 Using custom prompt for chunk {chunk.id}, domain '{domain_name}'")
-        else:
-            # ← KROK 2B: FALLBACK do standardowego promptu (OLD FLOW)
-            prompt = _build_extraction_prompt(chunk.text, domain)
-            _log_prompt(extractor, prompt, chunk.id, f"extraction_prompt_{domain_name}")
-            
-            extractor.meta_prompt_stats['meta_prompts_failed'] += 1
-            extractor.meta_prompt_stats['fallback_to_standard_prompt'] += 1
-            extractor.meta_prompt_stats['by_domain'][domain_name]['failed'] += 1
-            
-            logger.warning(f"🔴 Meta-prompt failed for chunk {chunk.id}, domain '{domain_name}', using fallback")
-        
-        # Use dedicated entity extraction LLM method
-        response = extractor._call_llm_for_entity_extraction(prompt)
-        _log_response(extractor, response, chunk.id, f"extraction_prompt_{domain_name}")
-        
-        # Parse response (OLD FLOW)
-        raw_entities = _parse_llm_response(response)
-        extractor.extraction_stats["entities_extracted_raw"] += len(raw_entities)
-        
-        # Validate and convert to ExtractedEntity objects (OLD FLOW + DOMAIN VALIDATION)
-        valid_entities = []
-        for entity_data in raw_entities:
-            cleaned_entity = _validate_and_clean_entity(entity_data, domain)  # ← DOMAIN-AWARE VALIDATION
-            
-            if cleaned_entity:
-                
-                # Find entity context
-                entity_context = _find_entity_context(cleaned_entity['name'], chunk.text)
-                
-                # Update context statistics
-                _update_context_stats(extractor, cleaned_entity['name'], entity_context)
-                
-                from .base import ExtractedEntity
-                entity = ExtractedEntity(
-                    name=cleaned_entity['name'],
-                    type=cleaned_entity['type'],
-                    description=cleaned_entity['description'],
-                    confidence=cleaned_entity['confidence'],
-                    aliases=cleaned_entity['aliases'],
-                    chunk_id=chunk.id,
-                    context=entity_context,
-                    domain=domain_name ,
-                    evidence=cleaned_entity.get('evidence', '')
-                )
-                valid_entities.append(entity)
-                extractor.extraction_stats["entities_extracted_valid"] += 1
-            else:
-                extractor.extraction_stats["entities_rejected"] += 1
-        
-        logger.info(f"🎯 Domain '{domain_name}', Chunk {chunk.id}: {len(raw_entities)} raw → {len(valid_entities)} valid entities")
-        return valid_entities
-        
-    except Exception as e:
-        logger.error(f"💥 Failed to extract entities from chunk {chunk.id} with domain '{domain_name}': {e}")
-        extractor.extraction_stats["failed_extractions"] += 1
-        return []
+def _build_extraction_prompt_with_context(extractor, chunk: TextChunk, domain: BaseNER, domain_name: str) -> str:
+   """Build extraction prompt with contextual enhancement"""
+   
+   # Get contextual entities if available
+   contextual_entities = _get_contextual_entities(extractor, chunk)
+   
+   # Try meta-analysis first
+   custom_instructions = _try_meta_analysis(extractor, chunk, domain, domain_name, contextual_entities)
+   
+   # Build final prompt
+   if custom_instructions:
+       known_aliases = _get_known_aliases(extractor, chunk)
+       return _build_custom_prompt_with_aliases(domain, chunk.text, custom_instructions, known_aliases)
+   else:
+       _update_meta_stats(extractor, domain_name, failed=True)
+       return _build_extraction_prompt(chunk.text, domain)
 
 
-def _find_entity_context(entity_name: str, chunk_text: str, context_window: int = 100) -> str:
-    """Find context around entity in chunk text"""
-    entity_lower = entity_name.lower()
-    text_lower = chunk_text.lower()
-    
-    pos = text_lower.find(entity_lower)
-    if pos == -1:
-        return ""  # Entity not found in text
-    
-    # Extract context window around entity
-    start = max(0, pos - context_window)
-    end = min(len(chunk_text), pos + len(entity_name) + context_window)
-    
-    context = chunk_text[start:end].strip()
-    return context
+def _get_contextual_entities(extractor, chunk: TextChunk) -> List[dict]:
+   """Get contextual entities for NER enhancement"""
+   if not extractor.semantic_store:
+       return []
+   
+   try:
+       entities = extractor.semantic_store.get_contextual_entities_for_ner(chunk.text, max_entities=8)
+       if entities:
+           extractor.extraction_stats["semantic_enhancements"] += 1
+           logger.info(f"🧠 Found {len(entities)} contextual entities")
+       return entities
+   except Exception as e:
+       logger.warning(f"⚠️ Contextual lookup failed: {e}")
+       return []
 
 
-def _validate_entity_context(entity_name: str, context: str) -> bool:
-    """
-    Validate that entity actually appears in its context
-    
-    Returns:
-        True if entity found in context, False otherwise
-    """
-    return entity_name.lower() in context.lower()
+def _try_meta_analysis(extractor, chunk: TextChunk, domain: BaseNER, domain_name: str, contextual_entities: List[dict]) -> str:
+   """Try meta-analysis to get custom instructions"""
+   try:
+       base_prompt = _build_chunk_analysis_prompt(chunk.text, domain)
+       enhanced_prompt = _enhance_prompt_with_context(base_prompt, contextual_entities)
+       
+       response = extractor._call_llm_for_meta_analysis(enhanced_prompt)
+       custom_instructions = _parse_custom_prompt(response, force_raw=True)
+       
+       if custom_instructions:
+           _update_meta_stats(extractor, domain_name, failed=False)
+           logger.info(f"🧠 Meta-analysis succeeded for chunk {chunk.id}")
+           return custom_instructions
+       else:
+           _update_meta_stats(extractor, domain_name, failed=True)
+           return None
+           
+   except Exception as e:
+       logger.warning(f"🔴 Meta-analysis failed: {e}")
+       _update_meta_stats(extractor, domain_name, failed=True)
+       return None
+
+
+def _enhance_prompt_with_context(base_prompt: str, contextual_entities: List[dict]) -> str:
+   """Enhance meta-prompt with contextual entities"""
+   if not contextual_entities:
+       return base_prompt
+   
+   context_lines = [
+       "KONTEKST Z POPRZEDNICH DOKUMENTÓW:",
+       "Znane encje które mogą być powiązane:"
+   ]
+   
+   for entity in contextual_entities[:5]:
+       info = f"- {entity['name']} ({entity['type']})"
+       if entity.get('aliases'):
+           info += f" [aliasy: {', '.join(entity['aliases'][:3])}]"
+       context_lines.append(info)
+   
+   context_lines.extend(["", "UWZGLĘDNIJ te informacje podczas analizy.", ""])
+   
+   return base_prompt.replace(
+       "FRAGMENT TEKSTU DO ANALIZY:",
+       "\n".join(context_lines) + "FRAGMENT TEKSTU DO ANALIZY:"
+   )
+
+
+def _get_known_aliases(extractor, chunk: TextChunk) -> dict:
+   """Get known aliases for chunk"""
+   if not extractor.semantic_store:
+       return {}
+   
+   try:
+       aliases = extractor.semantic_store.get_known_aliases_for_chunk(chunk.text)
+       if aliases:
+           logger.info(f"🏷️ Found {len(aliases)} entities with known aliases")
+       return aliases
+   except Exception as e:
+       logger.warning(f"⚠️ Aliases lookup failed: {e}")
+       return {}
+
+
+def _build_custom_prompt_with_aliases(domain: BaseNER, text: str, custom_instructions: str, known_aliases: dict) -> str:
+   """Build custom prompt with aliases if domain supports it"""
+   if hasattr(domain, 'build_custom_extraction_prompt') and known_aliases:
+       try:
+           return domain.build_custom_extraction_prompt(text, custom_instructions, known_aliases)
+       except:
+           pass  # Fallback to standard
+   
+   return _build_custom_extraction_prompt(text, custom_instructions, domain)
+
+
+def _validate_entities(extractor, raw_entities: List[dict], domain: BaseNER, chunk: TextChunk, domain_name: str) -> List:
+   """Validate and create ExtractedEntity objects"""
+   valid_entities = []
+   
+   for entity_data in raw_entities:
+       cleaned = _validate_and_clean_entity(entity_data, domain)
+       
+       if cleaned:
+           context = _find_entity_context(cleaned['name'], chunk.text)
+           _update_context_stats(extractor, cleaned['name'], context)
+           
+           from .base import ExtractedEntity
+           entity = ExtractedEntity(
+               name=cleaned['name'],
+               type=cleaned['type'],
+               description=cleaned['description'],
+               confidence=cleaned['confidence'],
+               aliases=cleaned['aliases'],
+               chunk_id=chunk.id,
+               context=context,
+               domain=domain_name,
+               evidence=cleaned.get('evidence', '')
+           )
+           
+           valid_entities.append(entity)
+           extractor.extraction_stats["entities_extracted_valid"] += 1
+       else:
+           extractor.extraction_stats["entities_rejected"] += 1
+   
+   return valid_entities
+
+
+def _find_entity_context(entity_name: str, chunk_text: str, window: int = 100) -> str:
+   """Find context around entity"""
+   pos = chunk_text.lower().find(entity_name.lower())
+   if pos == -1:
+       return ""
+   
+   start = max(0, pos - window)
+   end = min(len(chunk_text), pos + len(entity_name) + window)
+   return chunk_text[start:end].strip()
 
 
 def _update_context_stats(extractor, entity_name: str, context: str):
-    """Update statistics about context quality"""
-    extractor.context_stats['contexts_generated'] += 1
-    
-    if _validate_entity_context(entity_name, context):
-        extractor.context_stats['entities_found_in_context'] += 1
-    else:
-        extractor.context_stats['fallback_contexts_used'] += 1
+   """Update context statistics"""
+   extractor.context_stats['contexts_generated'] += 1
+   
+   if entity_name.lower() in context.lower():
+       extractor.context_stats['entities_found_in_context'] += 1
+   else:
+       extractor.context_stats['fallback_contexts_used'] += 1
 
 
-def _log_prompt(extractor, prompt_text: str, chunk_id: int, purpose: str):
-    """Save the prompt to the aggregator log folder"""
-    if hasattr(extractor, "aggregator") and hasattr(extractor.aggregator, "log_dir"):
-        timestamp = datetime.now().strftime("%H%M%S")
-        file_name = f"{purpose}_chunk{chunk_id}_{timestamp}.txt"
-        path = extractor.aggregator.log_dir / file_name
-        path.write_text(prompt_text, encoding="utf-8")
+def _update_domain_stats(extractor, domain_name: str, entities: List):
+   """Update per-domain statistics"""
+   raw_count = len(entities)
+   valid_count = sum(1 for e in entities if e.confidence >= 0.3)
+   
+   extractor.extraction_stats["by_domain"][domain_name]["raw"] += raw_count
+   extractor.extraction_stats["by_domain"][domain_name]["valid"] += valid_count
 
 
-def _log_response(extractor, response_text: str, chunk_id: int, purpose: str):
-    """Save the LLM response to the aggregator log folder"""
-    if hasattr(extractor, "aggregator") and hasattr(extractor.aggregator, "log_dir"):
-        timestamp = datetime.now().strftime("%H%M%S")
-        file_name = f"{purpose}_response_chunk{chunk_id}_{timestamp}.txt"
-        path = extractor.aggregator.log_dir / file_name
-        path.write_text(response_text, encoding="utf-8")
+def _update_meta_stats(extractor, domain_name: str, failed: bool):
+   """Update meta-prompt statistics"""
+   extractor.meta_prompt_stats['meta_prompts_generated'] += 1
+   extractor.meta_prompt_stats['by_domain'][domain_name]['generated'] += 1
+   
+   if failed:
+       extractor.meta_prompt_stats['meta_prompts_failed'] += 1
+       extractor.meta_prompt_stats['fallback_to_standard_prompt'] += 1
+       extractor.meta_prompt_stats['by_domain'][domain_name]['failed'] += 1
