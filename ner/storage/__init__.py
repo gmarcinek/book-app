@@ -27,7 +27,6 @@ __all__ = [
     'RelationshipManager',
     'StoragePersistence',
     'SemanticStore',
-    # New clustering components
     'EntityUnionFind',
     'EntityMerger',
     'EntitySimilarityEngine'

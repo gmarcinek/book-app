@@ -1,50 +1,23 @@
 """
-Weighted similarity calculations for entity matching
+Weighted similarity calculations with SemanticConfig
 Type-aware thresholds and multi-factor similarity scoring
 """
 
 from typing import Dict, Tuple
 import numpy as np
 from ..models import StoredEntity
+from ...semantic.config import get_default_semantic_config
 
 
 class WeightedSimilarity:
-    """
-    Calculates weighted similarity between entities based on:
-    - Entity type (different thresholds per type)
-    - Source stability (more chunks = more reliable)
-    - Confidence levels
-    - Content overlap
-    """
-    
-    # Base similarity thresholds per entity type
-    TYPE_THRESHOLDS = {
-        'OSOBA': 0.75,
-        'ORGANIZACJA': 0.70,
-        'MIEJSCE': 0.65,
-        'PRZEDMIOT': 0.55,
-        'KONCEPCJA': 0.50,
-        'WYDARZENIE': 0.60,
-        'SCENA': 0.45,
-        'DIALOG': 0.40,
-        'default': 0.55
-    }
+    """Weighted similarity with SemanticConfig thresholds"""
     
     def __init__(self):
-        pass
+        self.semantic_config = get_default_semantic_config()  # NEW: semantic config
     
     def calculate_similarity(self, entity1: StoredEntity, entity2: StoredEntity, 
                            base_similarity: float) -> float:
-        """
-        Calculate weighted similarity between two entities
-        
-        Args:
-            entity1, entity2: Entities to compare
-            base_similarity: Base cosine similarity from embeddings
-            
-        Returns:
-            Weighted similarity score (0.0 - 1.0)
-        """
+        """Calculate weighted similarity between two entities"""
         if entity1.type != entity2.type:
             return 0.0  # Different types never match
         
@@ -57,7 +30,7 @@ class WeightedSimilarity:
         # Confidence weight
         confidence_weight = self._calculate_confidence_weight(entity1, entity2)
         
-        # Content overlap bonus
+        # Content overlap bonus using config
         content_bonus = self._calculate_content_overlap(entity1, entity2)
         
         # Final weighted score
@@ -68,12 +41,12 @@ class WeightedSimilarity:
         return min(1.0, weighted_score)  # Cap at 1.0
     
     def get_threshold_for_type(self, entity_type: str) -> float:
-        """Get similarity threshold for given entity type"""
-        return self.TYPE_THRESHOLDS.get(entity_type, self.TYPE_THRESHOLDS['default'])
+        """Get similarity threshold for given entity type using config"""
+        return self.semantic_config.get_threshold_for_type(entity_type)
     
     def should_merge(self, entity1: StoredEntity, entity2: StoredEntity, 
                     similarity_score: float) -> bool:
-        """Determine if entities should be merged based on weighted similarity"""
+        """Determine if entities should be merged using config threshold"""
         threshold = self.get_threshold_for_type(entity1.type)
         return similarity_score >= threshold
     
@@ -113,7 +86,7 @@ class WeightedSimilarity:
         return 0.8 + (avg_confidence * 0.2)  # Range: 0.8 - 1.0
     
     def _calculate_content_overlap(self, entity1: StoredEntity, entity2: StoredEntity) -> float:
-        """Bonus score for content word overlap"""
+        """Bonus score for content word overlap using config max bonus"""
         content1 = f"{entity1.name} {entity1.description} {entity1.context}".lower()
         content2 = f"{entity2.name} {entity2.description} {entity2.context}".lower()
         
@@ -125,5 +98,6 @@ class WeightedSimilarity:
         
         overlap_ratio = len(words1 & words2) / len(words1 | words2)
         
-        # Bonus up to 0.1 for high content overlap
-        return min(0.1, overlap_ratio * 0.4)
+        # Use config max bonus instead of hardcoded 0.1
+        max_bonus = self.semantic_config.max_content_overlap_bonus
+        return min(max_bonus, overlap_ratio * 0.4)

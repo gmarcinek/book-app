@@ -8,7 +8,8 @@ from .base import SemanticChunkingConfig, ChunkingStrategy
 
 # MVP: Single multilingual model for all domains (Polish-friendly)
 # DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
-DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+# DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+DEFAULT_MODEL = "allegro/herbert-base-cased"
 FALLBACK_MODEL = "allegro/herbert-base-cased"  # Polish-specific fallback
 
 
