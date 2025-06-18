@@ -8,7 +8,7 @@
     .force('link', d3.forceLink().id(d => d.id).distance(d => d.relation_type === 'contains' ? 50 : 80))
     .force('charge', d3.forceManyBody().strength(-200))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(d => d.uiType === 'entity' ? 15 : 8))
+    .force('collision', d3.forceCollide().radius(d => d.uiType === 'entity' ? 8 : 5))
     .force('x', d3.forceX(width / 2).strength(0.05))
     .force('y', d3.forceY(height / 2).strength(0.06));
 
@@ -187,20 +187,21 @@
     
     const node = svg.append('g').selectAll('circle').data(nodes).enter().append('circle')
       .attr('class', d => d.uiType === 'entity' ? 'node-entity' : 'node-chunk')
-      .attr('r', d => d.uiType === 'entity' ? Math.max(8, Math.min(15, 10 + (d.data.confidence || 0) * 5)) : 5)
+      .attr('r', d => d.uiType === 'entity' ? 6 : 3)
       .call(d3.drag().on('start', dragStarted).on('drag', dragged).on('end', dragEnded))
       .on('mouseover', showTip).on('mouseout', hideTip)
       .on('click', (e, d) => d.uiType === 'entity' && window.open(`/entities/${d.id}`, '_blank'));
     
     const label = svg.append('g').selectAll('text').data(nodes.filter(d => d.uiType === 'entity'))
-      .enter().append('text').attr('font-size', '10px').attr('text-anchor', 'middle').attr('fill', '#374151')
-      .text(d => d.data.name.length > 20 ? d.data.name.slice(0, 17) + '…' : d.data.name);
+      .enter().append('text').attr('font-size', '14px').attr('text-anchor', 'middle').attr('fill', '#374151')
+      .attr('font-weight', '500')
+      .text(d => d.data.name.length > 18 ? d.data.name.slice(0, 15) + '…' : d.data.name);
     
     sim.nodes(nodes).on('tick', () => {
       link.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
       linkLabel.attr('x', d => (d.source.x + d.target.x) / 2).attr('y', d => (d.source.y + d.target.y) / 2);
       node.attr('cx', d => d.x = Math.max(15, Math.min(width - 15, d.x))).attr('cy', d => d.y = Math.max(15, Math.min(height - 15, d.y)));
-      label.attr('x', d => d.x).attr('y', d => d.y + 14);
+      label.attr('x', d => d.x).attr('y', d => d.y + 18);
     });
     
     sim.force('link').links(filteredEdges);
