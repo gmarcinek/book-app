@@ -1,16 +1,16 @@
 """
-Parsowanie JSON: _parse_llm_response()
+Parsowanie JSON: _parse_llm_response() + relationships
 """
 
 import json
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 logger = logging.getLogger(__name__)
 
 
-def _parse_llm_response(response: str) -> List[Dict[str, Any]]:
-    """Parse LLM JSON response into entities list"""
+def _parse_llm_response(response: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Parse LLM JSON response into entities and relationships lists"""
     try:
         # Clean response - remove markdown formatting if present
         clean_response = response.strip()
@@ -22,33 +22,35 @@ def _parse_llm_response(response: str) -> List[Dict[str, Any]]:
             parts = clean_response.split('```')
             if len(parts) >= 3:
                 clean_response = parts[1]
-                # Remove language identifier if present
                 if clean_response.startswith('json'):
                     clean_response = clean_response[4:]
         
         # Parse JSON
         data = json.loads(clean_response.strip())
         
-        # Extract entities list
+        # Extract entities
         if isinstance(data, dict) and 'entities' in data:
             entities = data['entities']
         elif isinstance(data, list):
             entities = data
         else:
-            logger.warning(f"⚠️ Unexpected response format: {type(data)}")
-            return []
+            return [], []
         
-        # Ensure entities is a list
         if not isinstance(entities, list):
-            logger.warning(f"⚠️ Entities is not a list: {type(entities)}")
-            return []
+            return [], []
         
-        return entities
+        # Extract relationships
+        relationships = []
+        if isinstance(data, dict) and 'relationships' in data:
+            relationships_raw = data['relationships']
+            if isinstance(relationships_raw, list):
+                relationships = relationships_raw
+        
+        return entities, relationships
             
     except json.JSONDecodeError as e:
         logger.error(f"❌ Failed to parse JSON response: {e}")
-        logger.error(f"❌ Raw response (first 300 chars): {response[:300]}")
-        return []
+        return [], []
     except Exception as e:
         logger.error(f"❌ Error parsing LLM response: {e}")
-        return []
+        return [], []
