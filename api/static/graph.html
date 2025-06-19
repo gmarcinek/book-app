@@ -1,53 +1,64 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="utf-8" />
-  <title>🕸️ NER Knowledge Graph</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="/static/graph.css">
+  <meta charset="utf-8">
+  <title>🕸️ Knowledge Graph</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/static/graph-styles.css">
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 </head>
 <body>
-  <div id="controls">
-    <h1>🕸️ Knowledge Graph</h1>
-    <button id="reloadBtn" class="primary">🔄 Odśwież</button>
+  <!-- Top Toolbar -->
+  <div id="toolbar">
+    <div class="toolbar-section title-section">
+      <h1>🕸️ Knowledge Graph</h1>
+      <button id="refreshBtn" class="btn primary">🔄 Odśwież</button>
+    </div>
     
-    <div class="dropdown-container">
-      <div class="dropdown">
-        <button type="button" id="typeDropdownBtn" class="dropdown-btn">
-          <span id="typeDropdownText">Wszystkie typy</span>
-          <span class="dropdown-arrow">▼</span>
-        </button>
-        <div id="typeDropdownMenu" class="dropdown-menu">
-          <label class="dropdown-item">
-            <input type="checkbox" value="" checked> Wszystkie typy
-          </label>
-        </div>
+    <div class="toolbar-section search-section">
+      <label class="filter-label">Wyszukaj:</label>
+      <input type="text" id="searchInput" placeholder="Wpisz nazwę encji..." class="search-input">
+    </div>
+    
+    <div class="toolbar-section entity-section">
+      <label class="filter-label">Typy encji:</label>
+      <div class="checkbox-group" id="entity-filters">
+        <!-- Dynamically populated -->
       </div>
     </div>
     
-    <label>Max węzłów <input id="maxNodes" type="number" min="50" max="500" value="200" style="width:80px" /></label>
-    <label><input type="checkbox" id="chunksToggle" /> Pokaż chunki</label>
-    <label>Szukaj <input id="searchInput" placeholder="fraza…" style="width:150px" /></label>
-    
-    <div class="filter-group">
-      <span style="font-weight:500;">Relacje:</span>
-      <label><input type="checkbox" id="filter-contains" checked /> contains</label>
-      <label><input type="checkbox" id="filter-similar_to" checked /> similar</label>
-      <label><input type="checkbox" id="filter-co_occurs" checked /> co-occurs</label>
-      <label><input type="checkbox" id="filter-located_in" checked /> located</label>
-      <label><input type="checkbox" id="filter-authored_by" checked /> authored</label>
-      <label><input type="checkbox" id="filter-alias_of" checked /> alias</label>
-      <label><input type="checkbox" id="filter-merged_from" checked /> merged</label>
-      <label><input type="checkbox" id="filter-mentioned_with" checked /> mentioned_with</label>
+    <div class="toolbar-section relationship-section">
+      <label class="filter-label">Relacje:</label>
+      <div class="checkbox-group" id="relationship-filters">
+        <!-- Dynamically populated -->
+      </div>
     </div>
     
-    <span id="stats" style="margin-left:auto;font-size:.8rem;color:var(--muted);"></span>
+    <div class="toolbar-section stats">
+      <span id="nodeCount">0 encji</span>
+      <span id="edgeCount">0 relacji</span>
+    </div>
   </div>
 
-  <svg id="graph" width="100%" height="100%"></svg>
-  <div id="tooltip" class="tooltip" style="display:none"></div>
+  <!-- Graph Canvas -->
+  <div id="graph-container">
+    <svg id="graph-svg"></svg>
+  </div>
 
-  <script src="/static/graph.js"></script>
+  <!-- Tooltip -->
+  <div id="tooltip" class="tooltip"></div>
+
+  <!-- Loading Screen -->
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Ładowanie grafu...</div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/static/graph-config.js"></script>
+  <script src="/static/graph-data.js"></script>
+  <script src="/static/graph-render.js"></script>
+  <script src="/static/graph-interactions.js"></script>
+  <script src="/static/graph-main.js"></script>
 </body>
 </html>
