@@ -1,5 +1,5 @@
 /* api/static/graph-styles.css */
-/* Knowledge Graph - Dark Theme with Vibrant Entity Colors */
+/* Knowledge Graph - Dark Theme with Floating Sidebars */
 
 * {
   margin: 0;
@@ -22,166 +22,94 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: auto;
-  min-height: 80px;
-  background: #1f2227;
-  display: grid;
-  grid-template-columns: auto 1fr auto auto auto;
-  grid-template-areas: 
-    "title search entity-filters relationship-filters stats"
-    "refresh . entity-filters relationship-filters .";
-  gap: 20px;
-  padding: 12px 16px;
+  height: 60px;
+  background: rgba(31, 34, 39, 0.95);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
   z-index: 1000;
-  border-bottom: 1px solid #374151;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.8);
 }
 
 .toolbar-section {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
 }
 
 .toolbar-section.title-section {
-  grid-area: title;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
 }
 
-.toolbar-section.search-section {
-  grid-area: search;
-  align-items: center;
-}
-
-.toolbar-section.entity-section {
-  grid-area: entity-filters;
-  flex-direction: column;
-  align-items: flex-start;
-  max-width: 200px;
-}
-
-.toolbar-section.relationship-section {
-  grid-area: relationship-filters;
-  flex-direction: column;
-  align-items: flex-start;
-  max-width: 200px;
-}
-
-.toolbar-section.stats {
-  grid-area: stats;
-  margin-left: 0;
-  gap: 12px;
-  align-items: center;
-}
-
-.toolbar-section h1 {
+.toolbar-section.title-section h1 {
   font-size: 18px;
   font-weight: 700;
   color: #f9fafb;
   margin-right: 12px;
 }
 
+.toolbar-section.search-section {
+  flex: 1;
+  justify-content: center;
+  max-width: 400px;
+}
+
+.toolbar-section.stats {
+  gap: 12px;
+}
+
 /* ===== BUTTONS ===== */
 .btn {
   padding: 8px 16px;
   border: none;
-  background: #374151;
+  background: rgba(55, 65, 81, 0.8);
   color: #f9fafb;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
   transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
 }
 
 .btn:hover {
-  background: #4b5563;
+  background: rgba(75, 85, 99, 0.9);
   transform: translateY(-1px);
 }
 
 .btn.primary {
-  background: #6366f1;
+  background: rgba(99, 102, 241, 0.9);
 }
 
 .btn.primary:hover {
-  background: #5b21b6;
+  background: rgba(91, 33, 182, 0.9);
 }
 
-/* ===== FILTERS ===== */
+/* ===== SEARCH ===== */
 .filter-label {
   font-size: 14px;
   font-weight: 600;
   color: #d1d5db;
-  margin-right: 8px;
   white-space: nowrap;
 }
 
-.checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 120px;
-  overflow-y: auto;
-  padding-right: 8px;
-}
-
-.checkbox-group::-webkit-scrollbar {
-  width: 4px;
-}
-
-.checkbox-group::-webkit-scrollbar-track {
-  background: #374151;
-  border-radius: 2px;
-}
-
-.checkbox-group::-webkit-scrollbar-thumb {
-  background: #6b7280;
-  border-radius: 2px;
-}
-
-.checkbox-group::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-.checkbox-group label {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  color: #9ca3af;
-  transition: all 0.2s ease;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.checkbox-group label:hover {
-  color: #e5e7eb;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.checkbox-group input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  accent-color: #6366f1;
-}
-
-/* ===== SEARCH ===== */
 .search-input {
   padding: 8px 12px;
-  background: #374151;
-  border: 1px solid #4b5563;
+  background: rgba(55, 65, 81, 0.8);
+  border: 1px solid rgba(75, 85, 99, 0.8);
   border-radius: 6px;
   color: #f9fafb;
   font-size: 14px;
-  width: 200px;
+  width: 250px;
   transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #6366f1;
+  border-color: rgba(99, 102, 241, 0.8);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
@@ -190,25 +118,21 @@ body {
 }
 
 /* ===== STATS ===== */
-.stats {
-  margin-left: auto;
-  gap: 12px;
-}
-
 .stats span {
   font-size: 12px;
   font-weight: 600;
   color: #d1d5db;
   padding: 4px 8px;
-  background: #374151;
+  background: rgba(55, 65, 81, 0.8);
   border-radius: 4px;
-  border: 1px solid #4b5563;
+  border: 1px solid rgba(75, 85, 99, 0.8);
+  backdrop-filter: blur(4px);
 }
 
 /* ===== GRAPH CONTAINER ===== */
 #graph-container {
   position: absolute;
-  top: 60px;
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
@@ -223,6 +147,112 @@ body {
 
 #graph-svg:active {
   cursor: grabbing;
+}
+
+/* ===== FLOATING SIDEBARS ===== */
+.floating-sidebar {
+  position: fixed;
+  top: 80px;
+  width: 220px;
+  max-height: calc(100vh - 100px);
+  background: rgba(31, 34, 39, 0.85);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  border: 1px solid rgba(55, 65, 81, 0.6);
+  z-index: 900;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.floating-sidebar.left-side {
+  left: 20px;
+}
+
+.floating-sidebar.right-side {
+  right: 20px;
+}
+
+.floating-sidebar:hover {
+  background: rgba(31, 34, 39, 0.95);
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+}
+
+/* ===== SIDEBAR CONTENT ===== */
+.sidebar-header {
+  padding: 16px 18px 12px 18px;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+}
+
+.sidebar-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f9fafb;
+  margin: 0;
+}
+
+.sidebar-content {
+  padding: 16px 18px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: rgba(55, 65, 81, 0.3);
+  border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.6);
+  border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+/* ===== CHECKBOX GROUPS ===== */
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #d1d5db;
+  transition: all 0.2s ease;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.checkbox-group label:hover {
+  color: #f9fafb;
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateX(2px);
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"]:checked + span {
+  color: #f9fafb;
+  font-weight: 600;
 }
 
 /* ===== GRAPH ELEMENTS ===== */
@@ -252,7 +282,7 @@ body {
 
 /* Relationship Lines */
 .relationship-line {
-  stroke-width: 2;
+  stroke-width: 4;
   fill: none;
   opacity: 0.7;
   cursor: pointer;
@@ -260,7 +290,7 @@ body {
 }
 
 .relationship-line:hover {
-  stroke-width: 4;
+  stroke-width: 6;
   opacity: 1;
   filter: drop-shadow(0 0 4px currentColor);
 }
@@ -368,30 +398,33 @@ body {
 }
 
 /* ===== RESPONSIVE ===== */
-@media (max-width: 1400px) {
-  #toolbar {
-    height: auto;
-    min-height: 60px;
-    padding: 8px 16px;
+@media (max-width: 1200px) {
+  .floating-sidebar {
+    width: 200px;
   }
   
-  .checkbox-group {
-    max-width: 250px;
+  .floating-sidebar.left-side {
+    left: 15px;
   }
   
-  #graph-container {
-    top: 100px;
+  .search-input {
+    width: 200px;
+  }
+  
+  .entity-drawer {
+    width: 350px;
+    right: -350px;
   }
 }
 
-@media (max-width: 1000px) {
-  .checkbox-group {
-    max-width: 200px;
-    gap: 8px;
+@media (max-width: 900px) {
+  .floating-sidebar {
+    width: 180px;
+    top: 70px;
   }
   
-  .checkbox-group label {
-    font-size: 11px;
+  .floating-sidebar.left-side {
+    left: 10px;
   }
   
   .search-input {
@@ -400,5 +433,26 @@ body {
   
   .entity-label {
     font-size: 14px;
+  }
+  
+  .sidebar-header h3 {
+    font-size: 13px;
+  }
+  
+  .checkbox-group label {
+    font-size: 12px;
+  }
+  
+  .entity-drawer {
+    width: 320px;
+    right: -320px;
+  }
+  
+  .drawer-content {
+    padding: 16px;
+  }
+  
+  .entity-name {
+    font-size: 20px;
   }
 }

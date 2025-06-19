@@ -5,6 +5,7 @@
   <title>🕸️ Knowledge Graph</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="/static/graph-styles.css">
+  <link rel="stylesheet" href="/static/graph-drawer-styles.css">
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 </head>
 <body>
@@ -20,20 +21,6 @@
       <input type="text" id="searchInput" placeholder="Wpisz nazwę encji..." class="search-input">
     </div>
     
-    <div class="toolbar-section entity-section">
-      <label class="filter-label">Typy encji:</label>
-      <div class="checkbox-group" id="entity-filters">
-        <!-- Dynamically populated -->
-      </div>
-    </div>
-    
-    <div class="toolbar-section relationship-section">
-      <label class="filter-label">Relacje:</label>
-      <div class="checkbox-group" id="relationship-filters">
-        <!-- Dynamically populated -->
-      </div>
-    </div>
-    
     <div class="toolbar-section stats">
       <span id="nodeCount">0 encji</span>
       <span id="edgeCount">0 relacji</span>
@@ -44,6 +31,28 @@
   <div id="graph-container">
     <svg id="graph-svg"></svg>
   </div>
+
+  <!-- Left Floating Sidebar -->
+  <div id="left-sidebar" class="floating-sidebar left-side">
+    <div class="sidebar-header">
+      <h3>🎯 Typy Encji</h3>
+    </div>
+    <div class="sidebar-content">
+      <div class="checkbox-group" id="entity-filters"></div>
+    </div>
+    <div class="sidebar-header">
+      <h3>🔗 Relacje</h3>
+    </div>
+    <div class="sidebar-content">
+      <div class="checkbox-group" id="relationship-filters"></div>
+    </div>
+  </div>
+
+  <!-- Entity Details Drawer - EMPTY (JS will populate) -->
+  <div id="entity-drawer" class="entity-drawer"></div>
+
+  <!-- Drawer Overlay -->
+  <div id="drawer-overlay" class="drawer-overlay"></div>
 
   <!-- Tooltip -->
   <div id="tooltip" class="tooltip"></div>
@@ -59,6 +68,7 @@
   <script src="/static/graph-data.js"></script>
   <script src="/static/graph-render.js"></script>
   <script src="/static/graph-interactions.js"></script>
+  <script src="/static/graph-drawer.js"></script>
   <script src="/static/graph-main.js"></script>
 </body>
 </html>

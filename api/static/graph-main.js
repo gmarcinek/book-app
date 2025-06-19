@@ -1,5 +1,5 @@
 // api/static/graph-main.js
-// Main Graph Application - Orchestrates all modules
+// Main Graph Application - Orchestrates all modules including GraphDrawer
 
 window.GraphMain = (function() {
     'use strict';
@@ -42,15 +42,19 @@ window.GraphMain = (function() {
     function initializeModules() {
         console.log('🔧 Initializing modules...');
         
-        // Check if required modules are available
-        const requiredModules = ['GraphConfig', 'GraphData', 'GraphRender', 'GraphInteractions'];
+        // Check if required modules are available - DODANY GraphDrawer
+        const requiredModules = ['GraphConfig', 'GraphData', 'GraphRender', 'GraphInteractions', 'GraphDrawer'];
         const missingModules = requiredModules.filter(module => !window[module]);
         
         if (missingModules.length > 0) {
             throw new Error(`Missing required modules: ${missingModules.join(', ')}`);
         }
         
-        // Initialize modules
+        // Initialize modules in correct order - DODANY GraphDrawer
+        if (window.GraphDrawer?.initialize) {
+            window.GraphDrawer.initialize();
+        }
+        
         if (window.GraphRender?.initialize) {
             window.GraphRender.initialize();
         }
@@ -71,6 +75,10 @@ window.GraphMain = (function() {
         // Listen for data load events
         addEventListener('dataLoaded', handleDataLoaded);
         addEventListener('dataLoadError', handleDataLoadError);
+        
+        // NOWE: Listen for drawer events
+        addEventListener('entityUpdated', handleEntityUpdated);
+        addEventListener('drawerClosed', handleDrawerClosed);
         
         console.log('✅ Event system ready');
     }
@@ -150,6 +158,31 @@ window.GraphMain = (function() {
                 error.message || 'Nie udało się załadować danych grafu'
             );
         }
+    }
+    
+    // ===== NOWE: DRAWER EVENT HANDLERS =====
+    function handleEntityUpdated(entityData) {
+        console.log('📝 Entity updated, refreshing graph...', entityData);
+        
+        // Reload graph data to reflect changes
+        loadData();
+        
+        // Optionally close drawer or keep it open with updated data
+        if (window.GraphDrawer?.currentEntity?.id === entityData.id) {
+            // Keep drawer open but refresh its content
+            setTimeout(() => {
+                if (window.GraphDrawer?.showEntity) {
+                    window.GraphDrawer.showEntity(entityData);
+                }
+            }, 500); // Small delay to let graph reload
+        }
+    }
+    
+    function handleDrawerClosed() {
+        console.log('📄 Drawer closed');
+        
+        // Could trigger any cleanup or state updates here
+        // For now, just log the event
     }
     
     // ===== EVENT SYSTEM =====
@@ -248,6 +281,35 @@ window.GraphMain = (function() {
         console.log('✅ Data exported');
     }
     
+    // ===== NOWE: DRAWER HELPERS =====
+    function openEntityDrawer(entityId) {
+        console.log('📄 Opening drawer for entity:', entityId);
+        
+        if (!window.GraphDrawer) {
+            console.warn('⚠️ GraphDrawer module not available');
+            return;
+        }
+        
+        // Find entity in current data
+        const data = window.GraphData?.getFilteredData();
+        if (data) {
+            const entity = data.nodes.find(n => n.id === entityId);
+            if (entity) {
+                window.GraphDrawer.showEntity(entity);
+            } else {
+                console.warn(`⚠️ Entity ${entityId} not found in current data`);
+            }
+        }
+    }
+    
+    function closeEntityDrawer() {
+        console.log('📄 Closing entity drawer');
+        
+        if (window.GraphDrawer?.closeDrawer) {
+            window.GraphDrawer.closeDrawer();
+        }
+    }
+    
     function getApplicationState() {
         return {
             initialized: isInitialized,
@@ -255,9 +317,16 @@ window.GraphMain = (function() {
                 GraphConfig: !!window.GraphConfig,
                 GraphData: !!window.GraphData,
                 GraphRender: !!window.GraphRender,
-                GraphInteractions: !!window.GraphInteractions
+                GraphInteractions: !!window.GraphInteractions,
+                GraphDrawer: !!window.GraphDrawer  // DODANY
             },
-            stats: window.GraphData?.getStats?.() || null
+            stats: window.GraphData?.getStats?.() || null,
+            drawerState: {
+                isOpen: window.GraphDrawer?.currentEntity ? true : false,
+                currentEntity: window.GraphDrawer?.currentEntity?.id || null,
+                isEditMode: window.GraphDrawer?.isEditMode || false,
+                hasUnsavedChanges: window.GraphDrawer?.hasUnsavedChanges || false
+            }
         };
     }
     
@@ -277,6 +346,14 @@ window.GraphMain = (function() {
                 container: window.GraphRender.container
             });
         }
+        
+        if (window.GraphDrawer) {
+            console.log('Drawer:', {
+                currentEntity: window.GraphDrawer.currentEntity,
+                isEditMode: window.GraphDrawer.isEditMode,
+                hasUnsavedChanges: window.GraphDrawer.hasUnsavedChanges
+            });
+        }
     }
     
     // ===== PUBLIC API =====
@@ -287,6 +364,10 @@ window.GraphMain = (function() {
         refreshGraph,
         resetFilters,
         exportData,
+        
+        // NOWE: Drawer functions
+        openEntityDrawer,
+        closeEntityDrawer,
         
         // Event system
         addEventListener,
@@ -307,7 +388,7 @@ window.GraphMain = (function() {
     return publicAPI;
 })();
 
-// Export for debugging
+// Export for debugging and drawer integration
 window.GraphEvents = {
     trigger: window.GraphMain?.triggerEvent || (() => {}),
     listen: window.GraphMain?.addEventListener || (() => {})

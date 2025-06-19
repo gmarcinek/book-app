@@ -56,6 +56,13 @@ class EntityResponse(BaseModel):
     description: str
     source_chunks: List[str]
 
+class EntityUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    aliases: Optional[List[str]] = None
+    type: Optional[str] = None
+    confidence: Optional[float] = None
+
 class RelationshipResponse(BaseModel):
     source: str
     target: str
@@ -174,6 +181,53 @@ async def get_entity(entity_id: str):
             "merge_count": entity.merge_count
         }
     }
+
+@app.put("/entities/{entity_id}")
+async def update_entity(entity_id: str, update_data: EntityUpdateRequest):
+    """Update entity fields - FIXED: Added missing PUT endpoint"""
+    if not store:
+        raise HTTPException(status_code=500, detail="Store not initialized")
+    
+    entity = store.get_entity_by_id(entity_id)
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entity not found")
+    
+    try:
+        # Update entity fields if provided
+        if update_data.name is not None:
+            entity.name = update_data.name
+        if update_data.description is not None:
+            entity.description = update_data.description
+        if update_data.aliases is not None:
+            entity.aliases = update_data.aliases
+        if update_data.type is not None:
+            entity.type = update_data.type
+        if update_data.confidence is not None:
+            entity.confidence = max(0.0, min(1.0, update_data.confidence))  # Clamp to [0,1]
+        
+        # Update timestamp
+        entity.updated_at = datetime.now().isoformat()
+        
+        # Save to disk
+        store.persistence.save_entity(entity)
+        
+        # Update in-memory store
+        store.entities[entity_id] = entity
+        
+        print(f"✅ Entity {entity_id} updated: {entity.name}")
+        
+        return {
+            "status": "updated", 
+            "entity_id": entity_id,
+            "updated_fields": {
+                k: v for k, v in update_data.dict().items() 
+                if v is not None
+            }
+        }
+        
+    except Exception as e:
+        print(f"❌ Failed to update entity {entity_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update entity: {e}")
 
 @app.post("/search")
 async def search_entities(query: SearchQuery):
