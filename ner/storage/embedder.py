@@ -25,8 +25,8 @@ class EntityEmbedder:
     """
     
     def __init__(self, 
-                #  model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
-                 model_name: str = "allegro/herbert-base-cased",
+                 model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+                #  model_name: str = "allegro/herbert-base-cased",
                  cache_embeddings: bool = True):
         """
         Initialize embedder with sentence transformer model

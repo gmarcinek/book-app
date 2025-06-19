@@ -165,16 +165,18 @@ class EntityMerger:
         canonical_entity.merge_count = len(all_entities) - 1  # Number of entities merged into this one
         canonical_entity.update_timestamp()
     
+    
     def _create_merge_relationships(self, canonical_id: str, 
                                   all_entities: Dict[str, StoredEntity]) -> List[EntityRelationship]:
-        """Create MERGED_FROM relationships"""
+        """Create MERGED_FROM and ALIAS_OF relationships"""
         relationships = []
         
         for entity_id, entity in all_entities.items():
             if entity_id == canonical_id:
                 continue
             
-            relationship = EntityRelationship(
+            # MERGED_FROM relationship
+            merge_relationship = EntityRelationship(
                 source_id=canonical_id,
                 target_id=entity_id,
                 relation_type=RelationType.MERGED_FROM,
@@ -182,7 +184,18 @@ class EntityMerger:
                 evidence_text=f"Merged {entity.name} into {all_entities[canonical_id].name}",
                 discovery_method="semantic_clustering"
             )
-            relationships.append(relationship)
+            relationships.append(merge_relationship)
+            
+            # ALIAS_OF relationship
+            alias_relationship = EntityRelationship(
+                source_id=canonical_id,
+                target_id=entity_id,
+                relation_type=RelationType.ALIAS_OF,
+                confidence=1.0,
+                evidence_text=f"{entity.name} is alias of {all_entities[canonical_id].name}",
+                discovery_method="semantic_clustering"
+            )
+            relationships.append(alias_relationship)
         
         return relationships
     
