@@ -88,12 +88,20 @@ class EntityLinker:
         return None
     
     def _alias_match(self, name: str) -> Optional[str]:
-        """Find entity by alias match"""
-        name_lower = name.lower()
+        """Find entity by alias match with fuzzy support"""
+        name_lower = name.lower().strip()
+        
         for entity_id, entity in self.semantic_store.entities.items():
+            # Check explicit aliases
             for alias in entity.aliases:
-                if alias.lower() == name_lower:
+                if alias.lower().strip() == name_lower:
                     return entity_id
+            
+            # Check if search name is substring of entity name (fuzzy)
+            entity_name_lower = entity.name.lower().strip()
+            if len(name_lower) >= 3 and name_lower in entity_name_lower:
+                return entity_id
+        
         return None
     
     def _similarity_match(self, name: str) -> Optional[str]:

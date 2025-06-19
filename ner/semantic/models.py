@@ -79,7 +79,7 @@ def create_semantic_config(domain_name: str, available_ram_mb: int = None) -> Se
         model_name=model_name,
         threshold=domain_config["threshold"],
         percentile=domain_config["percentile"],
-        min_chunk_size=100,
+        min_chunk_size=500,
         max_chunk_size=10000
     )
 
