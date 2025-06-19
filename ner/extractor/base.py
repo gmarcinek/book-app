@@ -292,9 +292,7 @@ class EntityExtractor:
             try:
                 logger.info(f"🔗 Discovering relationships...")
                 relationships_count = self.semantic_store.discover_cross_chunk_relationships()
-                chunk_relationships = self._discover_chunk_relationships(chunk_ids_mapping)
-                total_relationships = relationships_count + chunk_relationships
-                logger.info(f"🔗 Discovered {total_relationships} relationships")
+                logger.info(f"🔗 Discovered {relationships_count} relationships")
             except Exception as e:
                 logger.warning(f"⚠️ Failed to discover relationships: {e}")
         
@@ -313,62 +311,6 @@ class EntityExtractor:
         self._log_final_stats_with_chunks(deduplicated_entities, len(chunks))
         
         return deduplicated_entities
-    
-    def _discover_chunk_relationships(self, chunk_ids_mapping: Dict[int, str]) -> int:
-        """Discover chunk relationships using semantic config threshold"""
-        if not self.semantic_store:
-            return 0
-        
-        relationships_created = 0
-        
-        try:
-            chunk_entities = {}
-            for chunk_id in chunk_ids_mapping.values():
-                if chunk_id in self.semantic_store.chunks:
-                    chunk = self.semantic_store.chunks[chunk_id]
-                    chunk_entities[chunk_id] = set(chunk.entity_ids)
-                    logger.info(f"🔍 CHUNK {chunk_id}: {len(chunk.entity_ids)} entities")
-            
-            chunk_list = list(chunk_entities.keys())
-            logger.info(f"🔍 CO_OCCURS: Checking {len(chunk_list)} chunks for shared entities")
-            
-            for i, chunk1_id in enumerate(chunk_list):
-                for chunk2_id in chunk_list[i+1:]:
-                    entities1 = chunk_entities[chunk1_id]
-                    entities2 = chunk_entities[chunk2_id]
-                    
-                    shared_entities = entities1 & entities2
-                    total_entities = len(entities1 | entities2)
-                    shared_ratio = len(shared_entities) / total_entities if total_entities > 0 else 0
-                    
-                    logger.info(f"🔍 CHUNKS {chunk1_id} vs {chunk2_id}: shared={len(shared_entities)}, total={total_entities}, ratio={shared_ratio:.3f}, threshold={self.semantic_config.cooccurrence_threshold}")
-                    
-                    if shared_entities:
-                        # Use semantic config threshold
-                        if shared_ratio >= self.semantic_config.cooccurrence_threshold:
-                            from ..storage.models import EntityRelationship, RelationType
-                            
-                            relationship = EntityRelationship(
-                                source_id=chunk1_id,
-                                target_id=chunk2_id,
-                                relation_type=RelationType.CO_OCCURS,
-                                confidence=shared_ratio,
-                                evidence_text=f"Shared {len(shared_entities)} entities",
-                                discovery_method="chunk_entity_overlap"
-                            )
-                            
-                            self.semantic_store.relationship_manager._add_relationship_to_graph(relationship)
-                            relationships_created += 1
-                            logger.info(f"✅ Created CO_OCCURS: {chunk1_id} ↔ {chunk2_id} (ratio={shared_ratio:.3f})")
-                        else:
-                            logger.info(f"❌ Skipped CO_OCCURS: {chunk1_id} ↔ {chunk2_id} (ratio={shared_ratio:.3f} < {self.semantic_config.cooccurrence_threshold})")
-            
-            logger.info(f"🔍 CO_OCCURS: Created {relationships_created} relationships")
-            return relationships_created
-            
-        except Exception as e:
-            logger.error(f"❌ Error discovering chunk relationships: {e}")
-            return 0
     
     def _log_final_stats_with_chunks(self, deduplicated_entities: List[ExtractedEntity], chunk_count: int):
         """Log stats"""

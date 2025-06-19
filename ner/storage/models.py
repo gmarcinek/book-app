@@ -155,29 +155,14 @@ class EntityRelationship:
         return f"{self.source_id}--{self.relation_type}--{self.target_id}"
 
 
-# Relationship types constants
+# Relationship types constants - CLEANED UP
 class RelationType:
-    """Standard relationship types"""
+    """Standard relationship types - only essential ones"""
     # Structural relationships
     CONTAINS = "contains"           # chunk contains entity
-    PART_OF = "part_of"            # entity is part of another entity
     
     # Semantic relationships  
     SIMILAR_TO = "similar_to"      # entities are semantically similar
-    ALIAS_OF = "alias_of"          # one entity is alias of another
-    
-    # Co-occurrence relationships
-    CO_OCCURS = "co_occurs"        # entities appear together frequently
-    MENTIONED_WITH = "mentioned_with"  # entities mentioned in same context
-    
-    # Clustering relationships
-    MERGED_FROM = "merged_from"    # canonical entity merged from other entity
-    
-    # Domain-specific relationships (can be extended)
-    LOCATED_IN = "located_in"      # geographical/spatial relationships
-    ACTED_BY = "acted_by"          # character-actor relationships
-    AUTHORED_BY = "authored_by"    # work-author relationships
-
 
 # Utility functions for model operations
 def create_entity_id(name: str, entity_type: str) -> str:

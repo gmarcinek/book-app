@@ -228,21 +228,8 @@ class EntityBatchClusterer:
         return entity_id
     
     def _merge_into_existing_entity(self, entity: ExtractedEntity, existing_entity_id: str, chunk_id: str):
-        """Merge entity into existing entity"""
+        """Merge entity into existing entity - no redundant relationships"""
         existing_entity = self.semantic_store.entities[existing_entity_id]
-        
-        # Create ALIAS_OF relationship only if names are different
-        if entity.name != existing_entity.name:
-            from ..storage.models import EntityRelationship, RelationType
-            alias_relationship = EntityRelationship(
-                source_id=existing_entity_id,
-                target_id=entity.name,  # Use entity name as target, not fake ID
-                relation_type=RelationType.ALIAS_OF,
-                confidence=1.0,
-                evidence_text=f"{entity.name} is alias of {existing_entity.name}",
-                discovery_method="semantic_clustering"
-            )
-            self.semantic_store.relationship_manager._add_relationship_to_graph(alias_relationship)
         
         # Merge data
         if entity.confidence > existing_entity.confidence:
@@ -268,4 +255,3 @@ class EntityBatchClusterer:
         entity.semantic_store_id = existing_entity_id
         if discovered_aliases:
             entity.aliases.extend(discovered_aliases)
-
