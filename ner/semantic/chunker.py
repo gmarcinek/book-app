@@ -10,7 +10,7 @@ from datetime import datetime
 
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-from ..utils import log_memory_usage, validate_text_content
+from ..utils import log_memory_usage, validate_text_content, safe_filename
 from ..config import NERConfig, create_default_ner_config
 from llm.models import Models, get_model_input_limit
 from .base import TextChunk
@@ -376,3 +376,23 @@ class TextChunker:
             
             log_path.write_text(json.dumps(chunks_data, indent=2, ensure_ascii=False), encoding="utf-8")
             print(f"📝 Saved {len(chunks)} chunks to {file_name}")
+    
+    def _save_chunks_debug(self, chunks: List[TextChunk], original_text: str):
+        """Save chunks to debug files immediately after creation"""
+        try:
+            doc_name = safe_filename(Path(self.document_source).stem, max_length=30)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            # Save each chunk
+            for chunk in chunks:
+                chunk_path = self.debug_dir / f"{doc_name}_chunk_{chunk.id:03d}_{timestamp}.txt"
+                chunk_path.write_text(f"=== CHUNK {chunk.id} ({chunk.start}-{chunk.end}) ===\n{chunk.text}", encoding='utf-8')
+            
+            # Save metadata
+            metadata = {"total_chunks": len(chunks), "original_length": len(original_text), "strategy": self.chunking_mode}
+            metadata_path = self.debug_dir / f"{doc_name}_metadata_{timestamp}.json"
+            metadata_path.write_text(json.dumps(metadata, indent=2), encoding='utf-8')
+            
+            print(f"📁 DEBUG: Saved {len(chunks)} chunks to {self.debug_dir}")
+        except Exception as e:
+            print(f"⚠️ Failed to save debug chunks: {e}")
