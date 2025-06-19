@@ -4,6 +4,7 @@ Literary Domain Implementation - Clean and simplified
 
 from typing import List
 from ..base import BaseNER, DomainConfig
+from ...entity_config import DEFAULT_ENTITY_TYPES, DEFAULT_RELATIONSHIP_PATTERNS
 
 class LiteraryNER(BaseNER):
    """Literary Domain with clean entity types and relationship extraction"""
@@ -33,13 +34,13 @@ class LiteraryNER(BaseNER):
    def __init__(self):
        config = DomainConfig(
            name="literary",
-           entity_types=self.ENTITY_TYPES,
+           entity_types=DEFAULT_ENTITY_TYPES,
            confidence_threshold=0.3,
        )
        super().__init__(config)
    
    def get_entity_types(self) -> List[str]:
-       return self.ENTITY_TYPES
+       return DEFAULT_ENTITY_TYPES
    
    def get_meta_analysis_prompt(self, text: str) -> str:
        """META-PROMPT: Clean and focused"""
@@ -57,7 +58,7 @@ ANALIZA:
 - Dialogi/monologi (DIALOG)
 
 RELACJE (tylko te patterns):
-{', '.join(self.RELATIONSHIP_PATTERNS)}
+{', '.join(DEFAULT_RELATIONSHIP_PATTERNS)}
 
 PRZYKŁADY:
 - "Jan IS_IN kuchnia"
@@ -76,10 +77,10 @@ ZWRÓĆ GOTOWY PROMPT BEZ JSON WRAPPERA:"""
 TEKST: {text}
 
 TYPY ENCJI:
-{', '.join(self.ENTITY_TYPES)}
+{', '.join(DEFAULT_ENTITY_TYPES)}
 
 PATTERNS:
-{', '.join(self.RELATIONSHIP_PATTERNS)}
+{', '.join(DEFAULT_RELATIONSHIP_PATTERNS)}
 
 ZASADY:
 - Forma podstawowa
@@ -116,17 +117,17 @@ JSON:
 
 TEKST: {text}
 
-TYPY: {', '.join(self.ENTITY_TYPES)}
-PATTERNS: {', '.join(self.RELATIONSHIP_PATTERNS)}
+TYPY: {', '.join(DEFAULT_ENTITY_TYPES)}
+PATTERNS: {', '.join(DEFAULT_RELATIONSHIP_PATTERNS)}
 
 ZASADY RELATIONSHIPS:
 - source/target MUSZĄ być IDENTYCZNE z nazwami entities
-- Jeśli entity nazywa się "Kamienica 59" to użyj "Kamienica 59", NIE "kamienica"
+- Jeśli entity nazywa się "Bagna topiące" to użyj "Bagna topiące", NIE "Bagna"
 - Jeśli entity nazywa się "nasze mieszkanie" to użyj "nasze mieszkanie", NIE "mieszkanie"
 - Sprawdź dwukrotnie że nazwy w relationships matchują entities
 
 ZASADY ENTITIES:
-- Dodaj generyczne formy jako aliases (np. "kamienica" dla "Kamienica 59")
+- Dodaj generyczne formy jako aliases (np. "szkoła" dla "podstawówka")
 - Dodaj wszystkie warianty nazwy z tekstu
 
 JSON:

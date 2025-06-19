@@ -20,6 +20,17 @@ from .domains import DomainFactory, BaseNER, DomainConfig
 # Import config system
 from .config import NERConfig, create_default_ner_config
 
+# Import entity configuration
+from .entity_config import (
+    DEFAULT_ENTITY_TYPES,
+    DEFAULT_RELATIONSHIP_PATTERNS,
+    CORE_RELATIONSHIP_TYPES,
+    get_all_relationship_types,
+    extend_entity_types,
+    extend_relationship_patterns,
+    DEFAULT_CONFIDENCE_THRESHOLDS
+)
+
 # Import main pipeline functions
 from .pipeline import (
     process_text_to_knowledge, 
@@ -55,6 +66,15 @@ __all__ = [
     # Config system
     'NERConfig',
     'create_default_ner_config',
+    
+    # Entity configuration
+    'DEFAULT_ENTITY_TYPES',
+    'DEFAULT_RELATIONSHIP_PATTERNS',
+    'CORE_RELATIONSHIP_TYPES',
+    'get_all_relationship_types',
+    'extend_entity_types',
+    'extend_relationship_patterns',
+    'DEFAULT_CONFIDENCE_THRESHOLDS',
     
     # Data classes
     'TextChunk',
