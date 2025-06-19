@@ -18,15 +18,16 @@ logger = logging.getLogger(__name__)
 class EntitySimilarityEngine:
     """Main similarity engine with batch matrix operations + SemanticConfig"""
     
-    def __init__(self):
+    def __init__(self, relationship_manager=None):
         self.weighted_sim = WeightedSimilarity()
         self.matrix_ops = MatrixOperations()
         self.semantic_config = get_default_semantic_config()  # NEW: semantic config
+        self.relationship_manager = relationship_manager
     
     def find_all_similar_entities(self, new_entity: StoredEntity,
                                 existing_entities: Dict[str, StoredEntity],
                                 embedder) -> List[Tuple[str, float]]:
-        """Find ALL similar entities using batch matrix operations"""
+        """Find ALL similar entities using batch matrix operations and create SIMILAR_TO relationships"""
         if not existing_entities:
             return []
         
@@ -74,6 +75,8 @@ class EntitySimilarityEngine:
         
         # Apply weighted similarity to all candidates
         weighted_results = []
+        similar_relationships = []  # For SIMILAR_TO relationships
+        
         for existing_id, base_similarity in candidates:
             existing_entity = same_type_entities[existing_id]
             
@@ -81,15 +84,45 @@ class EntitySimilarityEngine:
                 new_entity, existing_entity, base_similarity
             )
             
-            # Use semantic config threshold
+            # Check for merge threshold
             if self.weighted_sim.should_merge(new_entity, existing_entity, weighted_score):
                 weighted_results.append((existing_id, weighted_score))
+            # Check for SIMILAR_TO threshold (0.6-0.75)
+            elif 0.6 <= weighted_score < 0.75:
+                similar_relationships.append((existing_id, weighted_score))
+        
+        # Create SIMILAR_TO relationships
+        if similar_relationships:
+            self._create_similar_to_relationships(new_entity.id, similar_relationships)
         
         # Sort by weighted similarity (descending)
         weighted_results.sort(key=lambda x: x[1], reverse=True)
         
         logger.debug(f"Found {len(weighted_results)} similar entities for {new_entity.name}")
         return weighted_results
+    
+    def _create_similar_to_relationships(self, new_entity_id: str, similar_entities: List[Tuple[str, float]]):
+        """Create SIMILAR_TO relationships between entities"""
+        try:
+            from ..models import EntityRelationship, RelationType
+            
+            for existing_id, similarity in similar_entities:
+                relationship = EntityRelationship(
+                    source_id=new_entity_id,
+                    target_id=existing_id,
+                    relation_type=RelationType.SIMILAR_TO,
+                    confidence=similarity,
+                    discovery_method="semantic_similarity"
+                )
+                
+                # Add to relationship manager if available
+                if self.relationship_manager:
+                    self.relationship_manager._add_relationship_to_graph(relationship)
+                
+                logger.debug(f"Created SIMILAR_TO: {new_entity_id} → {existing_id} ({similarity:.3f})")
+                
+        except Exception as e:
+            logger.error(f"Failed to create SIMILAR_TO relationships: {e}")
     
     def batch_find_similar_clusters(self, entities: Dict[str, StoredEntity],
                                   embedder) -> Dict[str, List[Tuple[str, float]]]:

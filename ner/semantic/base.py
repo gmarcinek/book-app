@@ -25,8 +25,8 @@ class TextChunk:
 class SemanticChunkingConfig:
     """Configuration for semantic chunking"""
     strategy: ChunkingStrategy = ChunkingStrategy.PERCENTILE
-    # model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
-    model_name: str = "allegro/herbert-base-cased2"
+    model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    # model_name: str = "allegro/herbert-base-cased2"
     threshold: float = 0.15  # For gradient strategy
     percentile: float = 95.0  # For percentile strategy
     min_chunk_size: int = 100  # Minimum characters per chunk

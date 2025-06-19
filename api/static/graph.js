@@ -1,9 +1,9 @@
-(function(){
+(function () {
   const svg = d3.select('#graph');
   const tooltip = d3.select('#tooltip');
   const width = window.innerWidth;
   const height = window.innerHeight - document.getElementById('controls').offsetHeight;
-  
+
   const sim = d3.forceSimulation()
     .force('link', d3.forceLink().id(d => d.id).distance(d => d.relation_type === 'contains' ? 50 : 80))
     .force('charge', d3.forceManyBody().strength(-200))
@@ -27,7 +27,7 @@
     dropdownBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const isOpen = dropdownMenu.classList.contains('open');
-      
+
       if (isOpen) {
         closeDropdown();
       } else {
@@ -56,7 +56,7 @@
     dropdownMenu.addEventListener('change', (e) => {
       const checkbox = e.target;
       const value = checkbox.value;
-      
+
       if (value === '') {
         // "Wszystkie typy" checkbox
         if (checkbox.checked) {
@@ -82,7 +82,7 @@
           }
         }
       }
-      
+
       updateDropdownText();
       schedule(300);
     });
@@ -118,7 +118,8 @@
       'co_occurs': '#8b5cf6',
       'located_in': '#ef4444',
       'authored_by': '#06b6d4',
-      'mentioned_with': '#84cc16'
+      'alias_of': '#84cc16',
+      'merged_from': '#6b7280'
     };
     return colors[relType] || '#374151';
   }
@@ -161,7 +162,7 @@
 
   function getActiveRelationFilters() {
     const filters = [];
-    ['contains', 'similar_to', 'co_occurs', 'located_in', 'authored_by', 'mentioned_with'].forEach(type => {
+    ['contains', 'similar_to', 'co_occurs', 'located_in', 'authored_by', 'mentioned_with', 'alias_of'].forEach(type => {
       if (document.getElementById(`filter-${type}`).checked) filters.push(type);
     });
     return filters;
@@ -169,59 +170,59 @@
 
   function render(nodes, edges) {
     svg.selectAll('*').remove();
-    
+
     // Filter edges by active relation types
     const activeRelations = getActiveRelationFilters();
     const filteredEdges = edges.filter(e => activeRelations.includes(e.relation_type) || !e.relation_type);
-    
+
     const link = svg.append('g').selectAll('line').data(filteredEdges).enter().append('line')
       .attr('class', d => `link link-${d.relation_type || 'default'}`)
       .attr('stroke', d => getRelationshipColor(d.relation_type))
       .attr('stroke-width', d => getRelationshipWidth(d.confidence || 1))
       .on('mouseover', showTip).on('mouseout', hideTip);
-    
+
     const linkLabel = svg.append('g').selectAll('text').data(filteredEdges.filter(d => d.relation_type !== 'contains'))
       .enter().append('text').attr('class', 'link-label')
       .text(d => d.relation_type?.replace('_', ' ') || '')
       .on('mouseover', showTip).on('mouseout', hideTip);
-    
+
     const node = svg.append('g').selectAll('circle').data(nodes).enter().append('circle')
       .attr('class', d => d.uiType === 'entity' ? 'node-entity' : 'node-chunk')
       .attr('r', d => d.uiType === 'entity' ? 6 : 3)
       .call(d3.drag().on('start', dragStarted).on('drag', dragged).on('end', dragEnded))
       .on('mouseover', showTip).on('mouseout', hideTip)
       .on('click', (e, d) => d.uiType === 'entity' && window.open(`/entities/${d.id}`, '_blank'));
-    
+
     const label = svg.append('g').selectAll('text').data(nodes.filter(d => d.uiType === 'entity'))
       .enter().append('text').attr('font-size', '14px').attr('text-anchor', 'middle').attr('fill', '#374151')
       .attr('font-weight', '500')
       .text(d => d.data.name.length > 18 ? d.data.name.slice(0, 15) + '…' : d.data.name);
-    
+
     sim.nodes(nodes).on('tick', () => {
       link.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
       linkLabel.attr('x', d => (d.source.x + d.target.x) / 2).attr('y', d => (d.source.y + d.target.y) / 2);
       node.attr('cx', d => d.x = Math.max(15, Math.min(width - 15, d.x))).attr('cy', d => d.y = Math.max(15, Math.min(height - 15, d.y)));
       label.attr('x', d => d.x).attr('y', d => d.y + 18);
     });
-    
+
     sim.force('link').links(filteredEdges);
     sim.alpha(1).restart();
   }
 
   function updateTypeDropdown(entityTypes) {
     const dropdownMenu = document.getElementById('typeDropdownMenu');
-    
+
     // Keep "Wszystkie typy" option and add new types with counts
     const allTypesOption = '<label class="dropdown-item"><input type="checkbox" value="" checked> <span class="type-name">Wszystkie typy</span></label>';
-    
-    const typeOptions = entityTypes.map(({type, count}) => 
+
+    const typeOptions = entityTypes.map(({ type, count }) =>
       `<label class="dropdown-item">
         <input type="checkbox" value="${type}" ${selectedTypes.includes(type) ? 'checked' : ''}> 
         <span class="type-name">${type}</span>
         <span class="type-count">${count}</span>
       </label>`
     ).join('');
-    
+
     dropdownMenu.innerHTML = allTypesOption + typeOptions;
   }
 
@@ -229,7 +230,7 @@
     try {
       const res = await fetch('/entity-types');
       const json = await res.json();
-      
+
       if (json.entity_types && json.entity_types.length > 0) {
         updateTypeDropdown(json.entity_types);
         return json.entity_types.map(et => et.type);
@@ -248,20 +249,20 @@
       const typeParam = selectedTypes.length ? selectedTypes.join(',') : '';
       const max = document.getElementById('maxNodes').value || 200;
       showChunks = document.getElementById('chunksToggle').checked;
-      
+
       const url = `/graph?max_nodes=${max}${typeParam ? `&entity_types=${typeParam}` : ''}`;
       const res = await fetch(url);
       const json = await res.json();
-      
+
       // Load entity types on first load or when types might have changed
       if (availableTypes.length === 0) {
         const newTypes = await loadEntityTypes();
         availableTypes = newTypes;
       }
-      
+
       let nodes = json.nodes.map(normaliseNode);
       if (!showChunks) nodes = nodes.filter(n => n.uiType === 'entity');
-      
+
       const q = document.getElementById('searchInput').value.trim().toLowerCase();
       if (q) {
         const keep = new Set();
@@ -278,10 +279,10 @@
         });
         nodes = nodes.filter(n => keep.has(n.id));
       }
-      
+
       const ids = new Set(nodes.map(n => n.id));
       const edges = json.edges.filter(e => ids.has(e.source) && ids.has(e.target));
-      
+
       render(nodes, edges);
       document.getElementById('stats').textContent = `n=${nodes.length} | e=${edges.length}`;
     } catch (err) {
@@ -300,12 +301,15 @@
   /* ---------- Bindings ---------- */
   document.getElementById('reloadBtn').onclick = loadGraph;
   document.getElementById('chunksToggle').onchange = loadGraph;
-  
+
   // Relation filter checkboxes
-  ['contains', 'similar_to', 'co_occurs', 'located_in', 'authored_by', 'mentioned_with'].forEach(type => {
-    document.getElementById(`filter-${type}`).onchange = () => schedule(100);
+  ['contains', 'similar_to', 'co_occurs', 'located_in', 'authored_by', 'alias_of', 'merged_from'].forEach(type => {
+    const el = document.getElementById(`filter-${type}`);
+    if (el) {
+      el.onchange = () => schedule(100);
+    }
   });
-  
+
   ['maxNodes', 'searchInput'].forEach(id => {
     const el = document.getElementById(id);
     el.addEventListener('input', () => schedule(id === 'searchInput' ? 300 : 600));

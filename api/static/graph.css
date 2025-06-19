@@ -243,7 +243,13 @@ select {
 .link-default {
   stroke: #374151;
 }
+.link-alias_of {
+  stroke: #84cc16;
+}
 
+.link-merged_from {
+  stroke: #6b7280;
+}
 .link-label {
   font-size: 9px;
   fill: #1f2937;

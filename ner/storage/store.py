@@ -26,8 +26,8 @@ class SemanticStore:
     
     def __init__(self,
                 storage_dir: str = "semantic_store",
-                #embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
-                embedding_model: str = "allegro/herbert-base-cased"):
+                embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
+                # embedding_model: str = "allegro/herbert-base-cased"):
         self.storage_dir = Path(storage_dir)
         self.semantic_config = get_default_semantic_config()  # NEW: semantic config
         
@@ -42,7 +42,7 @@ class SemanticStore:
         # Clustering components
         self.union_find = EntityUnionFind()
         self.merger = EntityMerger()
-        self.similarity_engine = EntitySimilarityEngine()
+        self.similarity_engine = EntitySimilarityEngine(self.relationship_manager)
         
         # Data storage
         self.entities: Dict[str, StoredEntity] = {}

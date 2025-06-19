@@ -1,6 +1,7 @@
 """
 Entity batch clustering - extracted from EntityExtractor
 Single responsibility: batch cluster entities per chunk
+OPTIMIZED: Single similarity matrix per chunk vs database
 """
 
 import logging
@@ -51,7 +52,7 @@ class EntityBatchClusterer:
             return []
     
     def _batch_cluster_entities_by_type(self, type_entities: List[ExtractedEntity], entity_type: str, chunk_id: str) -> List[str]:
-        """Batch cluster entities of same type using similarity matrix"""
+        """Batch cluster entities of same type using single similarity matrix"""
         entity_ids = []
         
         # Get existing entities of same type from database
@@ -67,34 +68,110 @@ class EntityBatchClusterer:
                 entity_ids.append(entity_id)
             return entity_ids
         
-        # BATCH similarity computation - CORE OPTIMIZATION
+        # CORE OPTIMIZATION: Single similarity matrix for all chunk entities vs database
+        chunk_entities_data = []
         for entity in type_entities:
-            # Convert ExtractedEntity to StoredEntity format
             temp_entity = self._convert_to_stored_entity(entity)
-            
-            # Generate embeddings
             name_embedding, context_embedding = self.semantic_store.embedder.generate_entity_embeddings(temp_entity)
             temp_entity.name_embedding = name_embedding
             temp_entity.context_embedding = context_embedding
+            chunk_entities_data.append((entity, temp_entity))
+        
+        # Batch similarity computation
+        merge_decisions = self._compute_bulk_similarity(chunk_entities_data, existing_entities)
+        
+        # Process merge decisions
+        for i, (extracted_entity, temp_entity) in enumerate(chunk_entities_data):
+            similar_id = merge_decisions.get(i)
             
-            # Find similar entities using batch engine
-            similar_entities = self.semantic_store.similarity_engine.find_all_similar_entities(
-                temp_entity, existing_entities, self.semantic_store.embedder
-            )
-            
-            if similar_entities:
-                # Merge with first similar entity (highest similarity)
-                similar_id = similar_entities[0][0]
-                self._merge_into_existing_entity(entity, similar_id, chunk_id)
+            if similar_id:
+                self._merge_into_existing_entity(extracted_entity, similar_id, chunk_id)
                 entity_ids.append(similar_id)
                 self.extraction_stats["semantic_deduplication_hits"] += 1
             else:
-                # Create new entity
-                entity_id = self._create_new_entity(entity, chunk_id)
+                entity_id = self._create_new_entity(extracted_entity, chunk_id)
                 entity_ids.append(entity_id)
-                existing_entities[entity_id] = self.semantic_store.entities[entity_id]  # Add to local cache
+                existing_entities[entity_id] = self.semantic_store.entities[entity_id]
         
         return entity_ids
+    
+    def _compute_bulk_similarity(self, chunk_entities_data: List, existing_entities: Dict) -> Dict[int, str]:
+        """Compute similarity matrix for all chunk entities vs database entities"""
+        if not chunk_entities_data or not existing_entities:
+            return {}
+        
+        # Prepare embeddings matrices
+        chunk_embeddings = []
+        chunk_entity_ids = []
+        chunk_idx_to_original = {}  # map string ID back to original index
+        
+        for i, item in enumerate(chunk_entities_data):
+            if not isinstance(item, tuple) or len(item) != 2:
+                continue
+                
+            extracted_entity, temp_entity = item
+            
+            if hasattr(temp_entity, 'context_embedding') and temp_entity.context_embedding is not None:
+                chunk_embeddings.append(temp_entity.context_embedding)
+                chunk_str_id = f"chunk_{i}"
+                chunk_entity_ids.append(chunk_str_id)
+                chunk_idx_to_original[chunk_str_id] = i
+        
+        existing_embeddings = []
+        existing_entity_ids = []
+        
+        for entity_id, entity in existing_entities.items():
+            if entity.context_embedding is not None:
+                existing_embeddings.append(entity.context_embedding)
+                existing_entity_ids.append(entity_id)
+        
+        if not chunk_embeddings or not existing_embeddings:
+            return {}
+        
+        logger.info(f"🔄 BATCH: Computing similarity matrix {len(chunk_embeddings)}x{len(existing_embeddings)} instead of {len(chunk_entities_data)} individual calls")
+        
+        # Single similarity matrix computation
+        import numpy as np
+        chunk_embeddings = np.array(chunk_embeddings)
+        existing_embeddings = np.array(existing_embeddings)
+        
+        # Use matrix operations for batch similarity
+        similar_candidates = self.semantic_store.similarity_engine.matrix_ops.batch_embedding_similarity(
+            chunk_embeddings, existing_embeddings,
+            chunk_entity_ids, existing_entity_ids,
+            self.semantic_store.semantic_config.base_similarity_threshold
+        )
+        
+        # Apply weighted similarity and return merge decisions
+        merge_decisions = {}
+        for chunk_str_id, candidates in similar_candidates.items():
+            if not candidates:
+                continue
+                
+            # Get original index
+            chunk_idx = chunk_idx_to_original[chunk_str_id]
+            extracted_entity, temp_entity = chunk_entities_data[chunk_idx]
+            
+            # Apply weighted similarity to candidates
+            best_match = None
+            best_score = 0
+            
+            for existing_id, base_similarity in candidates:
+                existing_entity = existing_entities[existing_id]
+                
+                weighted_score = self.semantic_store.similarity_engine.weighted_sim.calculate_similarity(
+                    temp_entity, existing_entity, base_similarity
+                )
+                
+                if (self.semantic_store.similarity_engine.weighted_sim.should_merge(temp_entity, existing_entity, weighted_score) 
+                    and weighted_score > best_score):
+                    best_match = existing_id
+                    best_score = weighted_score
+            
+            if best_match:
+                merge_decisions[chunk_idx] = best_match
+        
+        return merge_decisions
     
     def _convert_to_stored_entity(self, extracted_entity: ExtractedEntity):
         """Convert ExtractedEntity to StoredEntity format"""
@@ -154,6 +231,19 @@ class EntityBatchClusterer:
         """Merge entity into existing entity"""
         existing_entity = self.semantic_store.entities[existing_entity_id]
         
+        # Create ALIAS_OF relationship only if names are different
+        if entity.name != existing_entity.name:
+            from ..storage.models import EntityRelationship, RelationType
+            alias_relationship = EntityRelationship(
+                source_id=existing_entity_id,
+                target_id=entity.name,  # Use entity name as target, not fake ID
+                relation_type=RelationType.ALIAS_OF,
+                confidence=1.0,
+                evidence_text=f"{entity.name} is alias of {existing_entity.name}",
+                discovery_method="semantic_clustering"
+            )
+            self.semantic_store.relationship_manager._add_relationship_to_graph(alias_relationship)
+        
         # Merge data
         if entity.confidence > existing_entity.confidence:
             existing_entity.confidence = entity.confidence
@@ -178,3 +268,4 @@ class EntityBatchClusterer:
         entity.semantic_store_id = existing_entity_id
         if discovered_aliases:
             entity.aliases.extend(discovered_aliases)
+

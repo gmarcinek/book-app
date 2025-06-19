@@ -77,8 +77,8 @@ class EntityExtractor:
             try:
                 self.semantic_store = SemanticStore(
                         storage_dir=storage_dir,
-                        #embedding_model="sentence-transformers/all-MiniLM-L6-v2"
-                        embedding_model="allegro/herbert-base-cased"
+                        embedding_model="sentence-transformers/all-MiniLM-L6-v2"
+                        # embedding_model="allegro/herbert-base-cased"
                 )
                 logger.info(f"🧠 SemanticStore enabled: {storage_dir}")
             except Exception as e:
@@ -291,8 +291,10 @@ class EntityExtractor:
                 if chunk_id in self.semantic_store.chunks:
                     chunk = self.semantic_store.chunks[chunk_id]
                     chunk_entities[chunk_id] = set(chunk.entity_ids)
+                    logger.info(f"🔍 CHUNK {chunk_id}: {len(chunk.entity_ids)} entities")
             
             chunk_list = list(chunk_entities.keys())
+            logger.info(f"🔍 CO_OCCURS: Checking {len(chunk_list)} chunks for shared entities")
             
             for i, chunk1_id in enumerate(chunk_list):
                 for chunk2_id in chunk_list[i+1:]:
@@ -300,11 +302,12 @@ class EntityExtractor:
                     entities2 = chunk_entities[chunk2_id]
                     
                     shared_entities = entities1 & entities2
+                    total_entities = len(entities1 | entities2)
+                    shared_ratio = len(shared_entities) / total_entities if total_entities > 0 else 0
+                    
+                    logger.info(f"🔍 CHUNKS {chunk1_id} vs {chunk2_id}: shared={len(shared_entities)}, total={total_entities}, ratio={shared_ratio:.3f}, threshold={self.semantic_config.cooccurrence_threshold}")
                     
                     if shared_entities:
-                        total_entities = len(entities1 | entities2)
-                        shared_ratio = len(shared_entities) / total_entities if total_entities > 0 else 0
-                        
                         # Use semantic config threshold
                         if shared_ratio >= self.semantic_config.cooccurrence_threshold:
                             from ..storage.models import EntityRelationship, RelationType
@@ -312,7 +315,7 @@ class EntityExtractor:
                             relationship = EntityRelationship(
                                 source_id=chunk1_id,
                                 target_id=chunk2_id,
-                                relation_type=RelationType.MENTIONED_WITH,
+                                relation_type=RelationType.CO_OCCURS,
                                 confidence=shared_ratio,
                                 evidence_text=f"Shared {len(shared_entities)} entities",
                                 discovery_method="chunk_entity_overlap"
@@ -320,7 +323,11 @@ class EntityExtractor:
                             
                             self.semantic_store.relationship_manager._add_relationship_to_graph(relationship)
                             relationships_created += 1
+                            logger.info(f"✅ Created CO_OCCURS: {chunk1_id} ↔ {chunk2_id} (ratio={shared_ratio:.3f})")
+                        else:
+                            logger.info(f"❌ Skipped CO_OCCURS: {chunk1_id} ↔ {chunk2_id} (ratio={shared_ratio:.3f} < {self.semantic_config.cooccurrence_threshold})")
             
+            logger.info(f"🔍 CO_OCCURS: Created {relationships_created} relationships")
             return relationships_created
             
         except Exception as e:
