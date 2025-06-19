@@ -109,19 +109,36 @@ def _build_extraction_prompt_with_context(extractor, chunk: TextChunk, domain: B
 
 
 def _get_contextual_entities(extractor, chunk: TextChunk) -> List[dict]:
-    """Get contextual entities for NER enhancement"""
-    if not extractor.semantic_store:
-        return []
-    
-    try:
-        entities = extractor.semantic_store.get_contextual_entities_for_ner(chunk.text, max_entities=8)
-        if entities:
-            extractor.extraction_stats["semantic_enhancements"] += 1
-            logger.info(f"🧠 Found {len(entities)} contextual entities")
-        return entities
-    except Exception as e:
-        logger.warning(f"⚠️ Contextual lookup failed: {e}")
-        return []
+   """Get contextual entities for NER enhancement"""
+   if not extractor.semantic_store:
+       return []
+   
+   try:
+       entities = extractor.semantic_store.get_contextual_entities_for_ner(chunk.text, max_entities=8)
+       
+       # Enhanced format with semantic relations
+       enhanced_entities = []
+       for entity in entities:
+           enhanced = {
+               'name': entity['name'],
+               'type': entity['type'],
+               'description': entity['description'],
+               'semantic_relations': [
+                   f"występuje_z innymi encjami typu {entity['type']}",
+                   f"ma_aliasy {', '.join(entity['aliases'][:3])}" if entity.get('aliases') else ""
+               ]
+           }
+           # Remove empty relations
+           enhanced['semantic_relations'] = [rel for rel in enhanced['semantic_relations'] if rel]
+           enhanced_entities.append(enhanced)
+       
+       if enhanced_entities:
+           extractor.extraction_stats["semantic_enhancements"] += 1
+           logger.info(f"🧠 Found {len(enhanced_entities)} contextual entities with semantic relations")
+       return enhanced_entities
+   except Exception as e:
+       logger.warning(f"⚠️ Contextual lookup failed: {e}")
+       return []
 
 
 def _try_meta_analysis(extractor, chunk: TextChunk, domain: BaseNER, domain_name: str, contextual_entities: List[dict]) -> str:

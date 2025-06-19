@@ -64,13 +64,13 @@ class RelationshipManager:
            discovery_method = metadata.pop('discovery_method', 'structural')
            
            relationship = EntityRelationship(
-               source_id=source_id,
-               target_id=target_id,
-               relation_type=rel_type,
-               confidence=confidence,
-               discovery_method=discovery_method,
-               **metadata  # Pass remaining metadata
-           )
+                source_id=source_id,
+                target_id=target_id,
+                relation_type=rel_type,
+                confidence=confidence,
+                evidence_text=metadata.get('evidence', ''),  # ← Mapuj evidence na evidence_text
+                discovery_method=discovery_method
+            )
            self._add_relationship_to_graph(relationship)
            return True
        except Exception as e:
