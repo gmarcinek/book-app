@@ -5,7 +5,9 @@ Enhanced Entity Extractor with batch per-chunk clustering
 Clean implementation - delegating clustering to EntityBatchClusterer
 """
 
+from datetime import datetime
 import logging
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from dotenv import load_dotenv
@@ -59,6 +61,12 @@ class EntityExtractor:
         self.model = model
         self.llm_client = None
         self.enable_semantic_store = enable_semantic_store
+        
+        # DEBUG
+        self.llm_debug_dir = Path(f"llm_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        self.llm_debug_dir.mkdir(exist_ok=True)
+        self.llm_call_counter = 0
+        # DEBUG
         
         if domain_names is None:
             domain_names = ["literary", "liric"]
@@ -140,7 +148,11 @@ class EntityExtractor:
                 temperature=self.config.get_meta_analysis_temperature()
             )
             
-            return self.llm_client.chat(prompt, config)
+            self._log_llm_call("meta_analysis", prompt, None)  # ← DODANE
+            response = self.llm_client.chat(prompt, config)
+            self._log_llm_call("meta_analysis", prompt, response)  # ← DODANE
+            
+            return response
             
         except Exception as e:
             logger.error(f"🔥 Meta-analysis LLM call failed: {e}")
@@ -156,7 +168,11 @@ class EntityExtractor:
                 temperature=self.config.get_entity_extraction_temperature()
             )
             
-            return self.llm_client.chat(prompt, config)
+            self._log_llm_call("entity_extraction", prompt, None)  # ← DODANE
+            response = self.llm_client.chat(prompt, config)
+            self._log_llm_call("entity_extraction", prompt, response)  # ← DODANE
+            
+            return response
             
         except Exception as e:
             logger.error(f"🔥 Entity extraction LLM call failed: {e}")
@@ -172,12 +188,32 @@ class EntityExtractor:
                 temperature=self.config.get_auto_classification_temperature()
             )
             
-            return self.llm_client.chat(prompt, config)
+            self._log_llm_call("auto_classification", prompt, None)  # ← DODANE
+            response = self.llm_client.chat(prompt, config)
+            self._log_llm_call("auto_classification", prompt, response)  # ← DODANE
+            
+            return response
             
         except Exception as e:
             logger.error(f"🎯 Auto-classification LLM call failed: {e}")
             raise
-   
+    # DEBUG ------------------------------------------
+    def _log_llm_call(self, call_type: str, prompt: str, response: str = None):
+        """Log LLM call with timestamp"""
+        self.llm_call_counter += 1
+        timestamp = datetime.now().strftime("%H%M%S")
+        
+        if response is None:  # Request
+            filename = f"{self.llm_call_counter:03d}_{timestamp}_{call_type}_REQUEST.txt"
+            content = f"=== {call_type.upper()} REQUEST ===\n{prompt}"
+        else:  # Response
+            filename = f"{self.llm_call_counter:03d}_{timestamp}_{call_type}_RESPONSE.txt"
+            content = f"=== {call_type.upper()} RESPONSE ===\n{response}"
+        
+        (self.llm_debug_dir / filename).write_text(content, encoding='utf-8')
+    # DEBUG ------------------------------------------
+    
+    
     def extract_entities(self, chunks: List[TextChunk]) -> List[ExtractedEntity]:
         """BATCH entity extraction with batch clustering per chunk"""
         from .extraction import extract_entities_from_chunk_multi_domain
