@@ -21,6 +21,7 @@ from ..domains import DomainFactory
 from ..config import NERConfig, create_default_ner_config
 from ..storage import SemanticStore
 from llm import Models, LLMConfig
+from .entity_linker import EntityLinker
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -96,7 +97,10 @@ class EntityExtractor:
         else:
             self.semantic_store = None
             logger.info("🚫 SemanticStore disabled")
-       
+
+        # Initialize EntityLinker
+        self.entity_linker = EntityLinker(self.semantic_store)
+        
         # Stats
         available_domains = ["literary", "liric", "simple", "owu"] if domain_names == ["auto"] else domain_names
        
@@ -219,6 +223,7 @@ class EntityExtractor:
         from .extraction import extract_entities_from_chunk_multi_domain
         from .deduplication import _deduplicate_entities
         from .batch_clustering import EntityBatchClusterer
+        from .entity_linker import EntityLinker
         
         self._initialize_llm()
         
@@ -255,9 +260,24 @@ class EntityExtractor:
                 chunk_id = chunk_ids_mapping.get(chunk.id) if self.semantic_store else None
                 
                 # Extract entities (no clustering yet)
-                entities = extract_entities_from_chunk_multi_domain(
+                entities, chunk_relationships = extract_entities_from_chunk_multi_domain(
                     self, chunk, self.domains, self.domain_names, chunk_id
                 )
+
+                # Resolve relationships names → IDs
+                resolved_relationships = []
+                for rel in chunk_relationships:
+                    resolved = self.entity_linker.resolve_relationship(rel)
+                    if resolved:
+                        resolved_relationships.append(resolved)
+
+                # Store relationships in SemanticStore
+                if self.semantic_store and resolved_relationships:
+                    for rel in resolved_relationships:
+                        self.semantic_store.relationship_manager.add_structural_relationship(
+                            rel['source_id'], rel['target_id'], rel['pattern'], 
+                            rel['confidence'], evidence=rel['evidence']
+                        )
                 
                 for entity in entities:
                     entity.chunk_id = chunk.id
