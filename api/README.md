@@ -13,7 +13,6 @@ poetry run server
 Server will start at: http://localhost:8000
 - 📖 **API Docs**: http://localhost:8000/docs
 - 🔍 **ReDoc**: http://localhost:8000/redoc
-- 🔍 **Static Graph**: http://localhost:8000/visualize
 
 ## API Endpoints
 

@@ -102,16 +102,14 @@ JSON:
      "type": "CHARACTER", 
      "description": "semantycznie użyteczny opis dla wyszukiwarki embedera, długi na tyle żeby nie dało się pomylić encji w czasie porównania semantycznego",
      "aliases": ["Janek", "Johnny"],
-     "confidence": 0.85,
-     "evidence": "zostaw_puste",
+     "confidence": 0.85
    }}
  ],
  "relationships": [
    {{
      "source": "Jan",
      "pattern": "IS_IN",
-     "target": "dom",
-     "evidence": "zostaw_puste"
+     "target": "dom"
    }}
  ]
 }}"""
@@ -145,16 +143,14 @@ JSON:
      "type": "TYP",
      "description": "semantycznie użyteczny opis dla wyszukiwarki embedera",
      "aliases": ["krótsza forma", "generyczna nazwa", "inne warianty"],
-     "confidence": 0.85,
-     "evidence": "zostaw_puste",
+     "confidence": 0.85
    }}
  ],
  "relationships": [
    {{
      "source": "DOKŁADNA_NAZWA_Z_ENTITIES_WYŻEJ",
      "pattern": "PATTERN",
-     "target": "DOKŁADNA_NAZWA_Z_ENTITIES_WYŻEJ",
-     "evidence": "zostaw_puste"
+     "target": "DOKŁADNA_NAZWA_Z_ENTITIES_WYŻEJ"
    }}
  ]
 }}

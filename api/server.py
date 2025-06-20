@@ -76,12 +76,12 @@ class RelationshipCreateRequest(BaseModel):
     target_id: str
     relation_type: str
     confidence: Optional[float] = 1.0
-    evidence_text: Optional[str] = ""
+    evidence: Optional[str] = ""
 
 class RelationshipUpdateRequest(BaseModel):
     relation_type: Optional[str] = None
     confidence: Optional[float] = None
-    evidence_text: Optional[str] = None
+    evidence: Optional[str] = None
 
 class RelationshipResponse(BaseModel):
     source: str
@@ -349,7 +349,7 @@ async def create_relationship(rel_data: RelationshipCreateRequest):
             id=rel_id,
             relation_type=rel_data.relation_type,
             confidence=max(0.0, min(1.0, rel_data.confidence or 1.0)),
-            evidence_text=rel_data.evidence_text or "",
+            evidence=rel_data.evidence or "",
             created_at=datetime.now().isoformat(),
             discovery_method="manual"
         )
@@ -370,7 +370,7 @@ async def create_relationship(rel_data: RelationshipCreateRequest):
                 "target_id": rel_data.target_id,
                 "relation_type": rel_data.relation_type,
                 "confidence": rel_data.confidence or 1.0,
-                "evidence_text": rel_data.evidence_text or "",
+                "evidence": rel_data.evidence or "",
                 "created_at": datetime.now().isoformat(),
                 "discovery_method": "manual"
             }
@@ -400,7 +400,7 @@ async def get_relationship(relationship_id: str):
                 "target_id": target,
                 "relation_type": data.get('relation_type', ''),
                 "confidence": data.get('confidence', 0.0),
-                "evidence_text": data.get('evidence_text', ''),
+                "evidence": data.get('evidence', ''),
                 "created_at": data.get('created_at', ''),
                 "discovery_method": data.get('discovery_method', '')
             }
@@ -440,7 +440,7 @@ async def get_relationships(
             "target_id": target,
             "relation_type": data.get('relation_type', ''),
             "confidence": data.get('confidence', 0.0),
-            "evidence_text": data.get('evidence_text', ''),
+            "evidence": data.get('evidence', ''),
             "created_at": data.get('created_at', ''),
             "discovery_method": data.get('discovery_method', '')
         })
@@ -469,8 +469,8 @@ async def update_relationship(relationship_id: str, update_data: RelationshipUpd
                     data['relation_type'] = update_data.relation_type
                 if update_data.confidence is not None:
                     data['confidence'] = max(0.0, min(1.0, update_data.confidence))
-                if update_data.evidence_text is not None:
-                    data['evidence_text'] = update_data.evidence_text
+                if update_data.evidence is not None:
+                    data['evidence'] = update_data.evidence
                 
                 # Update timestamp
                 data['updated_at'] = datetime.now().isoformat()
