@@ -78,7 +78,6 @@ FORMAT - TYLKO JSON:
       "type": "TYP_Z_LISTY_WYŻEJ",
       "description": "definicja encji 3-5 zdań z uwzględnieniem kontekstu otaczającego",
       "confidence": 0.X,
-      "evidence": "entity_frame",
       "aliases": ["wszystkie_wariany_nazwy_znalezionej_encji"]
     }}
   ]
@@ -118,7 +117,6 @@ FORMAT - TYLKO JSON:
       "type": "TYP_Z_LISTY_WYŻEJ",
       "description": "definicja encji 3-5 zdań z uwzględnieniem kontekstu otaczającego",
       "confidence": 0.X, // 0.2=bardzo niepewne, 0.5=umiarkowane, 0.8=pewne, 0.95=oczywiste
-      "evidence": "entity_frame",
       "aliases": ["wariant1", "wariant2", ...]
     }}
   ]

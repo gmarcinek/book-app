@@ -139,7 +139,7 @@ class EntityRelationship:
     confidence: float = 1.0
     
     # Context information
-    evidence_text: str = ""  # Text supporting this relationship
+    evidence: str = ""  # Text supporting this relationship
     source_chunk_id: Optional[str] = None  # Where this relationship was discovered
     
     # Metadata

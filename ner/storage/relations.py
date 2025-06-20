@@ -36,7 +36,7 @@ class RelationshipManager:
                target_id=entity_id,
                relation_type=RelationType.CONTAINS,
                confidence=1.0,
-               evidence_text=chunk.get_text_preview(200),
+               evidence=chunk.get_text_preview(200),
                source_chunk_id=chunk.id,
                discovery_method="structural"
            )
@@ -68,7 +68,7 @@ class RelationshipManager:
                 target_id=target_id,
                 relation_type=rel_type,
                 confidence=confidence,
-                evidence_text=metadata.get('evidence', ''),  # ← Mapuj evidence na evidence_text
+                evidence=metadata.get('evidence', ''),  # ← Mapuj evidence na evidence
                 discovery_method=discovery_method
             )
            self._add_relationship_to_graph(relationship)
