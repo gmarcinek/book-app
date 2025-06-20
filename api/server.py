@@ -63,6 +63,26 @@ class EntityUpdateRequest(BaseModel):
     type: Optional[str] = None
     confidence: Optional[float] = None
 
+class EntityCreateRequest(BaseModel):
+    name: str
+    type: str
+    description: Optional[str] = ""
+    aliases: Optional[List[str]] = []
+    confidence: Optional[float] = 1.0
+    context: Optional[str] = ""
+
+class RelationshipCreateRequest(BaseModel):
+    source_id: str
+    target_id: str
+    relation_type: str
+    confidence: Optional[float] = 1.0
+    evidence_text: Optional[str] = ""
+
+class RelationshipUpdateRequest(BaseModel):
+    relation_type: Optional[str] = None
+    confidence: Optional[float] = None
+    evidence_text: Optional[str] = None
+
 class RelationshipResponse(BaseModel):
     source: str
     target: str
@@ -100,7 +120,7 @@ async def root():
     return {
         "message": "NER Knowledge API",
         "version": "1.0.0",
-        "endpoints": ["/stats", "/entities", "/search", "/process", "/graph"]
+        "endpoints": ["/stats", "/entities", "/search", "/process", "/graph", "/relationships"]
     }
 
 @app.get("/store-status")
@@ -123,6 +143,59 @@ async def get_stats():
         "storage_size_mb": round(stats['storage'].get('total_size_mb', 0), 2),
         "embedding_model": stats['embedder']['model_name'],
     }
+
+@app.post("/entities")
+async def create_entity(entity_data: EntityCreateRequest):
+    """Create new entity"""
+    if not store:
+        raise HTTPException(status_code=500, detail="Store not initialized")
+    
+    try:
+        from ner.models import Entity
+        import uuid
+        
+        # Generate unique ID
+        entity_id = str(uuid.uuid4())
+        
+        # Create new entity
+        entity = Entity(
+            id=entity_id,
+            name=entity_data.name,
+            type=entity_data.type,
+            description=entity_data.description or "",
+            aliases=entity_data.aliases or [],
+            confidence=max(0.0, min(1.0, entity_data.confidence or 1.0)),
+            context=entity_data.context or "",
+            source_chunk_ids=[],
+            document_sources=[],
+            created_at=datetime.now().isoformat(),
+            updated_at=datetime.now().isoformat(),
+            merge_count=0
+        )
+        
+        # Save to disk and memory
+        store.persistence.save_entity(entity)
+        store.entities[entity_id] = entity
+        
+        print(f"✅ Entity created: {entity_id} - {entity.name}")
+        
+        return {
+            "status": "created",
+            "entity_id": entity_id,
+            "entity": EntityResponse(
+                id=entity.id,
+                name=entity.name,
+                type=entity.type,
+                confidence=entity.confidence,
+                aliases=entity.aliases,
+                description=entity.description,
+                source_chunks=entity.source_chunk_ids
+            )
+        }
+        
+    except Exception as e:
+        print(f"❌ Failed to create entity: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create entity: {e}")
 
 @app.get("/entities", response_model=List[EntityResponse])
 async def get_entities(limit: int = Query(50, le=200), offset: int = Query(0, ge=0), entity_type: Optional[str] = None):
@@ -228,6 +301,225 @@ async def update_entity(entity_id: str, update_data: EntityUpdateRequest):
     except Exception as e:
         print(f"❌ Failed to update entity {entity_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update entity: {e}")
+
+@app.delete("/entities/{entity_id}")
+async def delete_entity(entity_id: str):
+    if not store:
+        raise HTTPException(status_code=500, detail="Store not initialized")
+    entity = store.get_entity_by_id(entity_id)
+    if not entity:
+        raise HTTPException(status_code=404, detail="Entity not found")
+    try:
+        store.faiss_manager.remove_entity(entity_id)
+        if store.relationship_manager.graph.has_node(entity_id):
+            store.relationship_manager.graph.remove_node(entity_id)
+        del store.entities[entity_id]
+        file = store.persistence.entities_dir / f"{entity_id}.json"
+        if file.exists():
+            file.unlink()
+        return {"status": "deleted", "entity_id": entity_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete entity: {e}")
+
+@app.post("/relationships")
+async def create_relationship(rel_data: RelationshipCreateRequest):
+    """Create new relationship between entities"""
+    if not store:
+        raise HTTPException(status_code=500, detail="Store not initialized")
+    
+    # Verify both entities exist
+    source_entity = store.get_entity_by_id(rel_data.source_id)
+    target_entity = store.get_entity_by_id(rel_data.target_id)
+    
+    if not source_entity:
+        raise HTTPException(status_code=404, detail=f"Source entity {rel_data.source_id} not found")
+    if not target_entity:
+        raise HTTPException(status_code=404, detail=f"Target entity {rel_data.target_id} not found")
+    
+    try:
+        import uuid
+        
+        # Generate relationship ID
+        rel_id = str(uuid.uuid4())
+        
+        # Add relationship to graph
+        store.relationship_manager.graph.add_edge(
+            rel_data.source_id,
+            rel_data.target_id,
+            id=rel_id,
+            relation_type=rel_data.relation_type,
+            confidence=max(0.0, min(1.0, rel_data.confidence or 1.0)),
+            evidence_text=rel_data.evidence_text or "",
+            created_at=datetime.now().isoformat(),
+            discovery_method="manual"
+        )
+        
+        # Save relationships to disk
+        store.relationship_manager.save_relationships()
+        
+        print(f"✅ Relationship created: {rel_id} - {source_entity.name} -> {target_entity.name}")
+        
+        return {
+            "status": "created",
+            "relationship_id": rel_id,
+            "relationship": {
+                "id": rel_id,
+                "source": source_entity.name,
+                "target": target_entity.name,
+                "source_id": rel_data.source_id,
+                "target_id": rel_data.target_id,
+                "relation_type": rel_data.relation_type,
+                "confidence": rel_data.confidence or 1.0,
+                "evidence_text": rel_data.evidence_text or "",
+                "created_at": datetime.now().isoformat(),
+                "discovery_method": "manual"
+            }
+        }
+        
+    except Exception as e:
+        print(f"❌ Failed to create relationship: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create relationship: {e}")
+
+@app.get("/relationships/{relationship_id}")
+async def get_relationship(relationship_id: str):
+    """Get specific relationship details"""
+    if not store:
+        raise HTTPException(status_code=500, detail="Store not initialized")
+    
+    # Find relationship in graph
+    for source, target, data in store.relationship_manager.graph.edges(data=True):
+        if data.get('id') == relationship_id:
+            source_entity = store.get_entity_by_id(source)
+            target_entity = store.get_entity_by_id(target)
+            
+            return {
+                "id": relationship_id,
+                "source": source_entity.name if source_entity else source,
+                "target": target_entity.name if target_entity else target,
+                "source_id": source,
+                "target_id": target,
+                "relation_type": data.get('relation_type', ''),
+                "confidence": data.get('confidence', 0.0),
+                "evidence_text": data.get('evidence_text', ''),
+                "created_at": data.get('created_at', ''),
+                "discovery_method": data.get('discovery_method', '')
+            }
+    
+    raise HTTPException(status_code=404, detail="Relationship not found")
+
+@app.get("/relationships")
+async def get_relationships(
+    entity_id: Optional[str] = None,
+    relation_type: Optional[str] = None,
+    limit: int = Query(50, le=200),
+    offset: int = Query(0, ge=0)
+):
+    """Get relationships with optional filtering"""
+    if not store:
+        raise HTTPException(status_code=500, detail="Store not initialized")
+    
+    relationships = []
+    
+    for source, target, data in store.relationship_manager.graph.edges(data=True):
+        # Filter by entity_id if provided
+        if entity_id and entity_id not in [source, target]:
+            continue
+            
+        # Filter by relation_type if provided
+        if relation_type and data.get('relation_type', '').upper() != relation_type.upper():
+            continue
+        
+        source_entity = store.get_entity_by_id(source)
+        target_entity = store.get_entity_by_id(target)
+        
+        relationships.append({
+            "id": data.get('id', f"{source}-{target}"),
+            "source": source_entity.name if source_entity else source,
+            "target": target_entity.name if target_entity else target,
+            "source_id": source,
+            "target_id": target,
+            "relation_type": data.get('relation_type', ''),
+            "confidence": data.get('confidence', 0.0),
+            "evidence_text": data.get('evidence_text', ''),
+            "created_at": data.get('created_at', ''),
+            "discovery_method": data.get('discovery_method', '')
+        })
+    
+    # Apply pagination
+    paginated = relationships[offset:offset+limit]
+    
+    return {
+        "relationships": paginated,
+        "total_found": len(relationships),
+        "returned": len(paginated)
+    }
+
+@app.put("/relationships/{relationship_id}")
+async def update_relationship(relationship_id: str, update_data: RelationshipUpdateRequest):
+    """Update relationship"""
+    if not store:
+        raise HTTPException(status_code=500, detail="Store not initialized")
+    
+    # Find and update relationship in graph
+    for source, target, data in store.relationship_manager.graph.edges(data=True):
+        if data.get('id') == relationship_id:
+            try:
+                # Update fields if provided
+                if update_data.relation_type is not None:
+                    data['relation_type'] = update_data.relation_type
+                if update_data.confidence is not None:
+                    data['confidence'] = max(0.0, min(1.0, update_data.confidence))
+                if update_data.evidence_text is not None:
+                    data['evidence_text'] = update_data.evidence_text
+                
+                # Update timestamp
+                data['updated_at'] = datetime.now().isoformat()
+                
+                # Save to disk
+                store.relationship_manager.save_relationships()
+                
+                print(f"✅ Relationship {relationship_id} updated")
+                
+                return {
+                    "status": "updated",
+                    "relationship_id": relationship_id,
+                    "updated_fields": {
+                        k: v for k, v in update_data.dict().items() 
+                        if v is not None
+                    }
+                }
+                
+            except Exception as e:
+                print(f"❌ Failed to update relationship {relationship_id}: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to update relationship: {e}")
+    
+    raise HTTPException(status_code=404, detail="Relationship not found")
+
+@app.delete("/relationships/{relationship_id}")
+async def delete_relationship(relationship_id: str):
+    """Delete relationship"""
+    if not store:
+        raise HTTPException(status_code=500, detail="Store not initialized")
+    
+    # Find and remove relationship from graph
+    for source, target, data in store.relationship_manager.graph.edges(data=True):
+        if data.get('id') == relationship_id:
+            try:
+                store.relationship_manager.graph.remove_edge(source, target)
+                store.relationship_manager.save_relationships()
+                
+                print(f"✅ Relationship {relationship_id} deleted")
+                
+                return {
+                    "status": "deleted",
+                    "relationship_id": relationship_id
+                }
+                
+            except Exception as e:
+                print(f"❌ Failed to delete relationship {relationship_id}: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to delete relationship: {e}")
+    
+    raise HTTPException(status_code=404, detail="Relationship not found")
 
 @app.post("/search")
 async def search_entities(query: SearchQuery):
@@ -339,25 +631,6 @@ async def get_entity_types():
         ],
         "total_types": len(counter)
     }
-
-@app.delete("/entities/{entity_id}")
-async def delete_entity(entity_id: str):
-    if not store:
-        raise HTTPException(status_code=500, detail="Store not initialized")
-    entity = store.get_entity_by_id(entity_id)
-    if not entity:
-        raise HTTPException(status_code=404, detail="Entity not found")
-    try:
-        store.faiss_manager.remove_entity(entity_id)
-        if store.relationship_manager.graph.has_node(entity_id):
-            store.relationship_manager.graph.remove_node(entity_id)
-        del store.entities[entity_id]
-        file = store.persistence.entities_dir / f"{entity_id}.json"
-        if file.exists():
-            file.unlink()
-        return {"status": "deleted", "entity_id": entity_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete entity: {e}")
 
 app.mount("/static", StaticFiles(directory="api/static"), name="static")
 

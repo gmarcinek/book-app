@@ -8,12 +8,19 @@ from typing import List, Dict
 
 # ===== DEFAULT ENTITY TYPES =====
 DEFAULT_ENTITY_TYPES = [
-    "CHARACTER",      # Playable character, NPC, człowiek z imienia, "jakiś typ", niedźwiedź w lesie
-    "EMOTIONAL_STATE", # Stan emocjonalny wyrażony w tekście lub ekstrapolowany  
-    "LOCATION",       # Miejsce gdzie podmiot jest i operuje, nie tylko wspomina
-    "OBJECT",         # Istotne przedmioty: narzędzia, meble, coś do dotknięcia
-    "EVENT",          # Wydarzenie z akcją i zmianą: wejście mamy, zatrzymanie zegara
-    "DIALOG"          # Wymiana zdań, monolog, dialog wewnętrzny
+    "CHARACTER",
+    "EMOTIONAL_STATE",
+    "PHISICAL_STATE",
+    "DESCRIPTION",
+    "LOCATION",
+    "OBJECT",
+    "EVENT",
+    "DIALOG" ,
+    "TOOL",
+    "PROBLEM",
+    "CONCEPT",
+    "INSTITUTION",
+    "TEMPORAL",
 ]
 
 # ===== DEFAULT RELATIONSHIP PATTERNS =====
@@ -27,7 +34,11 @@ DEFAULT_RELATIONSHIP_PATTERNS = [
     "LIVES_IN",       # CHARACTER LIVES_IN LOCATION
     "BEFORE",         # EVENT BEFORE EVENT
     "AFTER",          # EVENT AFTER EVENT
-    "WITH"            # CHARACTER WITH CHARACTER (razem w scenie)
+    "WITH",
+    "IS_SIBLING",
+    "IS_PARENT",
+    "IS_CHILD",
+    "SIMILAR" ,
 ]
 
 # ===== CORE RELATIONSHIP TYPES (from storage/models.py) =====
