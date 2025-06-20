@@ -53,11 +53,21 @@ class WeightedSimilarity:
     def _get_type_weight(self, entity_type: str) -> float:
         """Weight factor based on entity type reliability"""
         weights = {
+            # === SIMPLE DOMAIN (stare nazwy) ===
             'OSOBA': 1.2,        # Names are usually distinctive
             'ORGANIZACJA': 1.1,   # Organization names quite distinctive
             'MIEJSCE': 1.0,       # Places can be ambiguous
             'PRZEDMIOT': 0.9,     # Objects often have generic names
             'KONCEPCJA': 0.8,     # Concepts are often similar
+            
+            # === LITERARY DOMAIN (nowe nazwy) - KONSERWATYWNE WAGI ===
+            'CHARACTER': 1.2,     # Wysoka waga - imiona są bardzo distinctive  
+            'LOCATION': 1.2,      # Wysoka waga - nazwy lokacji mają być różne
+            'OBJECT': 1.1,        # Wysoka waga - obiekty powinny być distinctive
+            'EMOTIONAL_STATE': 0.8,  # Stany emocjonalne często podobne
+            'EVENT': 0.9,        # Wydarzenia umiarkowanie distinctive
+            'DIALOG': 0.7,       # Dialogi często się nakładają
+            
             'default': 1.0
         }
         return weights.get(entity_type, weights['default'])

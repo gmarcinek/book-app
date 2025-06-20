@@ -51,11 +51,18 @@ TEKST: {text}
 
 ANALIZA:
 - Bohaterowie/postacie (CHARACTER)
-- Stany emocjonalne (EMOTIONAL_STATE)  
+- Stany emocjonalne (EMOTIONAL_STATE)
+- Stan fizyczne (PHISICAL_STATE)
+- Sumaryczny opis encji nazwyający posiadane cechy (DESCRIPTION)
 - Lokacje gdzie działają (LOCATION)
 - Istotne przedmioty (OBJECT)
 - Wydarzenia z akcją (EVENT)
 - Dialogi/monologi (DIALOG)
+- Narzędzia (TOOL)
+- Wyzwania/kłopoty/problemy stojące przed bohaterami (PROBLEM)
+- Idee, abstrakcyjne koncepcje (CONCEPT)
+- Nazwane organizacje / Firmy (INSTITUTION)
+- Określenia dotyczące czasu (TEMPORAL)
 
 RELACJE (tylko te patterns):
 {', '.join(DEFAULT_RELATIONSHIP_PATTERNS)}
@@ -93,10 +100,10 @@ JSON:
    {{
      "name": "Jan",
      "type": "CHARACTER", 
-     "description": "semantycznie użyteczny opis dla wyszukiwarki embedera",
+     "description": "semantycznie użyteczny opis dla wyszukiwarki embedera, długi na tyle żeby nie dało się pomylić encji w czasie porównania semantycznego",
      "aliases": ["Janek", "Johnny"],
      "confidence": 0.85,
-     "evidence": "entity_frame",
+     "evidence": "zostaw_puste",
    }}
  ],
  "relationships": [
@@ -104,7 +111,7 @@ JSON:
      "source": "Jan",
      "pattern": "IS_IN",
      "target": "dom",
-     "evidence": "Jan jest w domu"
+     "evidence": "zostaw_puste"
    }}
  ]
 }}"""
@@ -139,7 +146,7 @@ JSON:
      "description": "semantycznie użyteczny opis dla wyszukiwarki embedera",
      "aliases": ["krótsza forma", "generyczna nazwa", "inne warianty"],
      "confidence": 0.85,
-     "evidence": "entity_frame",
+     "evidence": "zostaw_puste",
    }}
  ],
  "relationships": [
@@ -147,7 +154,7 @@ JSON:
      "source": "DOKŁADNA_NAZWA_Z_ENTITIES_WYŻEJ",
      "pattern": "PATTERN",
      "target": "DOKŁADNA_NAZWA_Z_ENTITIES_WYŻEJ",
-     "evidence": "cytat z tekstu"
+     "evidence": "zostaw_puste"
    }}
  ]
 }}

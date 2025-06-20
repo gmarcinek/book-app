@@ -48,14 +48,24 @@ class SemanticConfig:
         """Initialize default entity type thresholds if not provided"""
         if self.entity_type_thresholds is None:
             self.entity_type_thresholds = {
+                # === SIMPLE DOMAIN (stare nazwy) ===
                 'OSOBA': 0.75,           # Names are distinctive
                 'ORGANIZACJA': 0.70,     # Organization names quite distinctive  
                 'MIEJSCE': 0.65,         # Places can be ambiguous
                 'PRZEDMIOT': 0.55,       # Objects often have generic names
                 'KONCEPCJA': 0.50,       # Concepts are often similar
                 'WYDARZENIE': 0.60,      # Events need decent threshold
+                
+                # === LITERARY DOMAIN (nowe nazwy) - WYŻSZE PROGI ===
+                'CHARACTER': 0.75,       # Tak jak OSOBA - imiona są distinctive
+                'LOCATION': 0.70,        # WYŻEJ niż MIEJSCE - nazwy miejsc powinny być różne
+                'OBJECT': 0.65,          # WYŻEJ niż PRZEDMIOT - obiekty jak "fontanna" vs "domek" 
+                'EMOTIONAL_STATE': 0.50, # Stany emocjonalne mogą być podobne
+                'EVENT': 0.60,          # Wydarzenia potrzebują przyzwoitego progu
+                'DIALOG': 0.40,          # Dialogi często się nakładają
+                
+                # === INNE TYPY ===
                 'SCENA': 0.45,           # Scenes can be quite similar
-                'DIALOG': 0.40,          # Dialogs often overlap
                 'default': 0.55          # Safe fallback
             }
     
