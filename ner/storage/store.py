@@ -1,7 +1,7 @@
 """
 ner/storage/store.py
 
-SemanticStore with batch clustering + SemanticConfig - MINIMAL refactor
+SemanticStore with batch clustering + entity_config - MINIMAL refactor
 """
 
 import logging
@@ -16,20 +16,18 @@ from .persistence import StoragePersistence
 from .clustering.union_find import EntityUnionFind
 from .clustering.merger import EntityMerger
 from .similarity.engine import EntitySimilarityEngine
-from ..semantic.config import get_default_semantic_config
+from ..entity_config import DeduplicationConfig
 
 logger = logging.getLogger(__name__)
 
 
 class SemanticStore:
-    """Main semantic store with batch clustering and SemanticConfig"""
+    """Main semantic store with batch clustering and centralized config"""
     
     def __init__(self,
                 storage_dir: str = "semantic_store",
                 embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
-                # embedding_model: str = "allegro/herbert-base-cased"):
         self.storage_dir = Path(storage_dir)
-        self.semantic_config = get_default_semantic_config()  # NEW: semantic config
         
         logger.info(f"🏗️ Initializing SemanticStore at {self.storage_dir}")
         
@@ -116,7 +114,7 @@ class SemanticStore:
             return 0
     
     def get_contextual_entities_for_ner(self, chunk_text: str, max_entities: int = 10) -> List[Dict[str, Any]]:
-        """Get contextual entities using config thresholds"""
+        """Get contextual entities using centralized config thresholds"""
         if not chunk_text.strip() or not self.entities:
             return []
         
@@ -125,7 +123,7 @@ class SemanticStore:
             
             similar_entities = self.faiss_manager.search_similar_entities_by_context(
                 chunk_embedding, 
-                threshold=self.semantic_config.contextual_entities_threshold, 
+                threshold=DeduplicationConfig.CONTEXTUAL_ENTITIES_THRESHOLD, 
                 max_results=max_entities
             )
             
@@ -218,23 +216,6 @@ class SemanticStore:
         except Exception as e:
             logger.error(f"❌ Failed to load existing data: {e}")
     
-    def _merge_entity_data(self, existing_entity: StoredEntity, new_entity: StoredEntity) -> List[str]:
-        """Merge new entity data into existing entity"""
-        discovered_aliases = []
-        
-        if new_entity.confidence > existing_entity.confidence:
-            existing_entity.confidence = new_entity.confidence
-        
-        if len(new_entity.description) > len(existing_entity.description):
-            existing_entity.description = new_entity.description
-        
-        new_aliases = set(new_entity.aliases)
-        if new_entity.name != existing_entity.name:
-            new_aliases.add(new_entity.name)
-        
-        discovered_aliases = existing_entity.merge_aliases(list(new_aliases))
-        return discovered_aliases
-    
     def get_stats(self) -> Dict[str, Any]:
         """Get comprehensive statistics"""
         return {
@@ -255,14 +236,14 @@ class SemanticStore:
         return self.chunks.get(chunk_id)
     
     def search_entities_by_name(self, query: str, max_results: int = 10) -> List[Tuple[StoredEntity, float]]:
-        """Search entities using config thresholds"""
+        """Search entities using centralized config thresholds"""
         if not query.strip():
             return []
         
         query_embedding = self.embedder._get_cached_embedding(f"{query} ENTITY", "search")
         similar_entities = self.faiss_manager.search_similar_entities_by_name(
             query_embedding, 
-            threshold=self.semantic_config.name_search_threshold, 
+            threshold=DeduplicationConfig.NAME_SEARCH_THRESHOLD, 
             max_results=max_results
         )
         

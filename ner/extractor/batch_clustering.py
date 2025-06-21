@@ -7,6 +7,7 @@ OPTIMIZED: Single similarity matrix per chunk vs database
 import logging
 from typing import List, Dict, Any
 from .base import ExtractedEntity
+from ner.entity_config import DeduplicationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -135,11 +136,11 @@ class EntityBatchClusterer:
         chunk_embeddings = np.array(chunk_embeddings)
         existing_embeddings = np.array(existing_embeddings)
         
-        # Use matrix operations for batch similarity
+        # Use centralized config instead of semantic_store.semantic_config
         similar_candidates = self.semantic_store.similarity_engine.matrix_ops.batch_embedding_similarity(
             chunk_embeddings, existing_embeddings,
             chunk_entity_ids, existing_entity_ids,
-            self.semantic_store.semantic_config.base_similarity_threshold
+            DeduplicationConfig.BASE_SIMILARITY_THRESHOLD
         )
         
         # Apply weighted similarity and return merge decisions

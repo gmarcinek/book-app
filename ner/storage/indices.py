@@ -1,5 +1,5 @@
 """
-FAISS indices management with SemanticConfig thresholds
+FAISS indices management with centralized entity_config thresholds
 Dual entity embeddings and chunk embeddings
 """
 
@@ -12,19 +12,18 @@ import faiss
 import numpy as np
 
 from .models import StoredEntity, StoredChunk
-from ..semantic.config import get_default_semantic_config
+from ..entity_config import DeduplicationConfig
 
 logger = logging.getLogger(__name__)
 
 
 class FAISSManager:
-    """FAISS indices with SemanticConfig thresholds"""
+    """FAISS indices with centralized config thresholds"""
     
     def __init__(self, embedding_dim: int, storage_dir: Path):
         self.embedding_dim = embedding_dim
         self.storage_dir = storage_dir
         self.storage_dir.mkdir(parents=True, exist_ok=True)
-        self.semantic_config = get_default_semantic_config()  # NEW: semantic config
         
         # Initialize FAISS indices (using Inner Product for normalized embeddings)
         self.entity_name_index = faiss.IndexFlatIP(embedding_dim)
@@ -101,11 +100,11 @@ class FAISSManager:
                                       query_embedding: np.ndarray,
                                       threshold: float = None,
                                       max_results: int = None) -> List[Tuple[str, float]]:
-        """Search for similar entities by name using config defaults"""
+        """Search for similar entities by name using centralized config defaults"""
         if threshold is None:
-            threshold = self.semantic_config.name_search_threshold
+            threshold = DeduplicationConfig.NAME_SEARCH_THRESHOLD
         if max_results is None:
-            max_results = self.semantic_config.name_search_max_results
+            max_results = DeduplicationConfig.NAME_SEARCH_MAX_RESULTS
             
         return self._search_entities(
             self.entity_name_index, 
@@ -119,11 +118,11 @@ class FAISSManager:
                                          query_embedding: np.ndarray,
                                          threshold: float = None,
                                          max_results: int = None) -> List[Tuple[str, float]]:
-        """Search for similar entities by context using config defaults"""
+        """Search for similar entities by context using centralized config defaults"""
         if threshold is None:
-            threshold = self.semantic_config.context_search_threshold
+            threshold = DeduplicationConfig.CONTEXT_SEARCH_THRESHOLD
         if max_results is None:
-            max_results = self.semantic_config.context_search_max_results
+            max_results = DeduplicationConfig.CONTEXT_SEARCH_MAX_RESULTS
             
         return self._search_entities(
             self.entity_context_index,
