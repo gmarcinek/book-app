@@ -9,7 +9,6 @@ from pydantic import BaseModel
 from typing import List, Optional
 import sys
 from pathlib import Path
-from fastapi.staticfiles import StaticFiles
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -631,14 +630,3 @@ async def get_entity_types():
         ],
         "total_types": len(counter)
     }
-
-app.mount("/static", StaticFiles(directory="api/static"), name="static")
-
-@app.get("/visualize")
-async def visualize_graph():
-    from fastapi.responses import FileResponse
-    return FileResponse("api/static/graph.html")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
