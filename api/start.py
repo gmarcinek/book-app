@@ -15,11 +15,10 @@ def main():
     print("\U0001F4CA Server: http://localhost:8000")
     print("\U0001F4D6 Docs: http://localhost:8000/docs") 
     print("\U0001F50D Interactive: http://localhost:8000/redoc")
-    print("\U0001F50D Interactive: http://localhost:8000/visualize")
     print()
 
     uvicorn.run(
-        "api.server:app",
+        "api.main:app",  # Changed from api.server:app to api.main:app
         host="0.0.0.0",
         port=8000,
         reload=True,
