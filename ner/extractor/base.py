@@ -16,7 +16,6 @@ load_dotenv()
 # Local imports
 from ..utils import log_memory_usage
 from ..semantic import TextChunk
-from ..semantic.config import get_default_semantic_config
 from ..domains import DomainFactory
 from ..config import NERConfig, create_default_ner_config
 from ..storage import SemanticStore
@@ -58,7 +57,6 @@ class EntityExtractor:
                enable_semantic_store: bool = True):
       
        self.config = config if config is not None else create_default_ner_config()
-       self.semantic_config = get_default_semantic_config()
        self.model = model
        self.llm_client = None
        self.enable_semantic_store = enable_semantic_store

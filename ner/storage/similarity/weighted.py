@@ -1,19 +1,18 @@
 """
-Weighted similarity calculations with SemanticConfig
+Weighted similarity calculations with entity_config
 Type-aware thresholds and multi-factor similarity scoring
 """
 
-from typing import Dict, Tuple
-import numpy as np
 from ..models import StoredEntity
-from ...semantic.config import get_default_semantic_config
+from ner.entity_config import DeduplicationConfig
 
 
 class WeightedSimilarity:
-    """Weighted similarity with SemanticConfig thresholds"""
+    """Weighted similarity with centralized config from entity_config"""
     
     def __init__(self):
-        self.semantic_config = get_default_semantic_config()  # NEW: semantic config
+        # No need to store semantic_config - use DeduplicationConfig directly
+        pass
     
     def calculate_similarity(self, entity1: StoredEntity, entity2: StoredEntity, 
                            base_similarity: float) -> float:
@@ -41,36 +40,18 @@ class WeightedSimilarity:
         return min(1.0, weighted_score)  # Cap at 1.0
     
     def get_threshold_for_type(self, entity_type: str) -> float:
-        """Get similarity threshold for given entity type using config"""
-        return self.semantic_config.get_threshold_for_type(entity_type)
+        """Get similarity threshold for given entity type using centralized config"""
+        return DeduplicationConfig.get_threshold_for_entity_type_string(entity_type)
     
     def should_merge(self, entity1: StoredEntity, entity2: StoredEntity, 
                     similarity_score: float) -> bool:
-        """Determine if entities should be merged using config threshold"""
+        """Determine if entities should be merged using centralized threshold"""
         threshold = self.get_threshold_for_type(entity1.type)
         return similarity_score >= threshold
     
     def _get_type_weight(self, entity_type: str) -> float:
-        """Weight factor based on entity type reliability"""
-        weights = {
-            # === SIMPLE DOMAIN (stare nazwy) ===
-            'OSOBA': 1.2,        # Names are usually distinctive
-            'ORGANIZACJA': 1.1,   # Organization names quite distinctive
-            'MIEJSCE': 1.0,       # Places can be ambiguous
-            'PRZEDMIOT': 0.9,     # Objects often have generic names
-            'KONCEPCJA': 0.8,     # Concepts are often similar
-            
-            # === LITERARY DOMAIN (nowe nazwy) - KONSERWATYWNE WAGI ===
-            'CHARACTER': 1.2,     # Wysoka waga - imiona są bardzo distinctive  
-            'LOCATION': 1.2,      # Wysoka waga - nazwy lokacji mają być różne
-            'OBJECT': 1.1,        # Wysoka waga - obiekty powinny być distinctive
-            'EMOTIONAL_STATE': 0.8,  # Stany emocjonalne często podobne
-            'EVENT': 0.9,        # Wydarzenia umiarkowanie distinctive
-            'DIALOG': 0.7,       # Dialogi często się nakładają
-            
-            'default': 1.0
-        }
-        return weights.get(entity_type, weights['default'])
+        """Weight factor based on entity type reliability - uses centralized config"""
+        return DeduplicationConfig.get_type_weight(entity_type)
     
     def _calculate_stability_weight(self, entity1: StoredEntity, entity2: StoredEntity) -> float:
         """Weight based on number of source chunks (stability indicator)"""
@@ -96,7 +77,7 @@ class WeightedSimilarity:
         return 0.8 + (avg_confidence * 0.2)  # Range: 0.8 - 1.0
     
     def _calculate_content_overlap(self, entity1: StoredEntity, entity2: StoredEntity) -> float:
-        """Bonus score for content word overlap using config max bonus"""
+        """Bonus score for content word overlap using centralized config"""
         content1 = f"{entity1.name} {entity1.description} {entity1.context}".lower()
         content2 = f"{entity2.name} {entity2.description} {entity2.context}".lower()
         
@@ -108,6 +89,6 @@ class WeightedSimilarity:
         
         overlap_ratio = len(words1 & words2) / len(words1 | words2)
         
-        # Use config max bonus instead of hardcoded 0.1
-        max_bonus = self.semantic_config.max_content_overlap_bonus
+        # Use centralized config instead of hardcoded value
+        max_bonus = DeduplicationConfig.MAX_CONTENT_OVERLAP_BONUS
         return min(max_bonus, overlap_ratio * 0.4)

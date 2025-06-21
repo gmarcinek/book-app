@@ -2,76 +2,71 @@
 ner/semantic/config.py
 
 Centralized configuration for semantic processing and clustering
-All thresholds, parameters and tunable values in one place - KISS approach
+Now imports thresholds from entity_config.py instead of defining them locally
 """
 
 from dataclasses import dataclass
 from typing import Dict
 
+# Import centralized deduplication config
+from ..entity_config import DeduplicationConfig
+
 
 @dataclass
 class SemanticConfig:
     """
-    Single source of truth for all semantic processing parameters
-    DRY principle - no more scattered thresholds across files
+    Semantic processing parameters - now delegates to DeduplicationConfig
+    Simplified to avoid duplication with entity_config.py
     """
     
-    # === SIMILARITY THRESHOLDS ===
-    # Entity type-specific thresholds for weighted similarity
-    entity_type_thresholds: Dict[str, float] = None
-    
-    # Base similarity threshold for initial candidate filtering
-    base_similarity_threshold: float = 0.3
-    
-    # === SEARCH THRESHOLDS ===
-    # Name-based entity search (exact matching)
-    name_search_threshold: float = 0.8
-    name_search_max_results: int = 10
-    
-    # Context-based entity search (semantic discovery)
-    context_search_threshold: float = 0.6
-    context_search_max_results: int = 20
-    
-    # Contextual entities for NER enhancement
-    contextual_entities_threshold: float = 0.6
-    contextual_entities_max_results: int = 10
-    
-    # === COOCCURRENCE PARAMETERS ===
-    # Minimum shared chunks ratio for co-occurrence relationships
-    cooccurrence_threshold: float = 0.2
-    
-    # === CLUSTERING PARAMETERS ===
-    # Content overlap bonus for weighted similarity
-    max_content_overlap_bonus: float = 0.1
-    
-    def __post_init__(self):
-        """Initialize default entity type thresholds if not provided"""
-        if self.entity_type_thresholds is None:
-            self.entity_type_thresholds = {
-                # === SIMPLE DOMAIN (stare nazwy) ===
-                'OSOBA': 0.75,           # Names are distinctive
-                'ORGANIZACJA': 0.70,     # Organization names quite distinctive  
-                'MIEJSCE': 0.65,         # Places can be ambiguous
-                'PRZEDMIOT': 0.55,       # Objects often have generic names
-                'KONCEPCJA': 0.50,       # Concepts are often similar
-                'WYDARZENIE': 0.60,      # Events need decent threshold
-                
-                # === LITERARY DOMAIN (nowe nazwy) - WYŻSZE PROGI ===
-                'CHARACTER': 0.75,       # Tak jak OSOBA - imiona są distinctive
-                'LOCATION': 0.70,        # WYŻEJ niż MIEJSCE - nazwy miejsc powinny być różne
-                'OBJECT': 0.65,          # WYŻEJ niż PRZEDMIOT - obiekty jak "fontanna" vs "domek" 
-                'EMOTIONAL_STATE': 0.50, # Stany emocjonalne mogą być podobne
-                'EVENT': 0.60,          # Wydarzenia potrzebują przyzwoitego progu
-                'DIALOG': 0.40,          # Dialogi często się nakładają
-                
-                # === INNE TYPY ===
-                'SCENA': 0.45,           # Scenes can be quite similar
-                'default': 0.55          # Safe fallback
-            }
-    
     def get_threshold_for_type(self, entity_type: str) -> float:
-        """Get similarity threshold for entity type"""
-        return self.entity_type_thresholds.get(entity_type, self.entity_type_thresholds['default'])
+        """Get similarity threshold for entity type - delegates to DeduplicationConfig"""
+        return DeduplicationConfig.get_threshold_for_entity_type_string(entity_type)
+    
+    @property
+    def base_similarity_threshold(self) -> float:
+        """Base similarity threshold for initial candidate filtering"""
+        return DeduplicationConfig.BASE_SIMILARITY_THRESHOLD
+    
+    @property
+    def name_search_threshold(self) -> float:
+        """Name-based entity search threshold"""
+        return DeduplicationConfig.NAME_SEARCH_THRESHOLD
+    
+    @property
+    def name_search_max_results(self) -> int:
+        """Max results for name search"""
+        return DeduplicationConfig.NAME_SEARCH_MAX_RESULTS
+    
+    @property
+    def context_search_threshold(self) -> float:
+        """Context-based entity search threshold"""
+        return DeduplicationConfig.CONTEXT_SEARCH_THRESHOLD
+    
+    @property
+    def context_search_max_results(self) -> int:
+        """Max results for context search"""
+        return DeduplicationConfig.CONTEXT_SEARCH_MAX_RESULTS
+    
+    @property
+    def contextual_entities_threshold(self) -> float:
+        """Contextual entities for NER enhancement"""
+        return DeduplicationConfig.CONTEXTUAL_ENTITIES_THRESHOLD
+    
+    @property
+    def contextual_entities_max_results(self) -> int:
+        """Max contextual entities results"""
+        return DeduplicationConfig.CONTEXTUAL_ENTITIES_MAX_RESULTS
+    
+    @property
+    def cooccurrence_threshold(self) -> float:
+        """Co-occurrence relationships threshold"""
+        return DeduplicationConfig.COOCCURRENCE_THRESHOLD
+    
+    @property
+    def max_content_overlap_bonus(self) -> float:
+        """Content overlap bonus for weighted similarity"""
+        return DeduplicationConfig.MAX_CONTENT_OVERLAP_BONUS
 
 
 # Global default instance - singleton pattern for simplicity

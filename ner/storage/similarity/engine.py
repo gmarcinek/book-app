@@ -1,5 +1,5 @@
 """
-Main similarity engine with BATCH optimization + SemanticConfig
+Main similarity engine with BATCH optimization + entity_config
 Core optimization: batch similarity matrix instead of N² individual calls
 """
 
@@ -10,18 +10,17 @@ import logging
 from .weighted import WeightedSimilarity
 from .matrix_ops import MatrixOperations
 from ..models import StoredEntity
-from ...semantic.config import get_default_semantic_config
+from ner.entity_config import DeduplicationConfig
 
 logger = logging.getLogger(__name__)
 
 
 class EntitySimilarityEngine:
-    """Main similarity engine with batch matrix operations + SemanticConfig"""
+    """Main similarity engine with batch matrix operations + centralized config"""
     
     def __init__(self, relationship_manager=None):
         self.weighted_sim = WeightedSimilarity()
         self.matrix_ops = MatrixOperations()
-        self.semantic_config = get_default_semantic_config()  # NEW: semantic config
         self.relationship_manager = relationship_manager
     
     def find_all_similar_entities(self, new_entity: StoredEntity,
@@ -61,8 +60,8 @@ class EntitySimilarityEngine:
         new_embeddings = new_embedding.reshape(1, -1)
         existing_embeddings = np.array(existing_embeddings)
         
-        # Use semantic config threshold instead of hardcoded
-        base_threshold = self.semantic_config.base_similarity_threshold
+        # Use centralized config threshold instead of hardcoded
+        base_threshold = DeduplicationConfig.BASE_SIMILARITY_THRESHOLD
         
         # BATCH similarity computation - CORE OPTIMIZATION
         similar_candidates = self.matrix_ops.batch_embedding_similarity(
@@ -151,7 +150,7 @@ class EntitySimilarityEngine:
         return all_similarities
     
     def compute_cooccurrence_similarities(self, entities: Dict[str, StoredEntity]) -> Dict[str, List[Tuple[str, float]]]:
-        """Find entity similarities based on co-occurrence using config threshold"""
+        """Find entity similarities based on co-occurrence using centralized config threshold"""
         # Build entity -> chunks mapping
         entity_chunk_mapping = {}
         for entity_id, entity in entities.items():
@@ -178,8 +177,8 @@ class EntitySimilarityEngine:
                     if total_chunks > 0:
                         similarity_matrix[i, j] = shared_chunks / total_chunks
         
-        # Use semantic config threshold
-        cooccurrence_threshold = self.semantic_config.cooccurrence_threshold
+        # Use centralized config threshold
+        cooccurrence_threshold = DeduplicationConfig.COOCCURRENCE_THRESHOLD
         similar_pairs = self.matrix_ops.find_similar_pairs(
             similarity_matrix, cooccurrence_threshold, entity_ids
         )
