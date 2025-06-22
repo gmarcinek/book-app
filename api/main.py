@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 sys.path.append(str(Path(__file__).parent.parent))
 
 from .deps import initialize_store
-from .routers import status, entities, relationships, search, processing, graph
+from .routers import status, entities, relationships, search, processing, graph, analyze
 
 app = FastAPI(title="NER Knowledge API", version="1.0.0")
 
@@ -31,6 +31,7 @@ app.include_router(relationships.router)
 app.include_router(search.router)
 app.include_router(processing.router)
 app.include_router(graph.router)
+app.include_router(analyze.router)
 
 
 @app.on_event("startup")

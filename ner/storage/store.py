@@ -113,17 +113,20 @@ class SemanticStore:
             logger.error(f"❌ Failed to discover relationships: {e}")
             return 0
     
-    def get_contextual_entities_for_ner(self, chunk_text: str, max_entities: int = 10) -> List[Dict[str, Any]]:
-        """Get contextual entities using centralized config thresholds"""
+    def get_contextual_entities_for_ner(self, chunk_text: str, max_entities: int = 10, threshold: float = None) -> List[Dict[str, Any]]:
+        """Get contextual entities using user-provided or config threshold"""
         if not chunk_text.strip() or not self.entities:
             return []
         
         try:
             chunk_embedding = self.embedder._get_cached_embedding(chunk_text, "temp_chunk")
             
+            # Use user threshold or fallback to config
+            search_threshold = threshold if threshold is not None else DeduplicationConfig.CONTEXTUAL_ENTITIES_THRESHOLD
+            
             similar_entities = self.faiss_manager.search_similar_entities_by_context(
                 chunk_embedding, 
-                threshold=DeduplicationConfig.CONTEXTUAL_ENTITIES_THRESHOLD, 
+                threshold=search_threshold,  # ← USER THRESHOLD
                 max_results=max_entities
             )
             
@@ -144,6 +147,7 @@ class SemanticStore:
         except Exception as e:
             logger.error(f"❌ Failed to get contextual entities: {e}")
             return []
+
     
     def get_known_aliases_for_chunk(self, chunk_text: str) -> Dict[str, List[str]]:
         """Get known aliases for entities in chunk"""

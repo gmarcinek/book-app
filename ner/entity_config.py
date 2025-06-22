@@ -14,9 +14,10 @@ class EntityType(Enum):
     """Standard entity types - keeping only what's currently used in DEFAULT_ENTITY_TYPES"""
     CHARACTER = "CHARACTER"
     EMOTIONAL_STATE = "EMOTIONAL_STATE"
-    PHISICAL_STATE = "PHISICAL_STATE"  # Keep typo from original
+    PHISICAL_STATE = "PHISICAL_STATE"
     DESCRIPTION = "DESCRIPTION"
     LOCATION = "LOCATION"
+    ADDRESS = "ADDRESS"
     OBJECT = "OBJECT"
     EVENT = "EVENT"
     DIALOG = "DIALOG"
@@ -24,7 +25,7 @@ class EntityType(Enum):
     PROBLEM = "PROBLEM"
     CONCEPT = "CONCEPT"
     INSTITUTION = "INSTITUTION"
-    TEMPORAL = "TEMPORAL"
+    DATE = "DATE"
 
 
 # ===== RELATIONSHIP TYPES AS ENUM =====
@@ -36,16 +37,16 @@ class RelationType(Enum):
     SIMILAR_TO = "similar_to"      # entities are semantically similar
     
     # Domain relationship patterns
-    IS_IN = "IS_IN"                # CHARACTER/OBJECT IS_IN LOCATION
-    HAS = "HAS"                    # CHARACTER HAS OBJECT/EMOTIONAL_STATE
-    OWNS = "OWNS"                  # CHARACTER OWNS OBJECT
-    IS = "IS"                      # CHARACTER IS CHARACTER (rodzic/dziecko/małżonek)
-    PERFORMS = "PERFORMS"          # CHARACTER PERFORMS EVENT
-    PARTICIPATES = "PARTICIPATES"  # CHARACTER PARTICIPATES EVENT/DIALOG
-    LIVES_IN = "LIVES_IN"          # CHARACTER LIVES_IN LOCATION
-    BEFORE = "BEFORE"              # EVENT BEFORE EVENT
-    AFTER = "AFTER"                # EVENT AFTER EVENT
-    WITH = "WITH"                  # CHARACTER WITH CHARACTER
+    IS_IN = "IS_IN"
+    HAS = "HAS"
+    OWNS = "OWNS"
+    IS = "IS"
+    PERFORMS = "PERFORMS"
+    PARTICIPATES = "PARTICIPATES"
+    LIVES_IN = "LIVES_IN"
+    BEFORE = "BEFORE"
+    AFTER = "AFTER"
+    WITH = "WITH"
     IS_SIBLING = "IS_SIBLING"
     IS_PARENT = "IS_PARENT"
     IS_CHILD = "IS_CHILD"
@@ -62,6 +63,7 @@ class DeduplicationConfig:
         # Literary domain - higher thresholds (more conservative)
         EntityType.CHARACTER: 0.70,       # Names are distinctive
         EntityType.LOCATION: 0.70,        # Place names should be different  
+        EntityType.ADDRESS: 0.70,         # Place names should be different  
         EntityType.OBJECT: 0.65,          # Objects like "fountain" vs "house"
         EntityType.EMOTIONAL_STATE: 0.50, # Emotional states can be similar
         EntityType.EVENT: 0.60,           # Events need decent threshold
@@ -72,7 +74,7 @@ class DeduplicationConfig:
         EntityType.PROBLEM: 0.55,         # Problems can be similar
         EntityType.CONCEPT: 0.50,         # Concepts often similar
         EntityType.INSTITUTION: 0.70,     # Institution names distinctive
-        EntityType.TEMPORAL: 0.65,        # Time references
+        EntityType.DATE: 0.65,        # Time references
     }
     
     # === ENTITY TYPE WEIGHT FACTORS ===
@@ -80,6 +82,7 @@ class DeduplicationConfig:
         # Literary domain - type reliability weights
         EntityType.CHARACTER: 1.2,        # Imiona są bardzo distinctive  
         EntityType.LOCATION: 1.2,         # Nazwy lokacji mają być różne
+        EntityType.ADDRESS: 1.2,         # Nazwy lokacji mają być różne
         EntityType.OBJECT: 1.1,           # Obiekty powinny być distinctive
         EntityType.EMOTIONAL_STATE: 0.8,  # Stany emocjonalne często podobne
         EntityType.EVENT: 0.9,            # Wydarzenia umiarkowanie distinctive
@@ -90,7 +93,7 @@ class DeduplicationConfig:
         EntityType.PROBLEM: 0.8,          # Problemy często podobne
         EntityType.CONCEPT: 0.8,          # Koncepcje często podobne
         EntityType.INSTITUTION: 1.1,      # Organizacje distinctive
-        EntityType.TEMPORAL: 1.0          # Czas standardowo
+        EntityType.DATE: 1.0          # Czas standardowo
     }
     
     # === BASE SIMILARITY THRESHOLDS ===

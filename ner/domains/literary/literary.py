@@ -9,28 +9,6 @@ from ...entity_config import DEFAULT_ENTITY_TYPES, DEFAULT_RELATIONSHIP_PATTERNS
 class LiteraryNER(BaseNER):
    """Literary Domain with clean entity types and relationship extraction"""
    
-   ENTITY_TYPES = [
-       "CHARACTER",      # Playable character, NPC, człowiek z imienia, "jakiś typ", niedźwiedź w lesie
-       "EMOTIONAL_STATE", # Stan emocjonalny wyrażony w tekście lub ekstrapolowany  
-       "LOCATION",       # Miejsce gdzie podmiot jest i operuje, nie tylko wspomina
-       "OBJECT",         # Istotne przedmioty: narzędzia, meble, coś do dotknięcia
-       "EVENT",          # Wydarzenie z akcją i zmianą: wejście mamy, zatrzymanie zegara
-       "DIALOG"          # Wymiana zdań, monolog, dialog wewnętrzny
-   ]
-   
-   RELATIONSHIP_PATTERNS = [
-       "IS_IN",          # CHARACTER/OBJECT IS_IN LOCATION
-       "HAS",            # CHARACTER HAS OBJECT/EMOTIONAL_STATE
-       "OWNS",           # CHARACTER OWNS OBJECT
-       "IS",             # CHARACTER IS CHARACTER (rodzic/dziecko/małżonek)
-       "PERFORMS",       # CHARACTER PERFORMS EVENT
-       "PARTICIPATES",   # CHARACTER PARTICIPATES EVENT/DIALOG
-       "LIVES_IN",       # CHARACTER LIVES_IN LOCATION
-       "BEFORE",         # EVENT BEFORE EVENT
-       "AFTER",          # EVENT AFTER EVENT
-       "WITH"            # CHARACTER WITH CHARACTER (razem w scenie)
-   ]
-   
    def __init__(self):
        config = DomainConfig(
            name="literary",
@@ -54,7 +32,8 @@ ANALIZA:
 - Stany emocjonalne (EMOTIONAL_STATE)
 - Stan fizyczne (PHISICAL_STATE)
 - Sumaryczny opis encji nazwyający posiadane cechy (DESCRIPTION)
-- Lokacje gdzie działają (LOCATION)
+- Lokacje (LOCATION)
+- Konkretne adresy (ADDRESS)
 - Istotne przedmioty (OBJECT)
 - Wydarzenia z akcją (EVENT)
 - Dialogi/monologi (DIALOG)
@@ -62,15 +41,16 @@ ANALIZA:
 - Wyzwania/kłopoty/problemy stojące przed bohaterami (PROBLEM)
 - Idee, abstrakcyjne koncepcje (CONCEPT)
 - Nazwane organizacje / Firmy (INSTITUTION)
-- Określenia dotyczące czasu (TEMPORAL)
+- Określone daty / godziny(DATE)
 
 RELACJE (tylko te patterns):
 {', '.join(DEFAULT_RELATIONSHIP_PATTERNS)}
 
 PRZYKŁADY:
 - "Jan IS_IN kuchnia"
-- "matka HAS smutek" 
+- "pies HAS smutek" 
 - "rozmowa AFTER obiad"
+- "mama IS_PARENT dziecko"
 
 ZWRÓĆ GOTOWY PROMPT BEZ JSON WRAPPERA:"""
        
@@ -100,7 +80,7 @@ JSON:
    {{
      "name": "Jan",
      "type": "CHARACTER", 
-     "description": "semantycznie użyteczny opis dla wyszukiwarki embedera, długi na tyle żeby nie dało się pomylić encji w czasie porównania semantycznego",
+     "description": "minimum 20 adekwatnych sółw, semantycznie użyteczny opis dla wyszukiwarki embedera, używaj wiedzy z tekstu i wiedzy ogólnej o świecie",
      "aliases": ["Janek", "Johnny"],
      "confidence": 0.85
    }}
@@ -141,8 +121,8 @@ JSON:
    {{
      "name": "pełna nazwa z tekstu",
      "type": "TYP",
-     "description": "semantycznie użyteczny opis dla wyszukiwarki embedera",
-     "aliases": ["krótsza forma", "generyczna nazwa", "inne warianty"],
+     "description": "semantycznie użyteczny opis dla wyszukiwarki embedera, minimalna długość to 20 słów, spróbuj powiedzieć i ekstrapolować jak najwiecej można prawdziwych stwierdzeń na temat encji",
+     "aliases": ["ulica Krawiecka", "Krawiecka", ...],
      "confidence": 0.85
    }}
  ],

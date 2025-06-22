@@ -12,7 +12,7 @@ LIRIC_ENTITY_TYPES = {
     "figury_dźwiękowe": ["ALITERACJA", "ASONANCJA", "ONOMATOPEJA"],
     "symbolika": ["SYMBOL", "ALEGORIA", "ARCHETYP"],
     "psychological": ["EMOCJA", "MYŚL", "NASTRÓJ"],  # ← POWRÓT do konkretnych typów
-    "temporal": ["CZAS", "OKRES"],
+    "date": ["CZAS", "OKRES"],
     "absence": ["BRAK", "NIEOBECNOŚĆ"]
 }
 
