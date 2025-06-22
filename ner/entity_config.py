@@ -60,7 +60,7 @@ class DeduplicationConfig:
     # === ENTITY TYPE SIMILARITY THRESHOLDS ===
     ENTITY_SIMILARITY_THRESHOLDS = {
         # Literary domain - higher thresholds (more conservative)
-        EntityType.CHARACTER: 0.75,       # Names are distinctive
+        EntityType.CHARACTER: 0.70,       # Names are distinctive
         EntityType.LOCATION: 0.70,        # Place names should be different  
         EntityType.OBJECT: 0.65,          # Objects like "fountain" vs "house"
         EntityType.EMOTIONAL_STATE: 0.50, # Emotional states can be similar
