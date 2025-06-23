@@ -78,9 +78,6 @@ class GradientChunker(SemanticChunkingStrategy):
             # Domain-specific threshold adjustments
             domain_adjustments = {
                 "literary": 0.12,    # Subtle narrative transitions
-                "legal": 0.18,       # Sharp section boundaries  
-                "technical": 0.15,   # Standard
-                "liric": 0.05,       # Very subtle for poetry
                 "simple": 0.10,      # More aggressive for simple content
                 "auto": 0.15         # Default
             }

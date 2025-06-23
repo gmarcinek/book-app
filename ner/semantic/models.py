@@ -31,14 +31,6 @@ DOMAIN_EMBEDDING_CONFIGS = {
         "description": "Multilingual model for Polish legal documents"
     },
     
-    "liric": {
-        "model_name": DEFAULT_MODEL,
-        "strategy": ChunkingStrategy.PERCENTILE,
-        "percentile": 99.0,  # Almost no cutting - preserve poetic structure
-        "threshold": 0.05,   # Very subtle
-        "description": "Multilingual model for Polish poetry"
-    },
-    
     "simple": {
         "model_name": DEFAULT_MODEL,
         "strategy": ChunkingStrategy.GRADIENT,  # Simple texts work well with gradient

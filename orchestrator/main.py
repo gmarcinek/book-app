@@ -76,7 +76,7 @@ Examples:
         "--domains", "-d",
         nargs="+",
         default=["auto"], 
-        help="Domains to use: literary, liric, simple, auto (default: auto)"
+        help="Domains to use: literary, simple, auto (default: auto)"
     )
     
     # Batch processing

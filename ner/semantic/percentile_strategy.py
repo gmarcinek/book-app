@@ -89,9 +89,6 @@ class PercentileChunker(SemanticChunkingStrategy):
             # Domain-specific percentile adjustments
             domain_percentiles = {
                 "literary": 92.0,    # Less aggressive - preserve narrative flow
-                "legal": 97.0,       # Very precise - separate legal sections
-                "technical": 95.0,   # Standard approach
-                "liric": 99.0,       # Almost no cutting - preserve poetic structure
                 "simple": 88.0,      # More aggressive for simple content
                 "auto": 95.0         # Default
             }

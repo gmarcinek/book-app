@@ -24,7 +24,7 @@ class AutoNER:
             text: Text chunk to classify
             
         Returns:
-            List of domain names (e.g. ["literary"] or ["liric"] or ["literary", "liric"])
+            List of domain names (e.g. ["literary"] or [""] or ["literary", ""])
         """
         prompt = self._get_classification_prompt(text)
         
@@ -38,15 +38,13 @@ class AutoNER:
 
 MOŻLIWE GRUPY:
 1. literary - proza, narracja, opisy, dialogi, wspomnienia, autobiografia, tekst literacki
-2. liric - poezja, wersy, rymy, figury poetyckie, symbolika, tekst poetycki
-3. simple - podstawowe encje (osoby, miejsca, organizacje, przedmioty, wydarzenia, czas)
-4. owu - dokumenty prawne, regulaminy, OWU, polisy, definicje formalne, artykuły, świadczenia, ograniczenia
+2. simple - podstawowe encje (osoby, miejsca, organizacje, przedmioty, wydarzenia, czas)
+3. owu - dokumenty prawne, regulaminy, OWU, polisy, definicje formalne, artykuły, świadczenia, ograniczenia
 
 TEKST DO KLASYFIKACJI:
 {text}
 
 ZASADY:
-- Jeśli tekst jest jednoznacznie poetycki (wersy, rymy, strofy) → ["liric"]
 - Jeśli tekst jest prozą/narracją → ["literary"] 
 - Jeśli tekst zawiera głównie podstawowe informacje → ["simple"]
 - Jeśli niepewny lub mieszany → ["literary", "simple"]
@@ -83,7 +81,7 @@ ZWRÓĆ TYLKO JSON:
             
             # Validate domains
             valid_domains = []
-            available_domains = ["literary", "liric", "simple", "owu"]
+            available_domains = ["literary", "simple", "owu"]
             
             for domain in domains:
                 if isinstance(domain, str) and domain in available_domains:

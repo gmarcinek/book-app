@@ -68,7 +68,7 @@ class EntityExtractor:
        # DEBUG
        
        if domain_names is None:
-           domain_names = ["literary", "liric"]
+           domain_names = ["literary"]
        
        self.domain_names = domain_names
       
@@ -100,7 +100,7 @@ class EntityExtractor:
        self.entity_linker = EntityLinker(self.semantic_store)
        
        # Stats
-       available_domains = ["literary", "liric", "simple", "owu"] if domain_names == ["auto"] else domain_names
+       available_domains = ["literary", "simple", "owu"] if domain_names == ["auto"] else domain_names
       
        self.extraction_stats = {
            "chunks_processed": 0,

@@ -14,8 +14,6 @@ poetry run app folder/ --batch
 # Z wybranym modelem
 poetry run app text.txt --model claude-4-sonnet
 
-# Z wybranymi domenami
-poetry run app book.docx --domains literary liric
 ```
 
 ## 📋 Dostępne modele
@@ -50,7 +48,6 @@ poetry run app book.docx --domains literary liric
 
 - **`auto`** - automatyczna klasyfikacja domeny *(default)*
 - **`literary`** - proza, narracja, dialogi, wspomnienia, autobiografia
-- **`liric`** - poezja, wersy, rymy, figury poetyckie, symbolika
 - **`simple`** - podstawowe encje (osoby, miejsca, obiekty, wydarzenia)
 
 ## ⚙️ Dostępne flagi
