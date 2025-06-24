@@ -61,7 +61,7 @@ class DeduplicationConfig:
     # === UNIFIED MERGE THRESHOLD ===
     MERGE_THRESHOLD = 0.60  # Single threshold for all merge decisions
     TYPE_MERGE_THRESHOLDS = {
-        EntityType.CHARACTER: 0.85,           # BARDZO wysokie - różne osoby
+        EntityType.CHARACTER: 0.75,           # BARDZO wysokie - różne osoby
         EntityType.LOCATION: 0.70,            # Wysokie - różne miejsca
         EntityType.ADDRESS: 0.80,             # Bardzo wysokie - precyzyjne adresy  
         EntityType.INSTITUTION: 0.75,        # Wysokie - różne organizacje
@@ -202,6 +202,36 @@ class DeduplicationConfig:
     MAX_CONTENT_OVERLAP_BONUS = 0.1       # Weighted similarity bonus (deprecated, use CONTENT_OVERLAP_CONFIG)
     
     @classmethod
+    def get_merge_threshold_for_type(cls, entity_type: str) -> float:
+        """Get merge threshold for specific entity type"""
+        try:
+            enum_type = EntityType(entity_type)
+            return cls.TYPE_MERGE_THRESHOLDS.get(enum_type, cls.MERGE_THRESHOLD)
+        except ValueError:
+            # Fallback to default if entity_type is not recognized
+            return cls.MERGE_THRESHOLD
+    
+    @classmethod
+    def get_threshold_for_entity_type_string(cls, entity_type: str) -> float:
+        """Alias for get_merge_threshold_for_type for backward compatibility"""
+        return cls.get_merge_threshold_for_type(entity_type)
+    
+    @classmethod
+    def get_merge_threshold_for_type(cls, entity_type: str) -> float:
+        """Get merge threshold for specific entity type"""
+        try:
+            enum_type = EntityType(entity_type)
+            return cls.TYPE_MERGE_THRESHOLDS.get(enum_type, cls.MERGE_THRESHOLD)
+        except ValueError:
+            # Fallback to default if entity_type is not recognized
+            return cls.MERGE_THRESHOLD
+    
+    @classmethod
+    def get_threshold_for_entity_type_string(cls, entity_type: str) -> float:
+        """Alias for get_merge_threshold_for_type for backward compatibility"""
+        return cls.get_merge_threshold_for_type(entity_type)
+    
+    @classmethod
     def get_component_weights(cls, entity_type: str) -> Dict[str, float]:
         """Get component weights for specific entity type"""
         try:
@@ -260,4 +290,3 @@ def extend_entity_types(base_types: List[str], additional_types: List[str]) -> L
 def extend_relationship_patterns(base_patterns: List[str], additional_patterns: List[str]) -> List[str]:
     """Extend base relationship patterns with domain-specific patterns"""
     return list(set(base_patterns + additional_patterns))
-

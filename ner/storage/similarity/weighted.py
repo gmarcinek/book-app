@@ -18,16 +18,19 @@ class WeightedSimilarity:
         self._embedder = embedder
     
     def calculate_similarity(self, entity1: StoredEntity, entity2: StoredEntity, 
-                           base_similarity: float) -> float:
-        """Calculate multi-component weighted similarity"""
+                           base_similarity: float = None) -> float:
+        """Calculate multi-component weighted similarity - ALWAYS use multi-component if possible"""
         if entity1.type != entity2.type:
             return 0.0  # Different types never match
         
-        # Use multi-component similarity if embedder available
+        # FORCE multi-component similarity if embedder available
         if self._embedder:
             component_similarity = self._calculate_multi_component_similarity(entity1, entity2)
         else:
-            # Fallback to base similarity
+            # Fallback to base similarity only if embedder not available
+            if base_similarity is None:
+                print(f"⚠️ WARNING: No embedder and no base_similarity provided for {entity1.name} vs {entity2.name}")
+                return 0.0
             component_similarity = base_similarity
         
         # Apply additional weights
@@ -79,9 +82,18 @@ class WeightedSimilarity:
     
     def should_merge(self, entity1: StoredEntity, entity2: StoredEntity, 
                     similarity_score: float) -> bool:
-        """Determine if entities should be merged using type-specific threshold"""
+        """Determine if entities should be merged using TYPE-SPECIFIC threshold from config"""
+        # USE TYPE-SPECIFIC THRESHOLD from config
         threshold = DeduplicationConfig.get_merge_threshold_for_type(entity1.type)
-        return similarity_score >= threshold
+        should_merge = similarity_score >= threshold
+        
+        if DeduplicationConfig.get_debug_config().get('show_component_breakdown', False):
+            print(f"🔍 MERGE DECISION: {entity1.name} vs {entity2.name}")
+            print(f"   📊 Similarity: {similarity_score:.3f}")
+            print(f"   🎯 Threshold: {threshold:.3f} (for {entity1.type})")
+            print(f"   ✅ Should merge: {should_merge}")
+        
+        return should_merge
     
     def _calculate_stability_weight(self, entity1: StoredEntity, entity2: StoredEntity) -> float:
         """Weight based on number of source chunks using centralized config"""

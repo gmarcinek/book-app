@@ -56,7 +56,7 @@ class EntityBatchClusterer:
         """Batch cluster entities of same type using single similarity matrix"""
         entity_ids = []
         
-        print(f"🔍🔍🔍🔍🔍🔍🔍🔍🔍 BATCH CLUSTER: Processing {len(type_entities)} entities of type {entity_type}")
+        print(f"🔍🔍 BATCH CLUSTER: Processing {len(type_entities)} entities of type {entity_type}")
         
         # Get existing entities of same type from database
         existing_entities = {
@@ -64,7 +64,7 @@ class EntityBatchClusterer:
             if entity.type == entity_type
         }
         
-        print(f"🔍🔍🔍-------🔍🔍🔍 BATCH CLUSTER: Found {len(existing_entities)} existing entities of same type")
+        print(f"🔍🔍 BATCH CLUSTER: Found {len(existing_entities)} existing entities of same type")
         
         if not existing_entities:
             # No existing entities - create all as new
@@ -140,14 +140,14 @@ class EntityBatchClusterer:
         chunk_embeddings = np.array(chunk_embeddings)
         existing_embeddings = np.array(existing_embeddings)
         
-        # Use centralized config threshold instead of hardcoded
+        # Use BASE threshold for initial filtering, then apply type-specific thresholds later
         similar_candidates = self.semantic_store.similarity_engine.matrix_ops.batch_embedding_similarity(
             chunk_embeddings, existing_embeddings,
             chunk_entity_ids, existing_entity_ids,
-            DeduplicationConfig.BASE_SIMILARITY_THRESHOLD
+            DeduplicationConfig.BASE_SIMILARITY_THRESHOLD  # Keep base for initial filtering
         )
         
-        # Apply weighted similarity and return merge decisions
+        # Apply weighted similarity and TYPE-SPECIFIC thresholds for merge decisions
         merge_decisions = {}
         for chunk_str_id, candidates in similar_candidates.items():
             if not candidates:
@@ -184,12 +184,14 @@ class EntityBatchClusterer:
                     print(f"🧠 SEMANTIC_TEXT1: {semantic_text1[:100]}...")
                     print(f"🧠 SEMANTIC_TEXT2: {semantic_text2[:100]}...")
                 
+                # USE WEIGHTED SIMILARITY WITH MULTI-COMPONENT CALCULATION
                 weighted_score = self.semantic_store.similarity_engine.weighted_sim.calculate_similarity(
                     temp_entity, existing_entity, base_similarity
                 )
                 
                 print(f"🔍 SIMILARITY: '{temp_entity.name}' vs '{existing_entity.name}' = {weighted_score:.3f} (base: {base_similarity:.3f})")
                 
+                # USE TYPE-SPECIFIC THRESHOLD instead of hardcoded
                 should_merge = self.semantic_store.similarity_engine.weighted_sim.should_merge(temp_entity, existing_entity, weighted_score)
                 threshold = DeduplicationConfig.get_merge_threshold_for_type(temp_entity.type)
                 print(f"🔍 SHOULD_MERGE: {should_merge} (threshold: {threshold:.3f} for {temp_entity.type})")

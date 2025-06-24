@@ -1,5 +1,5 @@
 """
-Walidacja danych: _validate_and_clean_entity() - Domain-aware version
+Walidacja danych: _validate_and_clean_entity() - Domain-aware version with proper config usage
 """
 
 import logging
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def _validate_and_clean_entity(entity_data: Dict[str, Any], domain: BaseNER = None) -> Optional[Dict[str, Any]]:
     """
-    Validate and clean entity data + aliases using domain-specific rules
+    Validate and clean entity data + aliases using domain-specific rules and proper config thresholds
     
     Args:
         entity_data: Raw entity data from LLM
@@ -58,18 +58,27 @@ def _validate_and_clean_entity(entity_data: Dict[str, Any], domain: BaseNER = No
     # Clean and validate description
     description = str(entity_data.get('description', '')).strip()
     
-    # Validate and normalize confidence
-    confidence = entity_data.get('confidence', DeduplicationConfig.BASE_SIMILARITY_THRESHOLD)
+    # Validate and normalize confidence - use sensible defaults
+    confidence = entity_data.get('confidence', 0.5)  # Default 0.5 instead of BASE_SIMILARITY_THRESHOLD
     try:
         confidence = float(confidence)
         confidence = max(0.0, min(1.0, confidence))  # Clamp to 0-1 range
     except (ValueError, TypeError):
-        confidence = DeduplicationConfig.BASE_SIMILARITY_THRESHOLD
+        confidence = 0.5  # Fallback to sensible default
     
-    # Use centralized confidence threshold
-    min_confidence = DeduplicationConfig.BASE_SIMILARITY_THRESHOLD
+    # Use proper confidence threshold - domain-specific if available, otherwise sensible minimum
     if domain and hasattr(domain, 'get_confidence_threshold'):
         min_confidence = domain.get_confidence_threshold(entity_type)
+    else:
+        # Use a sensible minimum for entity validation (not search threshold)
+        # Different thresholds for different entity types based on precision needs
+        try:
+            # Try to get merge threshold and use it as basis for validation
+            type_merge_threshold = DeduplicationConfig.get_merge_threshold_for_type(entity_type)
+            # Validation should be more lenient than merge threshold
+            min_confidence = max(0.15, type_merge_threshold - 0.3)
+        except:
+            min_confidence = 0.2  # Safe fallback for validation
     
     # Reject entities with confidence below threshold
     if confidence < min_confidence:
