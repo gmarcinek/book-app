@@ -1,5 +1,5 @@
 """
-Main similarity engine with BATCH optimization + entity_config
+Main similarity engine with BATCH optimization + entity_config + multi-component similarity
 Core optimization: batch similarity matrix instead of N² individual calls
 """
 
@@ -16,12 +16,19 @@ logger = logging.getLogger(__name__)
 
 
 class EntitySimilarityEngine:
-    """Main similarity engine with batch matrix operations + centralized config"""
+    """Main similarity engine with batch matrix operations + multi-component similarity"""
     
     def __init__(self, relationship_manager=None):
         self.weighted_sim = WeightedSimilarity()
         self.matrix_ops = MatrixOperations()
         self.relationship_manager = relationship_manager
+        self._embedder = None
+    
+    def set_embedder(self, embedder):
+        """Inject embedder for multi-component similarity"""
+        self._embedder = embedder
+        self.weighted_sim.set_embedder(embedder)
+        print("🧮 Multi-component similarity enabled")
     
     def find_all_similar_entities(self, new_entity: StoredEntity,
                                 existing_entities: Dict[str, StoredEntity],
@@ -29,6 +36,10 @@ class EntitySimilarityEngine:
         """Find ALL similar entities using batch matrix operations and create SIMILAR_TO relationships"""
         if not existing_entities:
             return []
+        
+        # Set embedder if not already set
+        if not self._embedder:
+            self.set_embedder(embedder)
         
         # Filter by same type first
         same_type_entities = {
@@ -73,7 +84,7 @@ class EntitySimilarityEngine:
         weighted_results = []
         similar_relationships = []  # For SIMILAR_TO relationships
         
-        merge_threshold = DeduplicationConfig.get_merge_threshold()
+        merge_threshold = DeduplicationConfig.get_merge_threshold_for_type(new_entity.type)
         similar_to_threshold = DeduplicationConfig.CONTEXT_SEARCH_THRESHOLD  # Use existing config value
         
         for existing_id, base_similarity in candidates:
@@ -128,6 +139,10 @@ class EntitySimilarityEngine:
         """Batch process to find similarity clusters among all entities"""
         if len(entities) < 2:
             return {}
+        
+        # Set embedder if not already set
+        if not self._embedder:
+            self.set_embedder(embedder)
         
         # Group entities by type for efficient processing
         entities_by_type = {}
@@ -212,7 +227,7 @@ class EntitySimilarityEngine:
         similarity_matrix = self.matrix_ops.compute_similarity_matrix(embeddings)
         
         # Use centralized merge threshold with small buffer for initial filtering
-        base_threshold = max(0.1, DeduplicationConfig.get_merge_threshold() - 0.1)
+        base_threshold = max(0.1, DeduplicationConfig.get_merge_threshold_for_type(entity_type) - 0.1)
         
         # Find similar pairs
         similar_pairs = self.matrix_ops.find_similar_pairs(

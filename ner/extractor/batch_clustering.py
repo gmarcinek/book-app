@@ -164,6 +164,26 @@ class EntityBatchClusterer:
             for existing_id, base_similarity in candidates:
                 existing_entity = existing_entities[existing_id]
                 
+                # Enhanced debugging - show what's being compared
+                debug_config = DeduplicationConfig.get_debug_config()
+                
+                print(f"🔍 ENTITY1: '{temp_entity.name}' ({temp_entity.type})")
+                print(f"   📝 Description: {temp_entity.description[:debug_config['max_description_length']]}...")
+                print(f"   🏷️ Aliases: {temp_entity.aliases}")
+                print(f"   📊 Confidence: {temp_entity.confidence:.3f}")
+                
+                print(f"🔍 ENTITY2: '{existing_entity.name}' ({existing_entity.type})")
+                print(f"   📝 Description: {existing_entity.description[:debug_config['max_description_length']]}...")
+                print(f"   🏷️ Aliases: {existing_entity.aliases}")
+                print(f"   📊 Confidence: {existing_entity.confidence:.3f}")
+                
+                # Show semantic text used for embeddings
+                if debug_config['show_semantic_text']:
+                    semantic_text1 = temp_entity.get_semantic_text_for_context()
+                    semantic_text2 = existing_entity.get_semantic_text_for_context()
+                    print(f"🧠 SEMANTIC_TEXT1: {semantic_text1[:100]}...")
+                    print(f"🧠 SEMANTIC_TEXT2: {semantic_text2[:100]}...")
+                
                 weighted_score = self.semantic_store.similarity_engine.weighted_sim.calculate_similarity(
                     temp_entity, existing_entity, base_similarity
                 )
@@ -171,7 +191,11 @@ class EntityBatchClusterer:
                 print(f"🔍 SIMILARITY: '{temp_entity.name}' vs '{existing_entity.name}' = {weighted_score:.3f} (base: {base_similarity:.3f})")
                 
                 should_merge = self.semantic_store.similarity_engine.weighted_sim.should_merge(temp_entity, existing_entity, weighted_score)
-                print(f"🔍 SHOULD_MERGE: {should_merge} (threshold: {DeduplicationConfig.get_merge_threshold():.3f})")
+                threshold = DeduplicationConfig.get_merge_threshold_for_type(temp_entity.type)
+                print(f"🔍 SHOULD_MERGE: {should_merge} (threshold: {threshold:.3f} for {temp_entity.type})")
+                
+                if debug_config['show_separator']:
+                    print("─" * debug_config['separator_length'])
                 
                 if should_merge and weighted_score > best_score:
                     best_match = existing_id
@@ -241,15 +265,55 @@ class EntityBatchClusterer:
         return entity_id
     
     def _merge_into_existing_entity(self, entity: ExtractedEntity, existing_entity_id: str, chunk_id: str):
-        """Merge entity into existing entity - no redundant relationships"""
+        """SMART merge using EntityMerger instead of stupid replacement logic"""
+        try:
+            existing_entity = self.semantic_store.entities[existing_entity_id]
+            new_entity = self._convert_to_stored_entity(entity)
+            
+            # Create cluster for EntityMerger (canonical + new entity)
+            cluster_entities = {
+                existing_entity_id: existing_entity,
+                f"new_{entity.name}": new_entity
+            }
+            
+            print(f"🧠 SMART MERGE: Using EntityMerger for '{entity.name}' → '{existing_entity.name}'")
+            
+            # Delegate to EntityMerger for SMART merging
+            canonical_id, merged_entity, relationships = self.semantic_store.merger.merge_entity_cluster(cluster_entities)
+            
+            # Add chunk reference to merged entity
+            merged_entity.add_source_chunk(chunk_id)
+            merged_entity.add_document_source(
+                self.semantic_store.chunks[chunk_id].document_source if chunk_id in self.semantic_store.chunks else "unknown"
+            )
+            
+            # Update store with merged result
+            self.semantic_store.entities[existing_entity_id] = merged_entity
+            
+            # Update ExtractedEntity reference
+            entity.semantic_store_id = existing_entity_id
+            
+            print(f"✨ SMART MERGE complete: {len(cluster_entities)} entities → 1, {len(relationships)} relationships")
+            
+        except Exception as e:
+            logger.warning(f"⚠️ SMART merge failed, falling back to simple merge: {e}")
+            # Fallback to simple merge
+            self._simple_merge_fallback(entity, existing_entity_id, chunk_id)
+    
+    def _simple_merge_fallback(self, entity: ExtractedEntity, existing_entity_id: str, chunk_id: str):
+        """Fallback simple merge if EntityMerger fails"""
         existing_entity = self.semantic_store.entities[existing_entity_id]
         
-        # Merge data
+        # Simple concatenation instead of replacement
+        if entity.description.strip() and existing_entity.description.strip():
+            if entity.description not in existing_entity.description:
+                existing_entity.description = f"{existing_entity.description}. {entity.description}"
+        elif entity.description.strip():
+            existing_entity.description = entity.description
+        
+        # Keep higher confidence
         if entity.confidence > existing_entity.confidence:
             existing_entity.confidence = entity.confidence
-        
-        if len(entity.description) > len(existing_entity.description):
-            existing_entity.description = entity.description
         
         # Merge aliases
         new_aliases = set(entity.aliases)

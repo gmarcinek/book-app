@@ -225,18 +225,26 @@ class SemanticStore:
     def get_chunk_by_id(self, chunk_id: str) -> Optional[StoredChunk]:
         return self.chunks.get(chunk_id)
     
-    def search_entities_by_name(self, query: str, max_results: int = 10) -> List[Tuple[StoredEntity, float]]:
-        """Search entities using centralized config thresholds"""
+    def search_entities_by_name(self, query: str, max_results: int = None) -> List[Tuple[StoredEntity, float]]:
+        """Search entities by name using centralized config"""
         if not query.strip():
             return []
         
+        # Use config defaults if not specified
+        threshold = DeduplicationConfig.NAME_SEARCH_THRESHOLD
+        max_results = max_results or DeduplicationConfig.NAME_SEARCH_MAX_RESULTS
+        
+        # Generate query embedding
         query_embedding = self.embedder._get_cached_embedding(f"{query} ENTITY", "search")
+        
+        # Search using FAISS
         similar_entities = self.faiss_manager.search_similar_entities_by_name(
             query_embedding, 
-            threshold=DeduplicationConfig.NAME_SEARCH_THRESHOLD, 
+            threshold=threshold, 
             max_results=max_results
         )
         
+        # Convert to StoredEntity results
         results = []
         for entity_id, similarity in similar_entities:
             if entity_id in self.entities:

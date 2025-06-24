@@ -66,7 +66,10 @@ class BaseNER(ABC):
     
     def get_confidence_threshold(self, entity_type: str = None) -> float:
         """Minimum confidence threshold for this domain - can be customized"""
-        return 0.5
+        from ner.entity_config import DeduplicationConfig
+        if entity_type:
+            return DeduplicationConfig.get_merge_threshold_for_type(entity_type)
+        return DeduplicationConfig.MERGE_THRESHOLD
 
 
 class DomainConfig:

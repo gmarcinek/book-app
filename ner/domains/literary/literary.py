@@ -96,7 +96,7 @@ JSON:
         {{
             "name": "Jan",
             "type": "CHARACTER", 
-            "description": "minimum 20 adekwatnych sółw, semantycznie użyteczny opis dla wyszukiwarki embedera, używaj wiedzy z tekstu i wiedzy ogólnej o świecie",
+            "description": "minimum 20 adekwatnych sółw, semantycznie użyteczny opis dla wyszukiwarki embedera, używaj wiedzy z tekstu i wiedzy ogólnej o świecie jednocześnie bądź precyzyjny jak matematyk opisujacy to co widzi",
             "aliases": ["Janek", "Johnny"],
             "confidence": 0.85
         }}
