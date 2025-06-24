@@ -6,6 +6,7 @@ import logging
 from typing import Dict, Any, Optional
 from ..utils import validate_entity_name, validate_entity_type
 from ..domains import BaseNER
+from ..entity_config import DeduplicationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -58,19 +59,19 @@ def _validate_and_clean_entity(entity_data: Dict[str, Any], domain: BaseNER = No
     description = str(entity_data.get('description', '')).strip()
     
     # Validate and normalize confidence
-    confidence = entity_data.get('confidence', 0.5)
+    confidence = entity_data.get('confidence', DeduplicationConfig.BASE_SIMILARITY_THRESHOLD)
     try:
         confidence = float(confidence)
         confidence = max(0.0, min(1.0, confidence))  # Clamp to 0-1 range
     except (ValueError, TypeError):
-        confidence = 0.5
+        confidence = DeduplicationConfig.BASE_SIMILARITY_THRESHOLD
     
-    # Domain-specific confidence threshold
-    min_confidence = 0.3  # Default
-    if domain:
+    # Use centralized confidence threshold
+    min_confidence = DeduplicationConfig.BASE_SIMILARITY_THRESHOLD
+    if domain and hasattr(domain, 'get_confidence_threshold'):
         min_confidence = domain.get_confidence_threshold(entity_type)
     
-    # Reject entities with confidence below domain threshold
+    # Reject entities with confidence below threshold
     if confidence < min_confidence:
         logger.info(f"Rejected low confidence entity: {name} ({confidence:.2f} < {min_confidence:.2f}) for domain {domain.config.name if domain else 'default'}")
         return None

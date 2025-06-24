@@ -134,11 +134,15 @@ class FAISSManager:
     
     def search_similar_chunks(self,
                             query_embedding: np.ndarray,
-                            threshold: float = 0.7,
+                            threshold: float = None,
                             max_results: int = 5) -> List[Tuple[str, float]]:
         """Search for similar chunks"""
         if self.chunk_index.ntotal == 0:
             return []
+        
+        # Use default threshold if not provided
+        if threshold is None:
+            threshold = DeduplicationConfig.CONTEXT_SEARCH_THRESHOLD
         
         try:
             # Search FAISS index

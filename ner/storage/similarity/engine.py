@@ -60,21 +60,21 @@ class EntitySimilarityEngine:
         new_embeddings = new_embedding.reshape(1, -1)
         existing_embeddings = np.array(existing_embeddings)
         
-        # Use centralized config threshold instead of hardcoded
-        base_threshold = DeduplicationConfig.BASE_SIMILARITY_THRESHOLD
-        
         # BATCH similarity computation - CORE OPTIMIZATION
         similar_candidates = self.matrix_ops.batch_embedding_similarity(
             new_embeddings, existing_embeddings,
             [new_entity.id], existing_ids,
-            base_threshold
+            DeduplicationConfig.BASE_SIMILARITY_THRESHOLD
         )
         
         candidates = similar_candidates.get(new_entity.id, [])
         
-        # Apply weighted similarity to all candidates
+        # Apply weighted similarity and return merge decisions
         weighted_results = []
         similar_relationships = []  # For SIMILAR_TO relationships
+        
+        merge_threshold = DeduplicationConfig.get_merge_threshold()
+        similar_to_threshold = DeduplicationConfig.CONTEXT_SEARCH_THRESHOLD  # Use existing config value
         
         for existing_id, base_similarity in candidates:
             existing_entity = same_type_entities[existing_id]
@@ -86,8 +86,8 @@ class EntitySimilarityEngine:
             # Check for merge threshold
             if self.weighted_sim.should_merge(new_entity, existing_entity, weighted_score):
                 weighted_results.append((existing_id, weighted_score))
-            # Check for SIMILAR_TO threshold (0.6-0.75)
-            elif 0.6 <= weighted_score < 0.75:
+            # Check for SIMILAR_TO threshold using config value
+            elif similar_to_threshold <= weighted_score < merge_threshold:
                 similar_relationships.append((existing_id, weighted_score))
         
         # Create SIMILAR_TO relationships
@@ -178,9 +178,8 @@ class EntitySimilarityEngine:
                         similarity_matrix[i, j] = shared_chunks / total_chunks
         
         # Use centralized config threshold
-        cooccurrence_threshold = DeduplicationConfig.COOCCURRENCE_THRESHOLD
         similar_pairs = self.matrix_ops.find_similar_pairs(
-            similarity_matrix, cooccurrence_threshold, entity_ids
+            similarity_matrix, DeduplicationConfig.COOCCURRENCE_THRESHOLD, entity_ids
         )
         
         # Group by entity
@@ -212,8 +211,8 @@ class EntitySimilarityEngine:
         # Compute similarity matrix
         similarity_matrix = self.matrix_ops.compute_similarity_matrix(embeddings)
         
-        # Get type-specific threshold from weighted similarity
-        base_threshold = self.weighted_sim.get_threshold_for_type(entity_type) - 0.1  # Lower for initial filtering
+        # Use centralized merge threshold with small buffer for initial filtering
+        base_threshold = max(0.1, DeduplicationConfig.get_merge_threshold() - 0.1)
         
         # Find similar pairs
         similar_pairs = self.matrix_ops.find_similar_pairs(

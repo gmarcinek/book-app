@@ -136,7 +136,7 @@ class EntityBatchClusterer:
         chunk_embeddings = np.array(chunk_embeddings)
         existing_embeddings = np.array(existing_embeddings)
         
-        # Use centralized config instead of semantic_store.semantic_config
+        # Use centralized config threshold instead of hardcoded
         similar_candidates = self.semantic_store.similarity_engine.matrix_ops.batch_embedding_similarity(
             chunk_embeddings, existing_embeddings,
             chunk_entity_ids, existing_entity_ids,
