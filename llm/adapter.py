@@ -57,7 +57,16 @@ class LLMClient:
             config: Opcjonalna konfiguracja (nadpisuje domyślną)
         """
         use_config = config if config else self.config
-        return self.client.chat(prompt, use_config)
+        
+        # LOG REQUEST
+        self._log_llm_request(prompt, use_config)
+        
+        response = self.client.chat(prompt, use_config)
+        
+        # LOG RESPONSE  
+        self._log_llm_response(prompt, response, use_config)
+        
+        return response
     
     def get_max_tokens_for_model(self) -> int:
         """Zwróć maksymalną liczbę tokenów dla bieżącego modelu"""
@@ -75,3 +84,66 @@ class LLMClient:
                 "has_system_message": bool(self.config.system_message)
             }
         }
+    
+    def _log_llm_request(self, prompt: str, config: LLMConfig):
+        """Log LLM request to file"""
+        try:
+            from pathlib import Path
+            from datetime import datetime
+            import json
+            
+            # Create logs directory
+            logs_dir = Path("semantic_store/logs")
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # milliseconds
+            filename = f"llm_{timestamp}_REQUEST.txt"
+            
+            log_content = f"""=== LLM REQUEST ===
+    Timestamp: {datetime.now().isoformat()}
+    Model: {self.model}
+    Temperature: {config.temperature}
+    Max Tokens: {config.max_tokens}
+    System Message: {config.system_message or 'None'}
+
+    PROMPT:
+    {prompt}
+
+    =====================================
+    """
+            
+            (logs_dir / filename).write_text(log_content, encoding='utf-8')
+            
+        except Exception as e:
+            print(f"⚠️ Failed to log LLM request: {e}")
+
+    def _log_llm_response(self, prompt: str, response: str, config: LLMConfig):
+        """Log LLM response to file"""
+        try:
+            from pathlib import Path
+            from datetime import datetime
+            
+            logs_dir = Path("semantic_store/logs")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+            filename = f"llm_{timestamp}_RESPONSE.txt"
+            
+            log_content = f"""=== LLM RESPONSE ===
+    Timestamp: {datetime.now().isoformat()}
+    Model: {self.model}
+    Prompt Length: {len(prompt)} chars
+    Response Length: {len(response)} chars
+    Response Word Count: {len(response.split())}
+
+    PROMPT (first 200 chars):
+    {prompt[:200]}...
+
+    RESPONSE:
+    {response}
+
+    =====================================
+    """
+            
+            (logs_dir / filename).write_text(log_content, encoding='utf-8')
+            
+        except Exception as e:
+            print(f"⚠️ Failed to log LLM response: {e}")

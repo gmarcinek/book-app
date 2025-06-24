@@ -99,11 +99,16 @@ def _build_extraction_prompt_with_context(extractor, chunk: TextChunk, domain: B
     # Try meta-analysis first
     custom_instructions = _try_meta_analysis(extractor, chunk, domain, domain_name, contextual_entities)
     
-    # Build final prompt
+    print(f"🔍 DEBUG CUSTOM: custom_instructions = {repr(custom_instructions)}")
+    print(f"🔍 DEBUG CUSTOM: len = {len(custom_instructions) if custom_instructions else 0}")
+
     if custom_instructions:
+        print(f"🔍 DEBUG CUSTOM: Using CUSTOM extraction prompt")
         known_aliases = _get_known_aliases(extractor, chunk)
+        print(f"🔍 DEBUG CUSTOM: known_aliases = {len(known_aliases) if known_aliases else 0} items")
         return _build_custom_prompt_with_aliases(domain, chunk.text, custom_instructions, known_aliases)
     else:
+        print(f"🔍 DEBUG CUSTOM: Using FALLBACK extraction prompt - meta failed")
         _update_meta_stats(extractor, domain_name, failed=True)
         return _build_extraction_prompt(chunk.text, domain)
 
@@ -111,14 +116,22 @@ def _build_extraction_prompt_with_context(extractor, chunk: TextChunk, domain: B
 def _get_contextual_entities(extractor, chunk: TextChunk) -> List[dict]:
    """Get contextual entities for NER enhancement"""
    if not extractor.semantic_store:
+       print(f"🔍 CONTEXTUAL: No semantic store available")
        return []
    
    try:
+       print(f"🔍 CONTEXTUAL: Searching for entities similar to: '{chunk.text}'")
+       print(f"🔍 CONTEXTUAL: Store has {len(extractor.semantic_store.entities)} total entities")
+       
        entities = extractor.semantic_store.get_contextual_entities_for_ner(chunk.text, max_entities=8)
+       
+       print(f"🔍 CONTEXTUAL: get_contextual_entities_for_ner returned {len(entities)} entities")
        
        # Enhanced format with semantic relations
        enhanced_entities = []
        for entity in entities:
+           print(f"🔍 CONTEXTUAL: Processing entity: {entity.get('name')} ({entity.get('type')})")
+           
            enhanced = {
                'name': entity['name'],
                'type': entity['type'],
@@ -132,11 +145,14 @@ def _get_contextual_entities(extractor, chunk: TextChunk) -> List[dict]:
            enhanced['semantic_relations'] = [rel for rel in enhanced['semantic_relations'] if rel]
            enhanced_entities.append(enhanced)
        
+       print(f"🔍 CONTEXTUAL: Final enhanced_entities count: {len(enhanced_entities)}")
+       
        if enhanced_entities:
            extractor.extraction_stats["semantic_enhancements"] += 1
            logger.info(f"🧠 Found {len(enhanced_entities)} contextual entities with semantic relations")
        return enhanced_entities
    except Exception as e:
+       print(f"🔍 CONTEXTUAL: EXCEPTION - {e}")
        logger.warning(f"⚠️ Contextual lookup failed: {e}")
        return []
 
@@ -144,10 +160,9 @@ def _get_contextual_entities(extractor, chunk: TextChunk) -> List[dict]:
 def _try_meta_analysis(extractor, chunk: TextChunk, domain: BaseNER, domain_name: str, contextual_entities: List[dict]) -> str:
     """Try meta-analysis to get custom instructions"""
     try:
-        base_prompt = _build_chunk_analysis_prompt(chunk.text, domain)
-        enhanced_prompt = _enhance_prompt_with_context(base_prompt, contextual_entities)
-        
-        response = extractor._call_llm_for_meta_analysis(enhanced_prompt)
+        base_prompt = _build_chunk_analysis_prompt(chunk.text, domain, contextual_entities)
+
+        response = extractor._call_llm_for_meta_analysis(base_prompt)
         custom_instructions = _parse_custom_prompt(response, force_raw=True)
         
         if custom_instructions:
@@ -164,53 +179,44 @@ def _try_meta_analysis(extractor, chunk: TextChunk, domain: BaseNER, domain_name
         return None
 
 
-def _enhance_prompt_with_context(base_prompt: str, contextual_entities: List[dict]) -> str:
-    """Enhance meta-prompt with contextual entities"""
-    if not contextual_entities:
-        return base_prompt
-    
-    context_lines = [
-        "KONTEKST Z POPRZEDNICH DOKUMENTÓW:",
-        "Znane encje które mogą być powiązane:"
-    ]
-    
-    for entity in contextual_entities[:5]:
-        info = f"- {entity['name']} ({entity['type']})"
-        if entity.get('aliases'):
-            info += f" [aliasy: {', '.join(entity['aliases'][:3])}]"
-        context_lines.append(info)
-    
-    context_lines.extend(["", "UWZGLĘDNIJ te informacje podczas analizy.", ""])
-    
-    return base_prompt.replace(
-        "FRAGMENT TEKSTU DO ANALIZY:",
-        "\n".join(context_lines) + "FRAGMENT TEKSTU DO ANALIZY:"
-    )
-
-
-def _get_known_aliases(extractor, chunk: TextChunk) -> dict:
-    """Get known aliases for chunk"""
+def _get_known_aliases(extractor, chunk: TextChunk) -> List[dict]:  # ZMIANA: Lista zamiast dict
+    """Get known aliases for chunk using contextual entities"""
     if not extractor.semantic_store:
-        return {}
+        return []
     
     try:
-        aliases = extractor.semantic_store.get_known_aliases_for_chunk(chunk.text)
-        if aliases:
-            logger.info(f"🏷️ Found {len(aliases)} entities with known aliases")
-        return aliases
+        # ZAMIANA: użyj get_contextual_entities_for_ner
+        contextual_entities = extractor.semantic_store.get_contextual_entities_for_ner(
+            chunk.text, 
+            max_entities=8,
+            threshold=0.6  # lub inny sensowny threshold
+        )
+        
+        if contextual_entities:
+            logger.info(f"🏷️ Found {len(contextual_entities)} contextual entities with context")
+        return contextual_entities
+        
     except Exception as e:
-        logger.warning(f"⚠️ Aliases lookup failed: {e}")
-        return {}
+        logger.warning(f"⚠️ Contextual entities lookup failed: {e}")
+        return []
 
 
-def _build_custom_prompt_with_aliases(domain: BaseNER, text: str, custom_instructions: str, known_aliases: dict) -> str:
-    """Build custom prompt with aliases if domain supports it"""
-    if hasattr(domain, 'build_custom_extraction_prompt') and known_aliases:
-        try:
-            return domain.build_custom_extraction_prompt(text, custom_instructions, known_aliases)
-        except:
-            pass  # Fallback to standard
+def _build_custom_prompt_with_aliases(domain: BaseNER, text: str, custom_instructions: str, known_aliases) -> str:
+    print(f"🔍 DEBUG BUILD_CUSTOM: called with {len(custom_instructions)} chars instructions")
+    print(f"🔍 DEBUG BUILD_CUSTOM: known_aliases = {known_aliases}")
     
+    if hasattr(domain, 'build_custom_extraction_prompt'):
+        print(f"🔍 DEBUG BUILD_CUSTOM: domain HAS build_custom_extraction_prompt")
+        try:
+            result = domain.build_custom_extraction_prompt(text, custom_instructions, known_aliases)
+            print(f"🔍 DEBUG BUILD_CUSTOM: SUCCESS - using domain custom method")
+            return result
+        except Exception as e:
+            print(f"🔍 DEBUG BUILD_CUSTOM: EXCEPTION in domain method: {e}")
+    else:
+        print(f"🔍 DEBUG BUILD_CUSTOM: domain MISSING build_custom_extraction_prompt")
+    
+    print(f"🔍 DEBUG BUILD_CUSTOM: FALLBACK to standard method")
     return _build_custom_extraction_prompt(text, custom_instructions, domain)
 
 

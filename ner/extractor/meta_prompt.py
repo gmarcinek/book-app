@@ -4,16 +4,16 @@ Uses utils for robust JSON parsing
 """
 
 import logging
-from typing import Optional
+from typing import Optional, List
 from ..domains import BaseNER
 from ..utils import parse_llm_json_response
 
 logger = logging.getLogger(__name__)
 
 
-def _build_chunk_analysis_prompt(text: str, domain: BaseNER) -> str:
+def _build_chunk_analysis_prompt(text: str, domain: BaseNER, contextual_entities: List[dict] = None) -> str:
     """Build meta-prompt for chunk analysis using domain-specific prompt"""
-    return domain.get_meta_analysis_prompt(text)
+    return domain.get_meta_analysis_prompt(text, contextual_entities)
 
 
 def _parse_custom_prompt(response: str, force_raw: bool = False) -> Optional[str]:

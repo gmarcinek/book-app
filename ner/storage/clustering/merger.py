@@ -9,6 +9,7 @@ from ..models import StoredEntity, EntityRelationship, RelationType
 
 logger = logging.getLogger(__name__)
 
+from llm import LLMConfig
 
 class EntityMerger:
     """
@@ -112,58 +113,90 @@ class EntityMerger:
         return best_entity_id
     
     def _merge_entity_data(self, canonical_entity: StoredEntity, all_entities: Dict[str, StoredEntity]):
-        """Merge data from all entities into canonical entity"""
+        """Enhanced merge with LLM-powered description merging and period fallback"""
         
-        # Collect all aliases
+        print(f"🔗 MERGE DEBUG: Starting merge for {canonical_entity.name}")
+        print(f"   📊 Entities to merge: {len(all_entities)}")
+        
+        # Collect all unique values instead of picking "best" ones
+        all_descriptions = []
+        all_contexts = [canonical_entity.context] if canonical_entity.context.strip() else []
         all_aliases = set(canonical_entity.aliases)
         
         # Collect all source chunks and documents
         all_chunks = set(canonical_entity.source_chunk_ids)
         all_documents = set(canonical_entity.document_sources)
         
-        # Best description (longest)
-        best_description = canonical_entity.description
-        best_context = canonical_entity.context
+        # Track confidence scores (we'll keep the highest)
+        confidence_scores = [canonical_entity.confidence]
         
-        # Highest confidence
-        max_confidence = canonical_entity.confidence
-        
+        # Collect descriptions from all entities
         for entity_id, entity in all_entities.items():
-            if entity_id == canonical_entity.id:
-                continue
+            if entity.description.strip():
+                all_descriptions.append(entity.description)
+                print(f"   📝 Description from {entity.name}: {entity.description[:60]}...")
             
-            # Add entity name as alias if different
+            # Add unique contexts
+            if entity.context.strip() and entity.context not in all_contexts:
+                all_contexts.append(entity.context)
+            
+            # Add entity name as alias if different from canonical
             if entity.name.lower() != canonical_entity.name.lower():
                 all_aliases.add(entity.name)
             
-            # Add all aliases
+            # Merge all aliases
             all_aliases.update(entity.aliases)
             
-            # Add all source chunks and documents
+            # Collect all sources
             all_chunks.update(entity.source_chunk_ids)
             all_documents.update(entity.document_sources)
             
-            # Keep best description
-            if len(entity.description) > len(best_description):
-                best_description = entity.description
-            
-            # Keep best context
-            if len(entity.context) > len(best_context):
-                best_context = entity.context
-            
-            # Keep highest confidence
-            if entity.confidence > max_confidence:
-                max_confidence = entity.confidence
+            # Track confidence
+            confidence_scores.append(entity.confidence)
         
-        # Update canonical entity
+        print(f"   📊 Total descriptions collected: {len(all_descriptions)}")
+        
+        # Smart description merging with LLM + fallback
+        if len(all_descriptions) > 1:
+            print(f"   🧠 Attempting LLM merge for {len(all_descriptions)} descriptions")
+            try:
+                # Try LLM-powered intelligent merge
+                merged_description = self._intelligent_description_merge(all_descriptions, canonical_entity.name)
+                canonical_entity.description = merged_description
+                print(f"✨ LLM merge successful for {canonical_entity.name}")
+                print(f"   📝 Result: {merged_description}")
+                
+            except Exception as e:
+                # Fallback: concatenation with period (better for next merge attempt)
+                print(f"⚠️ LLM merge failed, using period concatenation: {e}")
+                fallback_description = ". ".join(d.rstrip('.') for d in all_descriptions) + "."
+                canonical_entity.description = fallback_description
+                print(f"   📝 Fallback result: {fallback_description}")
+                
+        elif len(all_descriptions) == 1:
+            canonical_entity.description = all_descriptions[0]
+            print(f"   📝 Single description kept: {all_descriptions[0][:60]}...")
+        else:
+            canonical_entity.description = ""
+            print(f"   📝 No descriptions found")
+        
+        # Apply other merged values
+        canonical_entity.context = " | ".join(all_contexts)
         canonical_entity.aliases = list(all_aliases)
         canonical_entity.source_chunk_ids = list(all_chunks)
         canonical_entity.document_sources = list(all_documents)
-        canonical_entity.description = best_description
-        canonical_entity.context = best_context
-        canonical_entity.confidence = max_confidence
-        canonical_entity.merge_count = len(all_entities) - 1  # Number of entities merged into this one
+        
+        # Keep highest confidence
+        canonical_entity.confidence = max(confidence_scores) if confidence_scores else canonical_entity.confidence
+        
+        # Update merge metadata
+        canonical_entity.merge_count = len(all_entities) - 1
         canonical_entity.update_timestamp()
+        
+        print(f"🔗 Merged {len(all_entities)} entities into {canonical_entity.name}")
+        print(f"   📝 Final description: {canonical_entity.description[:80]}...")
+        print(f"   🏷️ Total aliases: {len(all_aliases)}")
+        print(f"   📊 Sources: {len(all_chunks)} chunks, {len(all_documents)} documents")
     
     
     def _create_merge_relationships(self, canonical_id: str, 
@@ -229,3 +262,62 @@ class EntityMerger:
             'total_relationships_created': total_relationships,
             'merges_by_type': type_counts
         }
+        
+    def _intelligent_description_merge(self, descriptions, entity_name):
+        """LLM-powered description merging with safeguards"""
+        
+        # Skip if descriptions too similar (avoid wasting LLM calls)
+        if self._descriptions_too_similar(descriptions):
+            return descriptions[0]  # just use first one
+        
+        # Skip if too short (concatenation is fine)
+        total_words = sum(len(d.split()) for d in descriptions)
+        if total_words < 25:
+            return ". ".join(d.rstrip('.') for d in descriptions) + "."
+        
+        prompt = f"""Połącz opisy tej samej encji w jeden spójny opis:
+
+    ENCJA: {entity_name}
+
+    OPISY:
+    {chr(10).join(f"- {desc}" for desc in descriptions)}
+
+    Stwórz jeden naturalny opis 20-35 słów eliminujący redundancje.
+    TYLKO WYNIK:"""
+
+        try:
+            if not hasattr(self, '_llm_client'):
+                from llm import LLMClient, LLMConfig
+                from ner.config import create_default_ner_config
+                
+                default_model = create_default_ner_config().get_default_model()
+                self._llm_client = LLMClient(default_model)
+            
+            response = self._llm_client.chat(prompt, LLMConfig())
+            
+            # Basic validation
+            result = response.strip()
+            if len(result.split()) > 50:  # too long
+                raise ValueError("LLM response too long")
+            if entity_name.lower() not in result.lower():  # missing entity name
+                raise ValueError("LLM lost entity name")
+                
+            return result
+            
+        except Exception as e:
+            logger.warning(f"LLM merge error: {e}")
+            raise  # Let caller handle fallback
+
+    def _descriptions_too_similar(self, descriptions, threshold=0.8):
+        """Check if descriptions are too similar to warrant LLM merge"""
+        if len(descriptions) != 2:
+            return False
+        
+        words1 = set(descriptions[0].lower().split())
+        words2 = set(descriptions[1].lower().split())
+        
+        if not words1 or not words2:
+            return False
+        
+        overlap = len(words1 & words2) / len(words1 | words2)
+        return overlap > threshold

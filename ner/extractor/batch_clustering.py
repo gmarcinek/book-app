@@ -56,11 +56,15 @@ class EntityBatchClusterer:
         """Batch cluster entities of same type using single similarity matrix"""
         entity_ids = []
         
+        print(f"🔍🔍🔍🔍🔍🔍🔍🔍🔍 BATCH CLUSTER: Processing {len(type_entities)} entities of type {entity_type}")
+        
         # Get existing entities of same type from database
         existing_entities = {
             eid: entity for eid, entity in self.semantic_store.entities.items()
             if entity.type == entity_type
         }
+        
+        print(f"🔍🔍🔍-------🔍🔍🔍 BATCH CLUSTER: Found {len(existing_entities)} existing entities of same type")
         
         if not existing_entities:
             # No existing entities - create all as new
@@ -149,11 +153,11 @@ class EntityBatchClusterer:
             if not candidates:
                 continue
                 
-            # Get original index
             chunk_idx = chunk_idx_to_original[chunk_str_id]
             extracted_entity, temp_entity = chunk_entities_data[chunk_idx]
             
-            # Apply weighted similarity to candidates
+            print(f"🔍 SIMILARITY: Entity '{temp_entity.name}' has {len(candidates)} candidates")
+            
             best_match = None
             best_score = 0
             
@@ -164,13 +168,21 @@ class EntityBatchClusterer:
                     temp_entity, existing_entity, base_similarity
                 )
                 
-                if (self.semantic_store.similarity_engine.weighted_sim.should_merge(temp_entity, existing_entity, weighted_score) 
-                    and weighted_score > best_score):
+                print(f"🔍 SIMILARITY: '{temp_entity.name}' vs '{existing_entity.name}' = {weighted_score:.3f} (base: {base_similarity:.3f})")
+                
+                should_merge = self.semantic_store.similarity_engine.weighted_sim.should_merge(temp_entity, existing_entity, weighted_score)
+                print(f"🔍 SHOULD_MERGE: {should_merge} (threshold: {DeduplicationConfig.get_merge_threshold():.3f})")
+                
+                if should_merge and weighted_score > best_score:
                     best_match = existing_id
                     best_score = weighted_score
+                    print(f"🔍 NEW BEST MATCH: {existing_id} with score {weighted_score:.3f}")
             
             if best_match:
                 merge_decisions[chunk_idx] = best_match
+                print(f"🔍 FINAL DECISION: MERGE '{temp_entity.name}' → '{existing_entities[best_match].name}'")
+            else:
+                print(f"🔍 FINAL DECISION: CREATE NEW entity '{temp_entity.name}'")
         
         return merge_decisions
     

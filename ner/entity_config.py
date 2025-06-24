@@ -59,7 +59,7 @@ class DeduplicationConfig:
     """Centralized configuration for all deduplication thresholds - SIMPLIFIED"""
     
     # === UNIFIED MERGE THRESHOLD ===
-    MERGE_THRESHOLD = 0.60  # Single threshold for all merge decisions
+    MERGE_THRESHOLD = 0.30  # Single threshold for all merge decisions
     
     # === NON-MERGE THRESHOLDS (unchanged) ===
     BASE_SIMILARITY_THRESHOLD = 0.3       # Basic filtering

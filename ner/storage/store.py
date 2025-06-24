@@ -149,20 +149,6 @@ class SemanticStore:
             return []
 
     
-    def get_known_aliases_for_chunk(self, chunk_text: str) -> Dict[str, List[str]]:
-        """Get known aliases for entities in chunk"""
-        if not chunk_text.strip() or not self.entities:
-            return {}
-        
-        known_aliases = {}
-        chunk_lower = chunk_text.lower()
-        
-        for entity in self.entities.values():
-            if entity.name.lower() in chunk_lower and entity.aliases:
-                known_aliases[entity.name] = entity.aliases
-        
-        return known_aliases
-    
     def save_to_disk(self) -> bool:
         """Save all data to disk"""
         try:

@@ -18,10 +18,17 @@ class BaseNER(ABC):
         pass
     
     @abstractmethod
-    def get_meta_analysis_prompt(self, text: str) -> str:
+    def get_meta_analysis_prompt(self, text: str, contextual_entities: List[dict] = None) -> str:
         """
         Generates domain-specific meta-prompt that analyzes text 
         and creates custom extraction instructions
+        
+        Args:
+            text: Text to analyze
+            contextual_entities: Optional list of known entities from previous processing
+            
+        Returns:
+            Domain-specific meta-analysis prompt
         """
         pass
     
