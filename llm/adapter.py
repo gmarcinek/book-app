@@ -100,16 +100,16 @@ class LLMClient:
             filename = f"llm_{timestamp}_REQUEST.txt"
             
             log_content = f"""=== LLM REQUEST ===
-    Timestamp: {datetime.now().isoformat()}
-    Model: {self.model}
-    Temperature: {config.temperature}
-    Max Tokens: {config.max_tokens}
-    System Message: {config.system_message or 'None'}
+Timestamp: {datetime.now().isoformat()}
+Model: {self.model}
+Temperature: {config.temperature}
+Max Tokens: {config.max_tokens}
+System Message: {config.system_message or 'None'}
 
-    PROMPT:
-    {prompt}
+PROMPT:
+{prompt}
 
-    =====================================
+=====================================
     """
             
             (logs_dir / filename).write_text(log_content, encoding='utf-8')
@@ -128,19 +128,16 @@ class LLMClient:
             filename = f"llm_{timestamp}_RESPONSE.txt"
             
             log_content = f"""=== LLM RESPONSE ===
-    Timestamp: {datetime.now().isoformat()}
-    Model: {self.model}
-    Prompt Length: {len(prompt)} chars
-    Response Length: {len(response)} chars
-    Response Word Count: {len(response.split())}
+Timestamp: {datetime.now().isoformat()}
+Model: {self.model}
+Prompt Length: {len(prompt)} chars
+Response Length: {len(response)} chars
+Response Word Count: {len(response.split())}
 
-    PROMPT (first 200 chars):
-    {prompt[:200]}...
+RESPONSE:
+{response}
 
-    RESPONSE:
-    {response}
-
-    =====================================
+=====================================
     """
             
             (logs_dir / filename).write_text(log_content, encoding='utf-8')

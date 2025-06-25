@@ -135,10 +135,11 @@ class SemanticStore:
                 if entity_id in self.entities:
                     entity = self.entities[entity_id]
                     contextual_entities.append({
+                        'id': entity.id,
                         'name': entity.name,
                         'type': entity.type,
-                        'aliases': entity.aliases[:5],
-                        'description': entity.description[:150],
+                        'aliases': entity.aliases[:10],
+                        'description': entity.description,
                         'confidence': entity.confidence
                     })
             

@@ -130,9 +130,10 @@ def _get_contextual_entities(extractor, chunk: TextChunk) -> List[dict]:
        # Enhanced format with semantic relations
        enhanced_entities = []
        for entity in entities:
-           print(f"🔍 CONTEXTUAL: Processing entity: {entity.get('name')} ({entity.get('type')})")
+           print(f"🔍 CONTEXTUAL: Processing entity: {entity.get('id')} {entity.get('name')} ({entity.get('type')})")
            
            enhanced = {
+               'id': entity['id'],
                'name': entity['name'],
                'type': entity['type'],
                'description': entity['description'],

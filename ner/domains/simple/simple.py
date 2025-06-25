@@ -1,135 +1,151 @@
+"""
+Literary Domain Implementation - Clean and simplified
+"""
+
 from typing import List
 from ..base import BaseNER, DomainConfig
-from .simple_consts import (
-    SIMPLE_ENTITY_TYPES_FLAT, 
-    format_simple_entity_types, 
-    SIMPLE_EXAMPLES,
-)
-
-import logging
-logger = logging.getLogger(__name__)
+from ...entity_config import DEFAULT_ENTITY_TYPES, DEFAULT_RELATIONSHIP_PATTERNS
 
 class SimpleNER(BaseNER):
+    """Literary Domain with clean entity types and relationship extraction"""
+    
     def __init__(self):
         config = DomainConfig(
-            name="simple",
-            entity_types=SIMPLE_ENTITY_TYPES_FLAT,
-            confidence_threshold=0.3
+            name="literary",
+            entity_types=DEFAULT_ENTITY_TYPES,
+            confidence_threshold=0.3,
         )
         super().__init__(config)
-
+    
     def get_entity_types(self) -> List[str]:
-        return SIMPLE_ENTITY_TYPES_FLAT
-
-    def get_meta_analysis_prompt(self, text: str) -> str:
-        """META-PROMPT: Skrócony dla simple domain"""
-        entity_types_str = ", ".join(SIMPLE_ENTITY_TYPES_FLAT)
-
-        prompt = f"""Ekspert NER. Przeanalizuj tekst i stwórz SPERSONALIZOWANY PROMPT ekstrakcji.
-
+        return DEFAULT_ENTITY_TYPES
+    
+    def get_meta_analysis_prompt(self, text: str, contextual_entities: List[dict] = None) -> str:
+        """META-PROMPT: Clean and focused"""
+        
+        # Dodaj sekcję contextual entities jeśli są
+        contextual_info = ""
+        if contextual_entities:
+            contextual_info = "\n\nKONTEKST Z POPRZEDNICH DOKUMENTÓW:\n"
+            for entity_data in contextual_entities:
+                name = entity_data.get('name', '')
+                entity_id = entity_data.get('id', '')
+                entity_type = entity_data.get('type', '')
+                description = entity_data.get('description', '')
+                aliases = entity_data.get('aliases', [])[:3]  # Pierwsze 3 aliases
+                
+                aliases_str = ", ".join(aliases) if aliases else "brak"
+                contextual_info += f"- id: {entity_id}, {name} ({entity_type}): {description}...\n"
+                contextual_info += f"  Aliases: [{aliases_str}]\n"
+            
+            contextual_info += "\nUwzględnij te znane encje w analizie.\n"
+        
+        prompt = f"""Przeanalizuj tekst i stwórz SPERSONALIZOWANY PROMPT NER.
+{contextual_info}
 TEKST: {text}
 
 ANALIZA:
-- Typy encji: osoby, miejsca, przedmioty, wydarzenia, czas, koncepcje
-- Wyzwania: aliasy osób/rzeczy, niejednoznaczne nazwy
-- MIEJSCE vs PRZEDMIOT: można tam być vs można dotknąć
+- Bohaterowie/postacie (CHARACTER)
+- Stany emocjonalne (EMOTIONAL_STATE)
+- Stan fizyczne (PHISICAL_STATE)
+- Sumaryczny opis encji nazwyający posiadane cechy (DESCRIPTION)
+- Lokacje (LOCATION)
+- Konkretne adresy (ADDRESS)
+- Istotne przedmioty (OBJECT)
+- Wydarzenia z akcją (EVENT)
+- Dialogi/monologi (DIALOG)
+- Narzędzia (TOOL)
+- Wyzwania/kłopoty/problemy stojące przed bohaterami (PROBLEM)
+- Idee, abstrakcyjne koncepcje (CONCEPT)
+- Nazwane organizacje / Firmy (INSTITUTION)
+- Określone daty / godziny(DATE)
 
-TYPY: {entity_types_str}
-
-PROMPT: Zacznij "Jesteś ekspertem NER. Zidentyfikuj encje..."
-- Dopasuj do fragmentu
-- Wymagaj aliases
-- Agreguj duplikaty
-"""
+ZWRÓĆ GOTOWY PROMPT BEZ JSON WRAPPERA:"""
+           
         return prompt
+    
+    def get_base_extraction_prompt(self, text: str) -> str:
+        """FALLBACK: Simple and direct"""
 
+        prompt = f"""Jesteś agentem AI wyspecjalizowanym w Named Entity Recognition.
+
+TEKST: {text}
+
+TYPY ENCJI:
+{', '.join(DEFAULT_ENTITY_TYPES)}
+
+ZASADY:
+- Forma podstawowa
+- Tylko encje jawnie obecne
+- Aliases: wszystkie warianty nazwy
+
+JSON:
+{{
+    "entities": [
+        {{
+            "name": "Jan",
+            "type": "CHARACTER", 
+            "description": "minimum 20 adekwatnych sółw, semantycznie użyteczny opis dla wyszukiwarki embedera, używaj wiedzy z tekstu i wiedzy ogólnej o świecie jednocześnie bądź precyzyjny jak matematyk opisujacy to co widzi",
+            "aliases": ["Janek", "Johnny"],
+            "confidence": 0.85
+        }}
+    ]
+ ]
+}}"""
+        return prompt
+    
     def build_custom_extraction_prompt(self, text: str, custom_instructions: str, known_aliases: dict = None) -> str:
-        logger.info(f"🧠 USING -- INTELIGENT -- META NER")
-        entity_types_str = format_simple_entity_types()
+        """Custom extraction: Enhanced with relationship constraints"""
 
         aliases_info = ""
         if known_aliases:
-            aliases_lines = "\n".join(f"- {k}: {', '.join(v)}" for k, v in known_aliases.items())
-            aliases_info = f"\n\nUWAGA: Zidentyfikowano następujące aliasy w analizie kontekstowej:\n{aliases_lines}\n"
+            aliases_info = "\n\nZNANE ENCJE Z KONTEKSTEM (uwzględnij w ekstrakcji):\n"
+            
+            for entity_data in known_aliases:
+                name = entity_data.get('name', '')
+                entity_id = entity_data.get('id', '')
+                entity_type = entity_data.get('type', '')
+                description = entity_data.get('description', '')
+                aliases = entity_data.get('aliases', [])
+                confidence = entity_data.get('confidence', 0.0)
+                
+                aliases_str = ", ".join(aliases) if aliases else "brak"
+                aliases_info += f"- id: {entity_id}, '{name}' ({entity_type}): {description}\n"
+                aliases_info += f"  Aliases: [{aliases_str}] | Confidence: {confidence:.2f}\n\n"
+            
+            aliases_info += "UWAGA: Jeśli znajdziesz te encje lub ich aliases, użyj głównej nazwy jako 'name', zachowaj lub poszerz description, dodaj aliases.\n"
 
-        return f"""Jesteś agentem ai wyspecjalizowanym w Named Entity Recognition
+        final_prompt = f"""Jesteś agentem AI wyspecjalizowanym w Named Entity Recognition.
+
+INSTRUKCJE SPECYFICZNE DLA TEGO TEKSTU:
 {custom_instructions}
+
 {aliases_info}
-DOSTĘPNE TYPY ENCJI:
-{entity_types_str}
 
-TEKST:
+TEKST DO ANALIZY:
 {text}
 
-ZASADY EKSTRAKCJI:
-1. Tylko encje jawnie obecne lub logicznie implikowane w tekście
-2. Forma podstawowa (mianownik, liczba pojedyncza)
+DOSTĘPNE TYPY: {', '.join(DEFAULT_ENTITY_TYPES)}
 
-INSTRUKCJE SPECJALNE:
-- ALIASES: dodaj wszystkie warianty nazwy z tekstu (np. \"Jan Kowalski\" → aliases: [\"Jan\", \"Kowalski\", \"JK\"])
-- bądź realistyczny
-- agreguj rozpoznane encje w jedną jeśli są swoimi aliasami
+ZASADY ENTITIES:
+- Forma podstawowa (mianownik, liczba pojedyncza)
+- Dodaj wszystkie warianty nazwy jako aliases
+- Description minimum 20 słów, semantycznie użyteczny dla embedera
 
-FORMAT - TYLKO JSON:
+ZWRÓĆ TYLKO JSON:
 {{
-  "entities": [
-    {{
-      "name": "nazwa_w_formie_podstawowej",
-      "type": "TYP_Z_LISTY_WYŻEJ",
-      "description": "definicja encji 3-5 zdań z uwzględnieniem kontekstu otaczającego",
-      "confidence": 0.X,
-      "aliases": ["wszystkie_wariany_nazwy_znalezionej_encji"]
-    }}
-  ]
-}}
-JSON:"""
-
-    def get_base_extraction_prompt(self, text: str) -> str:
-        logger.info(f"🟡 USING -- PSEUDO -- FALLBACK")
-        entity_types_str = ", ".join(SIMPLE_ENTITY_TYPES_FLAT)
-
-        prompt = f"""Jesteś ekspertem od Named Entity Recognition - Zidentyfikuj konkretne encje w tekście według ścisłych kryteriów.
-TEKST:
-{text}
-
-ZASADY EKSTRAKCJI:
-1. Tylko encje jawnie obecne lub logicznie implikowane w tekście
-2. Forma podstawowa (mianownik, liczba pojedyncza)
-
-DOSTĘPNE TYPY ENCJI:
-{entity_types_str}
-
-SZACOWANIE CONFIDENCE - bądź realistyczny:
-
-INSTRUKCJE SPECJALNE:
-- ALIASES: dodaj wszystkie warianty nazwy z tekstu (np. \"Jan Kowalski\" → aliases: [\"Jan\", \"Kowalski\", \"JK\"])
-
-PRZYKŁADY ALIASES:
-- Osoba: \"Jan Kowalski\" → aliases: [\"Jan\", \"Kowalski\", \"JK\", \"Janek\"]
-- Miejsce: \"Warszawa\" → aliases: [\"stolica\", \"WWA\", \"miasto\"]
-- Obiekt: \"komputer\" → aliases: [\"laptop\", \"PC\", \"maszyna\"]
-
-FORMAT - TYLKO JSON:
-{{
-  "entities": [
-    {{
-      "name": "nazwa_w_formie_podstawowej",
-      "type": "TYP_Z_LISTY_WYŻEJ",
-      "description": "definicja encji 3-5 zdań z uwzględnieniem kontekstu otaczającego",
-      "confidence": 0.X, // 0.2=bardzo niepewne, 0.5=umiarkowane, 0.8=pewne, 0.95=oczywiste
-      "aliases": ["wariant1", "wariant2", ...]
-    }}
-  ]
-}}
-JSON:"""
-        return prompt
-
+    "entities": [
+        {{
+            "name": "pełna nazwa z tekstu",
+            "type": "TYP_Z_LISTY",
+            "description": "semantycznie użyteczny opis dla wyszukiwarki embedera, minimalna długość to 20 słów, spróbuj powiedzieć i ekstrapolować jak najwiecej można prawdziwych stwierdzeń na temat encji",
+            "aliases": ["ulica Krawiecka", "Krawiecka", ...],
+            "confidence": 0.85
+        }}
+    ]
+}}"""
+        
+        return final_prompt
+    
     def should_use_cleaning(self) -> bool:
         return False
-
-    def _format_examples(self) -> str:
-        """Format examples for prompts"""
-        return f"""PRZYKŁADY:
-- OSOBY: {', '.join(SIMPLE_EXAMPLES['OSOBA'])}
-- MIEJSCA: {', '.join(SIMPLE_EXAMPLES['MIEJSCE'])}
-- OBIEKTY: {', '.join(SIMPLE_EXAMPLES['OBIEKT'])}"""
