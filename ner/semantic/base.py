@@ -78,32 +78,6 @@ class SemanticChunkingStrategy(ABC):
             except ImportError:
                 raise ImportError("sentence-transformers package required for semantic chunking")
         return self._model
-
-    
-    def _split_sentences(self, text: str) -> List[str]:
-        """Split text into sentences"""
-        try:
-            import spacy
-            # Try to load spacy model
-            try:
-                nlp = spacy.load("en_core_web_sm")
-            except OSError:
-                # Fallback to basic sentence splitting
-                return self._basic_sentence_split(text)
-            
-            doc = nlp(text)
-            return [sent.text.strip() for sent in doc.sents if sent.text.strip()]
-            
-        except ImportError:
-            # Fallback if spacy not available
-            return self._basic_sentence_split(text)
-    
-    def _basic_sentence_split(self, text: str) -> List[str]:
-        """Basic sentence splitting fallback"""
-        import re
-        # Simple sentence boundary detection
-        sentences = re.split(r'[.!?]+\s+', text)
-        return [s.strip() for s in sentences if s.strip()]
     
     def _create_chunks(self, text: str, sentences: List[str], boundaries: List[int]) -> List[TextChunk]:
         """Create TextChunk objects from sentence boundaries"""

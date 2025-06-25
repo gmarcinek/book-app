@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from enum import Enum
 
 class ChunkingStrategy(Enum):
-    """Available semantic chunking strategies"""
-    GRADIENT = "gradient"
     PERCENTILE = "percentile"
     HIERARCHICAL = "hierarchical"
 

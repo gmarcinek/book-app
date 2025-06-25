@@ -136,7 +136,6 @@ class TextChunker:
         from .models import create_semantic_config
         print(f"🕐 {datetime.now()}: Config created")
         
-        from .gradient_strategy import GradientChunker
         from .percentile_strategy import PercentileChunker
         from .hierarchical_strategy import HierarchicalChunker
         print(f"🕐 {datetime.now()}: Strategies imported")
@@ -146,9 +145,7 @@ class TextChunker:
         print(f"🔍 DEBUG: domain_name='{domain_name}', strategy='{semantic_config.strategy.value}'")
         print(f"🕐 {datetime.now()}: Domain config: {domain_name}")
         
-        if semantic_config.strategy.value == "gradient":
-            chunker = GradientChunker(semantic_config)
-        elif semantic_config.strategy.value == "hierarchical":
+        if semantic_config.strategy.value == "hierarchical":
             chunker = HierarchicalChunker(semantic_config)
             # Przekaż model do HierarchicalChunker
             chunker.llm_model = self.model_name

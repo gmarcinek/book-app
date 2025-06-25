@@ -37,7 +37,9 @@ class PercentileChunker(SemanticChunkingStrategy):
         percentile = self._get_domain_percentile(domains)
         
         # Split into sentences
-        sentences = self._split_sentences(text)
+        sentences = [s.strip() for s in text.split('. ') if s.strip()]
+        if sentences and not sentences[-1].endswith('.'):
+            sentences[-1] += '.'  # Fix last sentence
         
         if len(sentences) < 2:
             # Too few sentences, return as single chunk

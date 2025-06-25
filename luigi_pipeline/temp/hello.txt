@@ -1,0 +1,3 @@
+Hello Luigi Pipeline!
+Infrastructure is working.
+Luigi version: 3.6.0

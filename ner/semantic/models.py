@@ -33,7 +33,7 @@ DOMAIN_EMBEDDING_CONFIGS = {
     
     "simple": {
         "model_name": DEFAULT_MODEL,
-        "strategy": ChunkingStrategy.GRADIENT,  # Simple texts work well with gradient
+        "strategy": ChunkingStrategy.PERCENTILE,  # Simple texts work well with gradient
         "percentile": 88.0,  # More aggressive
         "threshold": 0.10,   # Lower threshold
         "description": "Multilingual model for simple Polish content"
