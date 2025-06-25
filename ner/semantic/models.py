@@ -19,7 +19,6 @@ DOMAIN_EMBEDDING_CONFIGS = {
         "model_name": DEFAULT_MODEL,
         "strategy": ChunkingStrategy.PERCENTILE,
         "percentile": 92.0,  # Less aggressive - preserve narrative flow
-        "threshold": 0.12,   # For gradient fallback
         "description": "Multilingual model for Polish literary texts"
     },
     
@@ -27,15 +26,13 @@ DOMAIN_EMBEDDING_CONFIGS = {
         "model_name": DEFAULT_MODEL,
         "strategy": ChunkingStrategy.HIERARCHICAL,
         "percentile": 95.0,  # Very precise - separate legal sections
-        "threshold": 0.15,   # Sharp boundaries
         "description": "Multilingual model for Polish legal documents"
     },
     
     "simple": {
         "model_name": DEFAULT_MODEL,
-        "strategy": ChunkingStrategy.PERCENTILE,  # Simple texts work well with gradient
+        "strategy": ChunkingStrategy.PERCENTILE,
         "percentile": 88.0,  # More aggressive
-        "threshold": 0.10,   # Lower threshold
         "description": "Multilingual model for simple Polish content"
     },
     
@@ -43,7 +40,6 @@ DOMAIN_EMBEDDING_CONFIGS = {
         "model_name": DEFAULT_MODEL,
         "strategy": ChunkingStrategy.PERCENTILE,
         "percentile": 90.0,  # Standard default
-        "threshold": 0.15,   # Standard default
         "description": "Default multilingual model for Polish texts"
     }
 }
