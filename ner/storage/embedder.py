@@ -1,13 +1,10 @@
 """
-ner/storage/embedder.py
-
-Entity embedding generation with dual strategy for semantic matching
+Entity embedding generation using OpenAI embeddings with disk cache
 """
 
 import logging
 import numpy as np
 from typing import Dict, Tuple, Optional, List
-from sentence_transformers import SentenceTransformer
 
 from .models import StoredEntity, StoredChunk
 
@@ -15,249 +12,150 @@ logger = logging.getLogger(__name__)
 
 
 class EntityEmbedder:
-    """
-    Generates dual embeddings for entities and single embeddings for chunks
-    
-    Strategy:
-    - Name embeddings: Fast semantic matching for deduplication
-    - Context embeddings: Rich contextual discovery for relationships
-    - Chunk embeddings: Full text for contextual entity discovery
-    """
-    
-    def __init__(self, 
-                 model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
-                #  model_name: str = "allegro/herbert-base-cased",
-                 cache_embeddings: bool = True):
-        """
-        Initialize embedder with sentence transformer model
-        
-        Args:
-            model_name: HuggingFace model for embeddings
-            cache_embeddings: Whether to cache embeddings to avoid recomputation
-        """
-        self.model_name = model_name
-        self.cache_embeddings = cache_embeddings
-        
-        logger.info(f"🧠 Loading embedding model: {model_name}")
-        self.model = SentenceTransformer(model_name)
-        self.embedding_dim = self.model.get_sentence_embedding_dimension()
-        
-        # Embedding cache for performance
-        self._embedding_cache: Dict[str, np.ndarray] = {}
-        
-        logger.info(f"✅ EntityEmbedder initialized (dim: {self.embedding_dim})")
-    
-    def generate_entity_embeddings(self, entity: StoredEntity) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Generate dual embeddings for entity
-        
-        Returns:
-            (name_embedding, context_embedding)
-        """
-        # Generate name embedding for fast matching
-        name_text = entity.get_semantic_text_for_name()
-        name_embedding = self._get_cached_embedding(name_text, "name")
-        
-        # Generate context embedding for rich discovery
-        context_text = entity.get_semantic_text_for_context()
-        context_embedding = self._get_cached_embedding(context_text, "context")
-        
-        return name_embedding, context_embedding
-    
-    def generate_chunk_embedding(self, chunk: StoredChunk) -> np.ndarray:
-        """
-        Generate embedding for chunk text
-        
-        Returns:
-            text_embedding for contextual similarity
-        """
-        # For long chunks, use preview to avoid token limits
-        text_for_embedding = self._prepare_chunk_text(chunk.text)
-        return self._get_cached_embedding(text_for_embedding, "chunk")
-    
-    def update_entity_embeddings(self, entity: StoredEntity) -> bool:
-        """
-        Update entity embeddings in-place
-        
-        Returns:
-            True if embeddings were updated
-        """
-        try:
-            name_embedding, context_embedding = self.generate_entity_embeddings(entity)
-            
-            entity.name_embedding = name_embedding
-            entity.context_embedding = context_embedding
-            entity.update_timestamp()
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to update embeddings for entity {entity.id}: {e}")
-            return False
-    
-    def update_chunk_embedding(self, chunk: StoredChunk) -> bool:
-        """
-        Update chunk embedding in-place
-        
-        Returns:
-            True if embedding was updated
-        """
-        try:
-            text_embedding = self.generate_chunk_embedding(chunk)
-            chunk.text_embedding = text_embedding
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to update embedding for chunk {chunk.id}: {e}")
-            return False
-    
-    def compute_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
-        """
-        Compute cosine similarity between two embeddings
-        
-        Returns:
-            Similarity score between 0 and 1
-        """
-        if embedding1 is None or embedding2 is None:
-            return 0.0
-        
-        # Ensure embeddings are normalized
-        norm1 = np.linalg.norm(embedding1)
-        norm2 = np.linalg.norm(embedding2)
-        
-        if norm1 == 0 or norm2 == 0:
-            return 0.0
-        
-        # Cosine similarity
-        similarity = np.dot(embedding1, embedding2) / (norm1 * norm2)
-        
-        # Clamp to [0, 1] range and handle numerical issues
-        return max(0.0, min(1.0, float(similarity)))
-    
-    def find_most_similar_entities(self, 
-                                 query_embedding: np.ndarray,
-                                 candidate_embeddings: List[np.ndarray],
-                                 threshold: float = 0.8) -> List[Tuple[int, float]]:
-        """
-        Find most similar entities above threshold
-        
-        Args:
-            query_embedding: Query embedding to match against
-            candidate_embeddings: List of candidate embeddings
-            threshold: Minimum similarity threshold
-            
-        Returns:
-            List of (index, similarity_score) tuples sorted by similarity
-        """
-        if not candidate_embeddings or query_embedding is None:
-            return []
-        
-        similarities = []
-        for idx, candidate_embedding in enumerate(candidate_embeddings):
-            if candidate_embedding is not None:
-                similarity = self.compute_similarity(query_embedding, candidate_embedding)
-                if similarity >= threshold:
-                    similarities.append((idx, similarity))
-        
-        # Sort by similarity (descending)
-        similarities.sort(key=lambda x: x[1], reverse=True)
-        return similarities
-    
-    def batch_generate_embeddings(self, texts: List[str]) -> List[np.ndarray]:
-        """
-        Generate embeddings for multiple texts efficiently
-        
-        Args:
-            texts: List of texts to embed
-            
-        Returns:
-            List of normalized embeddings
-        """
-        if not texts:
-            return []
-        
-        try:
-            # Use batch processing for efficiency
-            embeddings = self.model.encode(texts, normalize_embeddings=True, batch_size=32)
-            return [embedding for embedding in embeddings]
-            
-        except Exception as e:
-            logger.error(f"❌ Batch embedding generation failed: {e}")
-            # Fallback to individual processing
-            return [self._get_cached_embedding(text, "batch") for text in texts]
-    
-    def _get_cached_embedding(self, text: str, embedding_type: str) -> np.ndarray:
-        """
-        Get embedding with caching
-        
-        Args:
-            text: Text to embed
-            embedding_type: Type prefix for cache key
-            
-        Returns:
-            Normalized embedding
-        """
-        if not text.strip():
-            # Return zero embedding for empty text
-            return np.zeros(self.embedding_dim, dtype=np.float32)
-        
-        # Create cache key
-        cache_key = f"{embedding_type}:{hash(text.strip())}"
-        
-        # Check cache
-        if self.cache_embeddings and cache_key in self._embedding_cache:
-            return self._embedding_cache[cache_key]
-        
-        # Generate new embedding
-        try:
-            embedding = self.model.encode(text.strip(), normalize_embeddings=True)
-            
-            # Ensure correct dtype and shape
-            embedding = np.array(embedding, dtype=np.float32)
-            if embedding.ndim > 1:
-                embedding = embedding.flatten()
-            
-            # Cache result
-            if self.cache_embeddings:
-                self._embedding_cache[cache_key] = embedding
-            
-            return embedding
-            
-        except Exception as e:
-            logger.error(f"❌ Embedding generation failed for text '{text[:50]}...': {e}")
-            # Return zero embedding as fallback
-            return np.zeros(self.embedding_dim, dtype=np.float32)
-    
-    def _prepare_chunk_text(self, text: str, max_length: int = 1000) -> str:
-        """
-        Prepare chunk text for embedding (handle long texts)
-        
-        Args:
-            text: Full chunk text
-            max_length: Maximum character length for embedding
-            
-        Returns:
-            Prepared text for embedding
-        """
-        if len(text) <= max_length:
-            return text.strip()
-        
-        # For long texts, take beginning + end to preserve context
-        half_length = max_length // 2 - 50  # Leave space for separator
-        beginning = text[:half_length].strip()
-        ending = text[-half_length:].strip()
-        
-        return f"{beginning} ... {ending}"
-    
-    def clear_cache(self):
-        """Clear embedding cache to free memory"""
-        self._embedding_cache.clear()
-        logger.info("🧹 Embedding cache cleared")
-    
-    def get_cache_stats(self) -> Dict[str, int]:
-        """Get cache statistics"""
-        return {
-            'cached_embeddings': len(self._embedding_cache),
-            'embedding_dimension': self.embedding_dim,
-            'model_name': self.model_name
-        }
+   """Generates embeddings for entities and chunks using OpenAI API with caching"""
+   
+   def __init__(self, model_name: str = "text-embedding-3-small"):
+       # Initialize OpenAI embeddings client with cache
+       from llm.embeddings_client import OpenAIEmbeddingsClient
+       from llm.embeddings_cache import EmbeddingsCache
+       
+       self.model_name = model_name
+       self.client = OpenAIEmbeddingsClient(model_name)
+       self.cache = EmbeddingsCache(model=model_name)
+       self.embedding_dim = self.client.embedding_dim
+       
+       print(f"🧠 EntityEmbedder initialized: {model_name} ({self.embedding_dim}D)")
+       logger.info(f"🧠 EntityEmbedder initialized: {model_name} ({self.embedding_dim}D)")
+   
+   def generate_entity_embeddings(self, entity: StoredEntity) -> Tuple[np.ndarray, np.ndarray]:
+       # Generate dual embeddings for entity (name + context)
+       name_text = entity.get_semantic_text_for_name()
+       context_text = entity.get_semantic_text_for_context()
+       
+       name_embedding = self._get_embedding_with_cache(name_text)
+       context_embedding = self._get_embedding_with_cache(context_text)
+       
+       return name_embedding, context_embedding
+   
+   def generate_chunk_embedding(self, chunk: StoredChunk) -> np.ndarray:
+       # Generate embedding for chunk text
+       text_for_embedding = self._prepare_chunk_text(chunk.text)
+       return self._get_embedding_with_cache(text_for_embedding)
+   
+   def update_entity_embeddings(self, entity: StoredEntity) -> bool:
+       # Update entity embeddings in-place
+       try:
+           name_embedding, context_embedding = self.generate_entity_embeddings(entity)
+           
+           entity.name_embedding = name_embedding
+           entity.context_embedding = context_embedding
+           entity.update_timestamp()
+           
+           return True
+           
+       except Exception as e:
+           logger.error(f"❌ Failed to update embeddings for entity {entity.id}: {e}")
+           return False
+   
+   def update_chunk_embedding(self, chunk: StoredChunk) -> bool:
+       # Update chunk embedding in-place
+       try:
+           text_embedding = self.generate_chunk_embedding(chunk)
+           chunk.text_embedding = text_embedding
+           return True
+           
+       except Exception as e:
+           logger.error(f"❌ Failed to update embedding for chunk {chunk.id}: {e}")
+           return False
+   
+   def compute_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
+       # Compute cosine similarity between embeddings
+       return self.client.compute_similarity(embedding1, embedding2)
+   
+   def batch_generate_embeddings(self, texts: List[str]) -> List[np.ndarray]:
+       # Generate embeddings for multiple texts with caching
+       text_hashes = [self.client.get_text_hash(text) for text in texts]
+       
+       # Check cache first
+       cached_results = self.cache.get_batch(text_hashes)
+       
+       # Find texts that need embedding
+       texts_to_embed = []
+       hash_to_index = {}
+       
+       for i, (text, text_hash) in enumerate(zip(texts, text_hashes)):
+           if cached_results[text_hash] is None:
+               hash_to_index[text_hash] = len(texts_to_embed)
+               texts_to_embed.append(text)
+       
+       # Generate missing embeddings
+       new_embeddings = []
+       if texts_to_embed:
+           print(f"🧠 Generating {len(texts_to_embed)} new embeddings from {len(texts)} total")
+           new_embeddings = self.client.embed_batch(texts_to_embed)
+           
+           # Cache new embeddings
+           cache_data = {}
+           for i, text in enumerate(texts_to_embed):
+               text_hash = self.client.get_text_hash(text)
+               text_preview = text[:50] + "..." if len(text) > 50 else text
+               cache_data[text_hash] = (new_embeddings[i], text_preview)
+           
+           self.cache.put_batch(cache_data)
+       
+       # Combine cached and new embeddings
+       final_embeddings = []
+       for text, text_hash in zip(texts, text_hashes):
+           cached_embedding = cached_results[text_hash]
+           if cached_embedding is not None:
+               final_embeddings.append(cached_embedding)
+           else:
+               # Get from new embeddings
+               new_index = hash_to_index[text_hash]
+               final_embeddings.append(new_embeddings[new_index])
+       
+       return final_embeddings
+   
+   def _get_embedding_with_cache(self, text: str) -> np.ndarray:
+       # Get single embedding with cache check
+       text_hash = self.client.get_text_hash(text)
+       
+       # Check cache first
+       cached_embedding = self.cache.get(text_hash)
+       if cached_embedding is not None:
+           return cached_embedding
+       
+       # Generate new embedding
+       embedding = self.client.embed_single(text)
+       
+       # Cache it
+       text_preview = text[:50] + "..." if len(text) > 50 else text
+       self.cache.put(text_hash, embedding, text_preview)
+       
+       return embedding
+   
+   def _prepare_chunk_text(self, text: str, max_length: int = 1000) -> str:
+       # Prepare chunk text for embedding (handle long texts)
+       if len(text) <= max_length:
+           return text.strip()
+       
+       # For long texts, take beginning + end
+       half_length = max_length // 2 - 50
+       beginning = text[:half_length].strip()
+       ending = text[-half_length:].strip()
+       
+       return f"{beginning} ... {ending}"
+   
+   def clear_cache(self):
+       # Clear embedding cache
+       self.cache.clear_cache()
+       print("🧹 Embedding cache cleared")
+   
+   def get_cache_stats(self) -> Dict[str, any]:
+       # Get cache statistics
+       cache_stats = self.cache.get_cache_stats()
+       return {
+           'embedding_dimension': self.embedding_dim,
+           'model_name': self.model_name,
+           **cache_stats
+       }

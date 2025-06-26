@@ -1,10 +1,9 @@
 """
-Percentile-based Semantic Chunking Strategy
+Percentile-based Semantic Chunking Strategy with OpenAI embeddings
 """
 
 import numpy as np
 from typing import List
-from sklearn.metrics.pairwise import cosine_similarity
 
 from .base import SemanticChunkingStrategy, SemanticChunkingConfig, TextChunk
 from ..domains import BaseNER
@@ -12,7 +11,7 @@ from ..domains import BaseNER
 
 class PercentileChunker(SemanticChunkingStrategy):
     """
-    Percentile-based semantic chunking strategy
+    Percentile-based semantic chunking strategy using OpenAI embeddings
     
     Calculates similarity between all consecutive sentences, then cuts
     at points where similarity is below specified percentile threshold.
@@ -23,17 +22,7 @@ class PercentileChunker(SemanticChunkingStrategy):
         super().__init__(config)
         
     def chunk(self, text: str, domains: List[BaseNER] = None) -> List[TextChunk]:
-        """
-        Chunk text using percentile-based semantic analysis
-        
-        Args:
-            text: Input text to chunk
-            domains: Optional domain information for percentile tuning
-            
-        Returns:
-            List of TextChunk objects
-        """
-        # Get domain-specific percentile
+        # Chunk text using percentile-based semantic analysis with OpenAI embeddings
         percentile = self._get_domain_percentile(domains)
         
         # Split into sentences
@@ -57,34 +46,25 @@ class PercentileChunker(SemanticChunkingStrategy):
         return self._create_chunks(text, sentences, boundaries)
     
     def estimate_ram_usage(self, text_length: int) -> int:
-        """
-        Estimate RAM usage for percentile chunking
-        
-        Args:
-            text_length: Length of text in characters
-            
-        Returns:
-            Estimated RAM usage in bytes
-        """
-        # Estimate sentence count (rough: 50 chars per sentence)
+        # Estimate RAM usage for percentile chunking with OpenAI embeddings
         sentence_count = max(text_length // 50, 1)
         
-        # Model size
-        model_ram = 1000 * 1024 * 1024  # ~1GB for multilingual model
+        # OpenAI embeddings are generated via API - minimal local RAM
+        api_overhead = 50 * 1024 * 1024  # 50MB for API client
         
-        # All sentence embeddings stored simultaneously
-        embeddings_ram = sentence_count * 384 * 4  # sentences * 384 dims * 4 bytes
+        # Embeddings stored temporarily (1536 dims * 4 bytes)
+        embeddings_ram = sentence_count * 1536 * 4
         
-        # Similarity matrix (if we store it)
-        similarities_ram = sentence_count * 8  # float64 per similarity
+        # Similarity matrix
+        similarities_ram = sentence_count * 8
         
         # Processing overhead
         processing_overhead = 100 * 1024 * 1024  # 100MB
         
-        return model_ram + embeddings_ram + similarities_ram + processing_overhead
+        return api_overhead + embeddings_ram + similarities_ram + processing_overhead
     
     def _get_domain_percentile(self, domains: List[BaseNER] = None) -> float:
-        """Get domain-specific percentile or use config default"""
+        # Get domain-specific percentile or use config default
         if domains and len(domains) > 0:
             domain_name = domains[0].config.name
             
@@ -100,32 +80,22 @@ class PercentileChunker(SemanticChunkingStrategy):
         return self.config.percentile
     
     def _find_percentile_boundaries(self, sentences: List[str], percentile: float) -> List[int]:
-        """
-        Find chunk boundaries using percentile analysis
-        
-        Args:
-            sentences: List of sentences
-            percentile: Percentile threshold for cutting (e.g., 95.0)
-            
-        Returns:
-            List of sentence indices where to cut
-        """
+        # Find chunk boundaries using percentile analysis with OpenAI embeddings
         if len(sentences) < 2:
             return []
         
         print(f"🧠 Generating embeddings for {len(sentences)} sentences...")
-        model = self._load_embedding_model()
+        client = self._load_embeddings_client()  # ← FIXED: use correct method name
         
-        # Generate embeddings for all sentences
-        embeddings = []
+        # Generate embeddings for all sentences using batch API
         print(f"🧠 Batch processing {len(sentences)} sentences...")
-        embeddings = model.encode(sentences)  # ← BATCH!
+        embeddings = client.embed_batch(sentences)  # ← FIXED: use OpenAI client
         print(f"✅ Batch complete!")
         
         # Calculate similarities between consecutive sentences
         similarities = []
         for i in range(len(sentences) - 1):
-            similarity = cosine_similarity([embeddings[i]], [embeddings[i + 1]])[0][0]
+            similarity = client.compute_similarity(embeddings[i], embeddings[i + 1])
             similarities.append(similarity)
         
         # Convert similarities to distances (1 - similarity)
@@ -152,18 +122,7 @@ class PercentileChunker(SemanticChunkingStrategy):
     
     def _should_add_boundary(self, sentences: List[str], existing_boundaries: List[int], 
                            new_boundary: int) -> bool:
-        """
-        Validate whether to add a new boundary based on chunk size constraints
-        
-        Args:
-            sentences: All sentences
-            existing_boundaries: Currently identified boundaries
-            new_boundary: Proposed new boundary index
-            
-        Returns:
-            True if boundary should be added
-        """
-        # Determine the start of the chunk that would be created
+        # Validate whether to add a new boundary based on chunk size constraints
         if existing_boundaries:
             chunk_start = existing_boundaries[-1]
         else:
@@ -187,13 +146,14 @@ class PercentileChunker(SemanticChunkingStrategy):
         return True
     
     def get_strategy_info(self) -> dict:
-        """Return information about this strategy"""
+        # Return information about this strategy
         return {
             "name": "percentile",
-            "description": "Global percentile-based semantic chunking",
-            "memory_efficient": False,
+            "description": "Global percentile-based semantic chunking with OpenAI embeddings",
+            "memory_efficient": True,  # API-based, minimal local RAM
             "streaming_capable": False,
             "domain_tunable": True,
             "percentile": self.config.percentile,
-            "adaptive": True
+            "adaptive": True,
+            "embedding_model": self.config.model_name
         }
