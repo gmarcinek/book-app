@@ -4,7 +4,7 @@ Literary Domain Implementation - Clean and simplified
 
 from typing import List
 from ..base import BaseNER, DomainConfig
-from ...entity_config import DEFAULT_ENTITY_TYPES, DEFAULT_RELATIONSHIP_PATTERNS
+from ...entity_config import DEFAULT_ENTITY_TYPES, DEFAULT_CONFIDENCE_THRESHOLDS
 
 class SimpleNER(BaseNER):
     """Literary Domain with clean entity types and relationship extraction"""
@@ -13,7 +13,7 @@ class SimpleNER(BaseNER):
         config = DomainConfig(
             name="literary",
             entity_types=DEFAULT_ENTITY_TYPES,
-            confidence_threshold=0.3,
+            confidence_threshold=DEFAULT_CONFIDENCE_THRESHOLDS["entity_extraction"],
         )
         super().__init__(config)
     

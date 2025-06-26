@@ -39,7 +39,6 @@ class AutoNER:
 MOŻLIWE GRUPY:
 1. literary - proza, narracja, opisy, dialogi, wspomnienia, autobiografia, tekst literacki
 2. simple - podstawowe encje (osoby, miejsca, organizacje, przedmioty, wydarzenia, czas)
-3. owu - dokumenty prawne, regulaminy, OWU, polisy, definicje formalne, artykuły, świadczenia, ograniczenia
 
 TEKST DO KLASYFIKACJI:
 {text}
@@ -49,7 +48,6 @@ ZASADY:
 - Jeśli tekst zawiera głównie podstawowe informacje → ["simple"]
 - Jeśli niepewny lub mieszany → ["literary", "simple"]
 - Jeśli bardzo niepewny → ["simple"] (fallback)
-- Jeśli tekst zawiera terminy prawne (np. „Ubezpieczyciel”, „Polisa”, „świadczenie”, „OWU”) → ["owu"]
 
 ZWRÓĆ TYLKO JSON:
 {{"domains": ["domain1", "domain2"]}}"""
@@ -81,7 +79,7 @@ ZWRÓĆ TYLKO JSON:
             
             # Validate domains
             valid_domains = []
-            available_domains = ["literary", "simple", "owu"]
+            available_domains = ["literary", "simple"]
             
             for domain in domains:
                 if isinstance(domain, str) and domain in available_domains:
@@ -102,16 +100,6 @@ ZWRÓĆ TYLKO JSON:
             return ["simple"]  # fallback
     
     def classify_chunk_with_llm(self, text: str, llm_call_function: Callable[[str], str]) -> List[str]:
-        """
-        Classify chunk using provided LLM call function
-        
-        Args:
-            text: Text to classify
-            llm_call_function: Function that takes prompt and returns LLM response
-            
-        Returns:
-            List of domain names
-        """
         try:
             prompt = self._get_classification_prompt(text)
             response = llm_call_function(prompt)

@@ -22,13 +22,6 @@ DOMAIN_EMBEDDING_CONFIGS = {
         "description": "Multilingual model for Polish literary texts"
     },
     
-    "owu": {
-        "model_name": DEFAULT_MODEL,
-        "strategy": ChunkingStrategy.HIERARCHICAL,
-        "percentile": 95.0,  # Very precise - separate legal sections
-        "description": "Multilingual model for Polish legal documents"
-    },
-    
     "simple": {
         "model_name": DEFAULT_MODEL,
         "strategy": ChunkingStrategy.PERCENTILE,
@@ -44,17 +37,12 @@ DOMAIN_EMBEDDING_CONFIGS = {
     }
 }
 
+def get_domain_confidence_threshold(domain_name: str) -> float:
+    """Get confidence threshold for domain validation"""
+    domain_config = get_domain_config(domain_name)
+    return domain_config.get("confidence_threshold", 0.3)
 
 def get_domain_config(domain_name: str) -> Dict[str, Any]:
-    """
-    Get configuration for specific domain
-    
-    Args:
-        domain_name: Name of the domain (literary, legal, etc.)
-        
-    Returns:
-        Domain configuration dictionary
-    """
     return DOMAIN_EMBEDDING_CONFIGS.get(domain_name, DOMAIN_EMBEDDING_CONFIGS["auto"])
 
 
@@ -65,7 +53,6 @@ def create_semantic_config(domain_name: str, available_ram_mb: int = None) -> Se
     return SemanticChunkingConfig(
         strategy=domain_config["strategy"],
         model_name=model_name,
-        threshold=domain_config["threshold"],
         percentile=domain_config["percentile"],
         min_chunk_size=500,
         max_chunk_size=10000
@@ -78,15 +65,6 @@ def get_available_domains() -> List[str]:
 
 
 def check_model_availability(model_name: str = None) -> bool:
-    """
-    Check if default model is available
-    
-    Args:
-        model_name: Optional model name to check, defaults to DEFAULT_MODEL
-        
-    Returns:
-        True if model is available
-    """
     test_model = model_name or DEFAULT_MODEL
     
     try:
