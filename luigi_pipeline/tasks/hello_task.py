@@ -6,4 +6,4 @@ class HelloTask(luigi.Task):
             f.write('Hello Luigi!')
     
     def output(self):
-        return luigi.LocalTarget('/tmp/hello.txt')
+        return luigi.LocalTarget('/luigi/state/hello.txt')

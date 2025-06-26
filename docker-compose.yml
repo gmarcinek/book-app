@@ -1,50 +1,60 @@
+# docker-compose.yml
 version: '3.8'
 
 services:
- luigi-scheduler:
-   image: python:3.13-slim
-   ports:
-     - "8082:8082"
-   volumes:
-     - .:/app
-     - ./luigi_pipeline/temp:/luigi/state
-   working_dir: /app
-   deploy:
-     resources:
-       limits:
-         memory: 4G
-         cpus: '1.0'
-       reservations:
-         memory: 512M
-         cpus: '0.25'
-   command: >
-     sh -c "pip install --no-cache-dir --root-user-action=ignore poetry setuptools && 
-            poetry config virtualenvs.create false &&
-            poetry install --only=main &&
-            poetry run luigid --port 8082 --state-path /luigi/state/luigi-state.pickle"
-   environment:
-     - PYTHONPATH=/app
+  luigi-scheduler:
+    build: .
+    container_name: ner-luigi-scheduler
+    ports:
+      - "8082:8082"
+    volumes:
+      - .:/app
+      - ./luigi_pipeline/temp:/luigi/state
+      - ./.cache:/app/.cache
+      - ./semantic_store:/app/semantic_store
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+    command: poetry run luigid --port 8082 --state-path /luigi/state/luigi-state.pickle --logdir /luigi/state
 
- luigi-worker:
-   image: python:3.13-slim  
-   volumes:
-     - .:/app
-   working_dir: /app
-   depends_on:
-     - luigi-scheduler
-   deploy:
-     resources:
-       limits:
-         memory: 4G
-         cpus: '2.0'
-       reservations:
-         memory: 1G
-         cpus: '0.5'
-   environment:
-     - PYTHONPATH=/app
-   command: >
-     sh -c "pip install --no-cache-dir --root-user-action=ignore poetry setuptools && 
-            poetry config virtualenvs.create false &&
-            poetry install --only=main &&
-            sleep 10 &&
-            poetry run python -m luigi --module orchestrator.luigi_tasks.hello_task HelloTask --scheduler-host luigi-scheduler"
+  luigi-worker:
+    build: .
+    container_name: ner-luigi-worker
+    volumes:
+      - .:/app
+      - ./luigi_pipeline/temp:/luigi/state
+      - ./.cache:/app/.cache
+      - ./semantic_store:/app/semantic_store
+    working_dir: /app
+    depends_on:
+      - luigi-scheduler
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+    command: >
+      sh -c "echo 'Waiting for scheduler...' &&
+             until nc -z luigi-scheduler 8082; do sleep 5; done &&
+             echo 'Scheduler ready, starting worker...' &&
+             poetry run python -m luigi --module luigi_pipeline.tasks.hello_task HelloTask --scheduler-host luigi-scheduler --scheduler-port 8082"
+
+  # NER API service
+  ner-api:
+    build: .
+    container_name: ner-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./.cache:/app/.cache
+      - ./semantic_store:/app/semantic_store
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+    command: poetry run serve
+    profiles:
+      - api
