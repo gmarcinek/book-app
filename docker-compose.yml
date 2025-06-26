@@ -1,4 +1,3 @@
-# docker-compose.yml
 version: '3.8'
 
 services:
@@ -38,9 +37,9 @@ services:
       sh -c "echo 'Waiting for scheduler...' &&
              until nc -z luigi-scheduler 8082; do sleep 5; done &&
              echo 'Scheduler ready, starting worker...' &&
-             poetry run python -m luigi --module luigi_pipeline.tasks.hello_task HelloTask --scheduler-host luigi-scheduler --scheduler-port 8082"
+             poetry run luigi --module luigi_pipeline.tasks.hello_task HelloTask --scheduler-host luigi-scheduler --scheduler-port 8082 --workers 1"
 
-  # NER API service
+  # NER API service  
   ner-api:
     build: .
     container_name: ner-api
