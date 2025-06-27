@@ -1,13 +1,15 @@
 from typing import List
-from ..base import BaseNER, DomainConfig
+
 from .owu_consts import OWU_ENTITY_TYPES, format_owu_entity_types
+from ner.entity_config import DEFAULT_CONFIDENCE_THRESHOLDS
+from ..base import BaseNER, DomainConfig
 
 class OWUNER(BaseNER):
     def __init__(self):
         config = DomainConfig(
             name="owu",
             entity_types=OWU_ENTITY_TYPES,
-            confidence_threshold=0.4
+            confidence_threshold=DEFAULT_CONFIDENCE_THRESHOLDS["entity_extraction"],
         )
         super().__init__(config)
 
