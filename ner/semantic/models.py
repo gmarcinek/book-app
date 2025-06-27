@@ -26,6 +26,13 @@ DOMAIN_EMBEDDING_CONFIGS = {
        "percentile": 88.0,  # More aggressive
        "description": "OpenAI embeddings for simple Polish content"
    },
+
+   "owu": {
+       "model_name": DEFAULT_MODEL,
+       "strategy": ChunkingStrategy.HIERARCHICAL,
+       "percentile": 88.0,  # More aggressive
+       "description": "OpenAI embeddings for simple Polish content"
+   },
    
    "auto": {   
        "model_name": DEFAULT_MODEL,
@@ -49,7 +56,7 @@ def create_semantic_config(domain_name: str, available_ram_mb: int = None) -> Se
        strategy=domain_config["strategy"],
        model_name=model_name,
        percentile=domain_config["percentile"],
-       min_chunk_size=500,
+       min_chunk_size=100,
        max_chunk_size=10000
    )
 

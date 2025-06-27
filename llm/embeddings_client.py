@@ -59,42 +59,33 @@ class OpenAIEmbeddingsClient:
             logger.error(f"❌ OpenAI embeddings API failed: {e}")
             raise RuntimeError(f"Sorry, OpenAI embeddings service is down: {e}")
     
-    def embed_batch(self, texts: List[str], batch_size: int = 2048) -> List[np.ndarray]:
+    def embed_batch(self, texts: List[str], batch_size: int = 10) -> List[np.ndarray]:
+        """PRAWDZIWY batching - każda grupa idzie osobno do OpenAI"""
         if not texts:
             print(f"⚪ No texts to embed")
             return []
         
+        print(f"🚀 TRUE batching: {len(texts)} texts, {batch_size} per batch")
+        
+        all_embeddings = []
         total_batches = (len(texts) - 1) // batch_size + 1
-        print(f"🚀 Starting batch embedding: {len(texts)} texts in {total_batches} batches")
         
-        embeddings = []
-        
-        # Process in batches
+        # Podziel na małe batche po 10
         for i in range(0, len(texts), batch_size):
-            batch_num = i // batch_size + 1
             batch = texts[i:i + batch_size]
+            batch_num = i // batch_size + 1
             
-            print(f"📦 Processing batch {batch_num}/{total_batches} ({len(batch)} texts)")
+            print(f"📦 Batch {batch_num}/{total_batches}: {len(batch)} texts")
             
-            # Filter empty texts and keep track of indices
-            non_empty_texts = []
-            empty_indices = []
-            
-            for j, text in enumerate(batch):
-                if text.strip():
-                    non_empty_texts.append(text.strip())
-                else:
-                    empty_indices.append(j)
-            
-            if empty_indices:
-                print(f"⚪ Found {len(empty_indices)} empty texts in batch")
+            # Filtruj puste teksty
+            non_empty_texts = [text.strip() for text in batch if text.strip()]
             
             if not non_empty_texts:
-                # All texts empty
-                print(f"⚠️ All texts in batch are empty, using zero embeddings")
+                print(f"⚪ All texts in batch {batch_num} are empty, using zero embeddings")
                 batch_embeddings = [np.zeros(self.embedding_dim, dtype=np.float32) for _ in batch]
             else:
                 try:
+                    # PRAWDZIWY batch - tylko te teksty idą do OpenAI
                     print(f"🧠 Calling OpenAI API for {len(non_empty_texts)} texts...")
                     
                     response = self.client.embeddings.create(
@@ -105,41 +96,100 @@ class OpenAIEmbeddingsClient:
                     
                     print(f"📡 OpenAI API response received")
                     
-                    # Extract embeddings and normalize
+                    # Handle empty texts mapping
                     batch_embeddings = []
                     non_empty_idx = 0
                     
-                    for j in range(len(batch)):
-                        if j in empty_indices:
-                            batch_embeddings.append(np.zeros(self.embedding_dim, dtype=np.float32))
-                        else:
-                            embedding = np.array(
-                                response.data[non_empty_idx].embedding, 
-                                dtype=np.float32
-                            )
-                            
+                    for text in batch:
+                        if text.strip():
+                            embedding = np.array(response.data[non_empty_idx].embedding, dtype=np.float32)
                             # Normalize
                             norm = np.linalg.norm(embedding)
                             if norm > 0:
                                 embedding = embedding / norm
-                            
                             batch_embeddings.append(embedding)
                             non_empty_idx += 1
+                        else:
+                            batch_embeddings.append(np.zeros(self.embedding_dim, dtype=np.float32))
                     
                     print(f"✅ Batch {batch_num} processed successfully")
-                
+                    
                 except Exception as e:
-                    print(f"❌ OpenAI batch embeddings failed: {e}")
-                    logger.error(f"❌ OpenAI batch embeddings failed: {e}")
-                    raise RuntimeError(f"Sorry, OpenAI embeddings service is down: {e}")
+                    print(f"❌ Batch {batch_num} failed: {e}")
+                    logger.error(f"❌ Batch {batch_num} failed: {e}")
+                    raise RuntimeError(f"OpenAI embeddings batch failed: {e}")
             
-            embeddings.extend(batch_embeddings)
+            all_embeddings.extend(batch_embeddings)
             
             if total_batches > 1:
-                print(f"📊 Progress: {len(embeddings)}/{len(texts)} embeddings generated")
+                print(f"📊 Progress: {len(all_embeddings)}/{len(texts)} embeddings generated")
         
-        print(f"🎉 Batch embedding complete: {len(embeddings)} embeddings generated")
-        return embeddings
+        print(f"🎉 TRUE batch embedding complete: {len(all_embeddings)} embeddings generated")
+        return all_embeddings
+    
+    def embed_batch_with_cache(self, texts: List[str], cache, batch_size: int = 10) -> List[np.ndarray]:
+        """Batching z sprawdzaniem cache - tylko brakujące teksty idą do OpenAI"""
+        if not texts:
+            return []
+        
+        print(f"🔍 Checking cache for {len(texts)} texts...")
+        
+        # 1. Sprawdź cache dla wszystkich tekstów
+        text_hashes = [self.get_text_hash(text) for text in texts]
+        cached_results = cache.get_batch(text_hashes)
+        
+        # 2. Znajdź teksty które trzeba wygenerować
+        texts_to_generate = []
+        texts_to_generate_hashes = []
+        hash_to_index = {}
+        
+        for i, (text, text_hash) in enumerate(zip(texts, text_hashes)):
+            if cached_results[text_hash] is None:
+                hash_to_index[text_hash] = len(texts_to_generate)
+                texts_to_generate.append(text)
+                texts_to_generate_hashes.append(text_hash)
+        
+        print(f"💾 Cache: {len(texts) - len(texts_to_generate)} hits, {len(texts_to_generate)} misses")
+        
+        # 3. Wygeneruj brakujące embeddings (batching po 10 + cache po każdym batchu)
+        new_embeddings = []
+        if texts_to_generate:
+            total_batches = (len(texts_to_generate) - 1) // batch_size + 1
+            
+            for i in range(0, len(texts_to_generate), batch_size):
+                batch_texts = texts_to_generate[i:i + batch_size]
+                batch_hashes = texts_to_generate_hashes[i:i + batch_size]
+                batch_num = i // batch_size + 1
+                
+                print(f"📦 Processing batch {batch_num}/{total_batches}: {len(batch_texts)} texts")
+                
+                # Wygeneruj embeddings dla tego batcha
+                batch_embeddings = self.embed_batch(batch_texts, batch_size=len(batch_texts))
+                new_embeddings.extend(batch_embeddings)
+                
+                # ZAPISZ CACHE PO KAŻDYM BATCHU
+                cache_data = {}
+                for j, (text, text_hash) in enumerate(zip(batch_texts, batch_hashes)):
+                    text_preview = text[:50] + "..." if len(text) > 50 else text
+                    cache_data[text_hash] = (batch_embeddings[j], text_preview)
+                
+                cache.put_batch(cache_data)
+                print(f"💾 Cache saved for batch {batch_num} ({len(cache_data)} embeddings)")
+        
+        # 4. Połącz wyniki: cache + nowe
+        final_embeddings = []
+        new_embedding_index = 0
+        
+        for text, text_hash in zip(texts, text_hashes):
+            cached = cached_results[text_hash]
+            if cached is not None:
+                final_embeddings.append(cached)
+            else:
+                final_embeddings.append(new_embeddings[new_embedding_index])
+                new_embedding_index += 1
+        
+        print(f"🎉 Batch with cache complete: {len(final_embeddings)} embeddings returned")
+        return final_embeddings
     
     def compute_similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:
         if embedding1 is None or embedding2 is None:
@@ -170,7 +220,7 @@ class OpenAIEmbeddingsClient:
             "model": self.model,
             "embedding_dim": self.embedding_dim,
             "provider": "openai",
-            "max_batch_size": 2048
+            "max_batch_size": 10
         }
         print(f"ℹ️ Model info: {info}")
         return info

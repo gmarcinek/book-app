@@ -26,9 +26,25 @@ class PercentileChunker(SemanticChunkingStrategy):
         percentile = self._get_domain_percentile(domains)
         
         # Split into sentences
-        sentences = [s.strip() for s in text.split('. ') if s.strip()]
-        if sentences and not sentences[-1].endswith('.'):
-            sentences[-1] += '.'  # Fix last sentence
+        raw_sentences = [s.strip() for s in text.split('. ') if s.strip()]
+        if raw_sentences and not raw_sentences[-1].endswith('.'):
+            raw_sentences[-1] += '.'  # Fix last sentence
+        
+        # UTNIJ DŁUGIE "ZDANIA" DO 500 ZNAKÓW
+        MAX_SENTENCE_LENGTH = 500
+        sentences = []
+        cut_count = 0
+        
+        for sentence in raw_sentences:
+            if len(sentence) > MAX_SENTENCE_LENGTH:
+                cut_sentence = sentence[:MAX_SENTENCE_LENGTH] + "..."
+                sentences.append(cut_sentence)
+                cut_count += 1
+            else:
+                sentences.append(sentence)
+        
+        if cut_count > 0:
+            print(f"✂️ Cut {cut_count} sentences to {MAX_SENTENCE_LENGTH} chars (probably index/metadata)")
         
         if len(sentences) < 2:
             # Too few sentences, return as single chunk
@@ -80,17 +96,20 @@ class PercentileChunker(SemanticChunkingStrategy):
         return self.config.percentile
     
     def _find_percentile_boundaries(self, sentences: List[str], percentile: float) -> List[int]:
-        # Find chunk boundaries using percentile analysis with OpenAI embeddings
+        # Find chunk boundaries using percentile analysis with OpenAI embeddings + cache
         if len(sentences) < 2:
             return []
         
-        print(f"🧠 Generating embeddings for {len(sentences)} sentences...")
-        client = self._load_embeddings_client()  # ← FIXED: use correct method name
+        print(f"🧠 Generating embeddings for {len(sentences)} sentences with cache...")
         
-        # Generate embeddings for all sentences using batch API
-        print(f"🧠 Batch processing {len(sentences)} sentences...")
-        embeddings = client.embed_batch(sentences)  # ← FIXED: use OpenAI client
-        print(f"✅ Batch complete!")
+        # Load client and cache
+        client = self._load_embeddings_client()
+        cache = self._load_cache()
+        
+        # Generate embeddings using batch with cache
+        embeddings = client.embed_batch_with_cache(sentences, cache, batch_size=10)
+        
+        print(f"✅ All {len(sentences)} embeddings ready!")
         
         # Calculate similarities between consecutive sentences
         similarities = []
@@ -119,6 +138,11 @@ class PercentileChunker(SemanticChunkingStrategy):
                     boundaries.append(boundary_idx)
         
         return boundaries
+    
+    def _load_cache(self):
+        """Load embeddings cache"""
+        from llm.embeddings_cache import EmbeddingsCache
+        return EmbeddingsCache(model=self.config.model_name)
     
     def _should_add_boundary(self, sentences: List[str], existing_boundaries: List[int], 
                            new_boundary: int) -> bool:
@@ -149,11 +173,12 @@ class PercentileChunker(SemanticChunkingStrategy):
         # Return information about this strategy
         return {
             "name": "percentile",
-            "description": "Global percentile-based semantic chunking with OpenAI embeddings",
+            "description": "Global percentile-based semantic chunking with OpenAI embeddings + cache",
             "memory_efficient": True,  # API-based, minimal local RAM
             "streaming_capable": False,
             "domain_tunable": True,
             "percentile": self.config.percentile,
             "adaptive": True,
-            "embedding_model": self.config.model_name
+            "embedding_model": self.config.model_name,
+            "caching": True
         }

@@ -134,7 +134,7 @@ class EntityEmbedder:
        
        return embedding
    
-   def _prepare_chunk_text(self, text: str, max_length: int = 1000) -> str:
+   def _prepare_chunk_text(self, text: str, max_length: int = 500) -> str:
        # Prepare chunk text for embedding (handle long texts)
        if len(text) <= max_length:
            return text.strip()
