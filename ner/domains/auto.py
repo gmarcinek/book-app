@@ -79,7 +79,7 @@ ZWRÓĆ TYLKO JSON:
             
             # Validate domains
             valid_domains = []
-            available_domains = ["literary", "simple"]
+            available_domains = ["literary", "simple", "owu"]
             
             for domain in domains:
                 if isinstance(domain, str) and domain in available_domains:

@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from ..utils import log_memory_usage, validate_text_content, safe_filename
-from ..config import NERConfig, create_default_ner_config
+from ..config import ChunkingStrategy, NERConfig, create_default_ner_config
 from llm.models import Models, get_model_input_limit
 from .base import TextChunk
 
@@ -136,16 +136,25 @@ class TextChunker:
         from .models import create_semantic_config
         print(f"🕐 {datetime.now()}: Config created")
         
-        from .percentile_strategy import PercentileChunker
-        print(f"🕐 {datetime.now()}: Strategies imported")
-        
         domain_name = self.domains[0].config.name if self.domains else "auto"
         semantic_config = create_semantic_config(domain_name)
         print(f"🔍 DEBUG: domain_name='{domain_name}', strategy='{semantic_config.strategy.value}'")
         print(f"🕐 {datetime.now()}: Domain config: {domain_name}")
         
-        chunker = PercentileChunker(semantic_config)
-        print(f"🕐 {datetime.now()}: Chunker created")
+        if semantic_config.strategy == ChunkingStrategy.HIERARCHICAL:
+            from .hierarchical_strategy import HierarchicalChunker
+            print(f"🕐 {datetime.now()}: Hierarchical strategy imported")
+            
+            chunker = HierarchicalChunker(semantic_config)
+            chunker.llm_model = self.model_name  # ← DODAĆ
+            print(f"🤖 HIERARCHICAL: Using model {self.model_name}")
+            print(f"🕐 {datetime.now()}: Hierarchical chunker created")
+        else:
+            from .percentile_strategy import PercentileChunker
+            print(f"🕐 {datetime.now()}: Percentile strategy imported")
+            
+            chunker = PercentileChunker(semantic_config)
+            print(f"🕐 {datetime.now()}: Percentile chunker created")
         
         chunks = chunker.chunk(text, self.domains)
         print(f"🕐 {datetime.now()}: Chunking complete")

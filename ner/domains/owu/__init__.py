@@ -1,5 +1,5 @@
-from .owu import OWUNER
+from .owu import OwuNER
 
 __all__ = [
-    'OWUNER',
+    'OwuNER',
 ]

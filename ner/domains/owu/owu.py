@@ -1,10 +1,10 @@
 from typing import List
 
 from .owu_consts import OWU_ENTITY_TYPES, format_owu_entity_types
-from ner.entity_config import DEFAULT_CONFIDENCE_THRESHOLDS
+from ...entity_config import DEFAULT_CONFIDENCE_THRESHOLDS
 from ..base import BaseNER, DomainConfig
 
-class OWUNER(BaseNER):
+class OwuNER(BaseNER):
     def __init__(self):
         config = DomainConfig(
             name="owu",

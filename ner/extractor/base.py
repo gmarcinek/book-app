@@ -91,7 +91,7 @@ class EntityExtractor:
         self.entity_linker = EntityLinker(self.semantic_store)
         
         # Stats
-        available_domains = ["literary", "simple"] if domain_names == ["auto"] else domain_names
+        available_domains = ["literary", "simple", "owu"] if domain_names == ["auto"] else domain_names
        
         self.extraction_stats = {
             "chunks_processed": 0,

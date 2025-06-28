@@ -1,6 +1,6 @@
 from typing import List
 
-from .owu import OWUNER
+from .owu import OwuNER
 from .base import BaseNER
 from .literary import LiteraryNER
 from .simple import SimpleNER
@@ -18,7 +18,7 @@ class DomainFactory:
             elif name == "simple":
                 domains.append(SimpleNER())
             elif name == "owu":
-                domains.append(OWUNER())
+                domains.append(OwuNER())
             else:
                 raise ValueError(f"Unknown domain: '{name}'. Available domains: {DomainFactory.get_available_domains()}")
         
@@ -26,4 +26,4 @@ class DomainFactory:
     
     @staticmethod
     def get_available_domains() -> List[str]:
-        return ["literary", "simple"]
+        return ["literary", "simple", "owu"]
