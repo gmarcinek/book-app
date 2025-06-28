@@ -3,10 +3,11 @@
 """
 NER Text Chunker - Intelligent text splitting with model-aware sizing
 Memory-efficient chunking for large documents with automatic chunk size calculation
-Enhanced with document metadata propagation
+Enhanced with document metadata propagation and txt logging
 """
 import json
 from datetime import datetime
+from pathlib import Path
 
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
@@ -26,6 +27,7 @@ class TextChunker:
     - Smart boundary detection (sentences, paragraphs)
     - Semantic chunking support
     - Document metadata propagation to chunks
+    - Txt logging for semantic chunks
     """
     
     def __init__(self, 
@@ -59,8 +61,6 @@ class TextChunker:
         
         # Use config overlap or calculate based on chunk size
         self.overlap_size = self.config.get_chunk_overlap()
-        if self.overlap_size <= 0:
-            self.overlap_size = min(400, self.chunk_size // 10)  # 10% or 400, whichever smaller
         
         self.max_iterations = self.config.get_max_iterations()
         
@@ -161,6 +161,10 @@ class TextChunker:
         
         # Enhance chunks with document metadata
         enhanced_chunks = self._enhance_chunks_with_metadata(chunks)
+        
+        # Log chunks to txt files
+        self._log_chunks_to_txt(enhanced_chunks)
+        
         return enhanced_chunks
     
     def _model_aware_chunk_text(self, text: str, smart_boundaries: bool) -> List[TextChunk]:
@@ -251,6 +255,32 @@ class TextChunker:
             enhanced_chunks.append(chunk)
         
         return enhanced_chunks
+    
+    def _log_chunks_to_txt(self, chunks: List[TextChunk]) -> None:
+        """Log chunks as separate txt files for analysis"""
+        if not chunks or self.chunking_mode != "semantic":
+            return
+        
+        try:
+            # Create base logs directory
+            logs_dir = Path("semantic_store/logs/document_chunks")
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Create document-specific folder
+            doc_name = safe_filename(Path(self.document_source).stem, max_length=30)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            doc_folder = logs_dir / f"{doc_name}_{timestamp}"
+            doc_folder.mkdir(exist_ok=True)
+            
+            # Save each chunk as separate txt file
+            for chunk in chunks:
+                chunk_file = doc_folder / f"chunk_{chunk.id:03d}.txt"
+                chunk_file.write_text(chunk.text, encoding='utf-8')
+            
+            print(f"📁 Saved {len(chunks)} chunks to {doc_folder}")
+            
+        except Exception as e:
+            print(f"⚠️ Failed to log chunks: {e}")
     
     def _find_smart_boundary(self, text: str, start: int, proposed_end: int) -> int:
         """
@@ -356,42 +386,3 @@ class TextChunker:
             return chunk1.text[overlap_start - chunk1.start:overlap_end - chunk1.start]
         
         return None
-
-    def _log_chunks(self, chunks: List[TextChunk], strategy_name: str = "unknown"):
-        """Save chunks to log folder for debugging with enhanced metadata"""
-        if hasattr(self, "aggregator") and hasattr(self.aggregator, "log_dir"):
-            timestamp = datetime.now().strftime("%H%M%S")
-            file_name = f"chunks_{strategy_name}_{timestamp}.json"
-            log_path = self.aggregator.log_dir / file_name
-            
-            chunks_data = {
-                "strategy": strategy_name,
-                "total_chunks": len(chunks),
-                "chunking_mode": self.chunking_mode,
-                "document_source": self.document_source,
-                "model_used": self.model_name,
-                "chunks": [self.chunk_to_dict(chunk) for chunk in chunks]
-            }
-            
-            log_path.write_text(json.dumps(chunks_data, indent=2, ensure_ascii=False), encoding="utf-8")
-            print(f"📝 Saved {len(chunks)} chunks to {file_name}")
-    
-    def _save_chunks_debug(self, chunks: List[TextChunk], original_text: str):
-        """Save chunks to debug files immediately after creation"""
-        try:
-            doc_name = safe_filename(Path(self.document_source).stem, max_length=30)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
-            # Save each chunk
-            for chunk in chunks:
-                chunk_path = self.debug_dir / f"{doc_name}_chunk_{chunk.id:03d}_{timestamp}.txt"
-                chunk_path.write_text(f"=== CHUNK {chunk.id} ({chunk.start}-{chunk.end}) ===\n{chunk.text}", encoding='utf-8')
-            
-            # Save metadata
-            metadata = {"total_chunks": len(chunks), "original_length": len(original_text), "strategy": self.chunking_mode}
-            metadata_path = self.debug_dir / f"{doc_name}_metadata_{timestamp}.json"
-            metadata_path.write_text(json.dumps(metadata, indent=2), encoding='utf-8')
-            
-            print(f"📁 DEBUG: Saved {len(chunks)} chunks to {self.debug_dir}")
-        except Exception as e:
-            print(f"⚠️ Failed to save debug chunks: {e}")
