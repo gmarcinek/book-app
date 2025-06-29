@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from .models import ModelProvider
 
@@ -18,11 +18,11 @@ class LLMConfig:
 
 
 class BaseLLMClient(ABC):
-    """Abstrakcyjna klasa bazowa dla clientów LLM"""
+    """Abstrakcyjna klasa bazowa dla clientów LLM z vision support"""
     
     @abstractmethod
-    def chat(self, prompt: str, config: LLMConfig) -> str:
-        """Wyślij prompt i otrzymaj odpowiedź"""
+    def chat(self, prompt: str, config: LLMConfig, images: Optional[List[str]] = None) -> str:
+        """Wyślij prompt i otrzymaj odpowiedź (z opcjonalnymi obrazkami)"""
         pass
     
     @abstractmethod

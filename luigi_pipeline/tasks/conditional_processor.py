@@ -5,14 +5,16 @@ from datetime import datetime
 
 from .preprocessing.file_router import FileRouter
 from .preprocessing.text_processing import TextPreprocessing
-from .preprocessing.pdf_processing import PDFProcessing
+from .preprocessing.llm_markdown_processor import LLMMarkdownProcessor
 
 
 class ConditionalProcessor(luigi.Task):
     """
     Conditional orchestrator that dynamically chooses processing strategy
     
-    Reads FileRouter decision and runs appropriate processing task
+    Reads FileRouter decision and runs appropriate processing chain:
+    - text_processing: TextPreprocessing
+    - pdf_processing: PDFProcessing → LLMMarkdownProcessor (chain)
     """
     file_path = luigi.Parameter()
     
@@ -28,15 +30,15 @@ class ConditionalProcessor(luigi.Task):
         with self.input().open('r') as f:
             strategy = f.read().strip()
         
-        # Create appropriate task
+        # Create appropriate task chain
         if strategy == "text_processing":
             next_task = TextPreprocessing(file_path=self.file_path)
         elif strategy == "pdf_processing":
-            next_task = PDFProcessing(file_path=self.file_path)
+            next_task = LLMMarkdownProcessor(file_path=self.file_path)  # PDF → LLM chain
         else:
             raise ValueError(f"Unknown strategy: {strategy}")
         
-        # Run the chosen task
+        # Run the chosen task (Luigi will auto-run dependencies)
         yield next_task
         
         # Read the result and create our output

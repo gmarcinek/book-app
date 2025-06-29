@@ -1,4 +1,5 @@
 import os
+from typing import Optional, List
 
 from anthropic import Anthropic
 
@@ -46,19 +47,37 @@ class AnthropicClient(BaseLLMClient):
         """Zwróć rzeczywistą nazwę modelu dla API"""
         return self.MODEL_MAPPING.get(self.model, self.model)
     
-    def chat(self, prompt: str, config: LLMConfig) -> str:
-        """Wyślij prompt do Claude 4 - optimized for mega scenarios"""
+    def chat(self, prompt: str, config: LLMConfig, images: Optional[List[str]] = None) -> str:
+        """Wyślij prompt do Claude 4 (text lub vision)"""
         try:
             api_model = self._get_api_model_name()
             
             # Handle None max_tokens with model-specific fallback
             max_tokens = config.max_tokens or MODEL_MAX_TOKENS[self.model]
             
+            # Przygotuj messages
+            if images:
+                # Vision mode - Claude format z obrazkami
+                content = [{"type": "text", "text": prompt}]
+                for image_base64 in images:
+                    content.append({
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": image_base64
+                        }
+                    })
+                messages = [{"role": "user", "content": content}]
+            else:
+                # Text-only mode
+                messages = [{"role": "user", "content": prompt}]
+            
             # Przygotuj parametry - Claude 4 lubi duże limity
             params = {
                 "model": api_model,
                 "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": messages,
                 "temperature": config.temperature,
                 "timeout": 600.0,  # 10 minut timeout
                 "stream": False    # Explicit non-streaming

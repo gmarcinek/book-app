@@ -1,7 +1,6 @@
 import luigi
 import json
 import hashlib
-import base64
 from datetime import datetime
 
 from llm import LLMClient, LLMConfig, Models
@@ -16,7 +15,7 @@ class LLMMarkdownProcessor(luigi.Task):
     with special attention to table structure preservation
     """
     file_path = luigi.Parameter()
-    model = luigi.Parameter(default=Models.QWEN_CODER)  # Ollama LLaVA fallback
+    model = luigi.Parameter(default=Models.LLAMA_VISION_11B)
     
     def requires(self):
         return PDFProcessing(file_path=self.file_path)
@@ -53,7 +52,7 @@ class LLMMarkdownProcessor(luigi.Task):
                     "page_num": page["page_num"],
                     "markdown": markdown_content,
                     "original_text_length": page["text_length"],
-                    "has_tables": "table" in markdown_content.lower() or "|" in markdown_content
+                    "has_tables": self._detect_tables(markdown_content)
                 })
                 
             except Exception as e:
@@ -84,22 +83,14 @@ class LLMMarkdownProcessor(luigi.Task):
             json.dump(output_data, f, indent=2, ensure_ascii=False)
     
     def _process_page_to_markdown(self, page, llm_client, config):
-        """Convert single page (image + text) to Markdown using LLM"""
+        """Convert single page (image + text) to Markdown using LLM Vision"""
         
         # Prepare prompt for vision model
         prompt = self._build_markdown_conversion_prompt(page)
         
-        # For vision-capable models, we need to handle image data
-        # Note: This is a simplified approach - actual implementation 
-        # would depend on the specific model's image input format
-        
-        if self._is_vision_model(self.model):
-            # TODO: Implement vision model call with image
-            # For now, fallback to text-only processing
-            response = llm_client.chat(prompt, config)
-        else:
-            # Text-only model fallback
-            response = llm_client.chat(prompt, config)
+        # Vision call - images jako lista base64
+        images = [page["image_base64"]]
+        response = llm_client.chat(prompt, config, images=images)
         
         # Clean and validate markdown
         markdown = self._clean_markdown_response(response)
@@ -113,35 +104,24 @@ class LLMMarkdownProcessor(luigi.Task):
         
         prompt = f"""Convert this PDF page to clean Markdown format.
 
-PAGE {page_num} CONTENT:
+PAGE {page_num} CONTENT (text extracted from PDF):
 {extracted_text}
 
 INSTRUCTIONS:
 - Create clean, well-structured Markdown
 - Pay special attention to preserving TABLE STRUCTURE
 - Use proper Markdown table syntax: | Column 1 | Column 2 |
-- If you see tabular data, format it as proper Markdown tables
+- If you see tabular data in the image, format it as proper Markdown tables
 - Use appropriate headers (# ## ###) for document structure
 - Preserve lists, bullet points, and formatting
 - Remove page numbers, headers, footers if not content-relevant
 - If the page contains mostly tabular data, ensure tables are properly formatted
 
-IMPORTANT: Focus on accuracy and readability. Tables are critical to preserve correctly.
+IMPORTANT: Look at both the extracted text AND the image. The image shows the visual layout which is crucial for understanding table structure.
 
 Return ONLY the Markdown content, no explanations or meta-commentary."""
 
         return prompt
-    
-    def _is_vision_model(self, model):
-        """Check if model supports vision (simplified check)"""
-        vision_models = [
-            Models.GPT_4O,
-            Models.GPT_4O_MINI,
-            Models.GPT_4_1_MINI,
-            Models.GPT_4_1_NANO,
-            # Add Ollama LLaVA models when implemented
-        ]
-        return model in vision_models
     
     def _clean_markdown_response(self, response):
         """Clean and validate Markdown response"""
@@ -170,3 +150,7 @@ Return ONLY the Markdown content, no explanations or meta-commentary."""
             return "# Page Content\n\n[No content could be extracted]"
         
         return markdown
+    
+    def _detect_tables(self, markdown_content):
+        """Detect if markdown contains tables"""
+        return "|" in markdown_content and "---" in markdown_content

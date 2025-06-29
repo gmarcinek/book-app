@@ -1,4 +1,5 @@
 import os
+from typing import Optional, List
 
 from openai import OpenAI
 
@@ -15,17 +16,31 @@ class OpenAIClient(BaseLLMClient):
         if not os.getenv("OPENAI_API_KEY"):
             raise RuntimeError("Brak zmiennej środowiskowej OPENAI_API_KEY")
     
-    def chat(self, prompt: str, config: LLMConfig) -> str:
-        """Wyślij prompt do OpenAI"""
+    def chat(self, prompt: str, config: LLMConfig, images: Optional[List[str]] = None) -> str:
+        """Wyślij prompt do OpenAI (text lub vision)"""
         try:
             # Handle None max_tokens with model-specific fallback
             max_tokens = config.max_tokens or MODEL_MAX_TOKENS[self.model]
             
             # Przygotuj messages
-            messages = []
+            if images:
+                # Vision mode - OpenAI format
+                content = [{"type": "text", "text": prompt}]
+                for image_base64 in images:
+                    content.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{image_base64}"
+                        }
+                    })
+                messages = [{"role": "user", "content": content}]
+            else:
+                # Text-only mode
+                messages = [{"role": "user", "content": prompt}]
+            
+            # Dodaj system message jeśli istnieje
             if config.system_message:
-                messages.append({"role": "system", "content": config.system_message})
-            messages.append({"role": "user", "content": prompt})
+                messages.insert(0, {"role": "system", "content": config.system_message})
             
             # Przygotuj parametry
             params = {
@@ -37,7 +52,6 @@ class OpenAIClient(BaseLLMClient):
             
             # Dodaj dodatkowe parametry
             if config.extra_params:
-                # OpenAI obsługuje różne parametry
                 supported_params = ['top_p', 'frequency_penalty', 'presence_penalty', 'stop', 'seed']
                 for key, value in config.extra_params.items():
                     if key in supported_params:

@@ -1,12 +1,12 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from .base import LLMConfig, BaseLLMClient
-from .models import ModelProvider, MODEL_PROVIDERS, MODEL_MAX_TOKENS
+from .models import ModelProvider, MODEL_PROVIDERS, MODEL_MAX_TOKENS, VISION_MODELS
 from .openai_client import OpenAIClient
 from .anthropic_client import AnthropicClient
 from .ollama_client import OllamaClient
 
 class LLMClient:
-    """Minimalistyczny adapter zarządzający różnymi providerami LLM"""
+    """Minimalistyczny adapter zarządzający różnymi providerami LLM z vision support"""
     
     def __init__(self, model: str, max_tokens: Optional[int] = None, temperature: float = 0.0, system_message: Optional[str] = None):
         """
@@ -48,25 +48,36 @@ class LLMClient:
         else:
             raise ValueError(f"Nieobsługiwany provider: {self.provider}")
     
-    def chat(self, prompt: str, config: Optional[LLMConfig] = None) -> str:
+    def chat(self, prompt: str, config: Optional[LLMConfig] = None, images: List[str] = None) -> str:
         """
-        Wyślij prompt do modelu
+        Wyślij prompt do modelu (z opcjonalnymi obrazkami)
         
         Args:
             prompt: Tekst zapytania
             config: Opcjonalna konfiguracja (nadpisuje domyślną)
+            images: Lista base64 obrazków (dla vision models)
         """
         use_config = config if config else self.config
         
         # LOG REQUEST
         self._log_llm_request(prompt, use_config)
         
-        response = self.client.chat(prompt, use_config)
+        # Vision vs text routing
+        if images:
+            if not self._supports_vision():
+                raise ValueError(f"Model {self.model} doesn't support vision")
+            response = self.client.chat(prompt, use_config, images)  # Unified method
+        else:
+            response = self.client.chat(prompt, use_config)
         
         # LOG RESPONSE  
         self._log_llm_response(prompt, response, use_config)
         
         return response
+    
+    def _supports_vision(self) -> bool:
+        """Check if current model supports vision"""
+        return self.model in VISION_MODELS
     
     def get_max_tokens_for_model(self) -> int:
         """Zwróć maksymalną liczbę tokenów dla bieżącego modelu"""
@@ -78,6 +89,7 @@ class LLMClient:
             "model": self.model,
             "provider": self.provider.value,
             "max_tokens_available": MODEL_MAX_TOKENS[self.model],
+            "supports_vision": self._supports_vision(),
             "current_config": {
                 "max_tokens": self.config.max_tokens,
                 "temperature": self.config.temperature,

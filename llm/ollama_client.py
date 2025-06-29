@@ -1,11 +1,12 @@
 import requests
 import json
+from typing import List, Optional
 
 from .base import BaseLLMClient, LLMConfig
 from .models import ModelProvider, MODEL_MAX_TOKENS
 
 class OllamaClient(BaseLLMClient):
-    """Klient dla lokalnych coding models - zero kosztów, maksymalna wydajność"""
+    """Klient dla lokalnych models - text + vision w jednym API"""
     
     def __init__(self, model: str, base_url: str = "http://localhost:11434"):
         self.model = model
@@ -19,19 +20,24 @@ class OllamaClient(BaseLLMClient):
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"Nie można połączyć z Ollama: {e}")
     
-    def chat(self, prompt: str, config: LLMConfig) -> str:
-        """Wyślij prompt do lokalnego coding model"""
+    def chat(self, prompt: str, config: LLMConfig, images: Optional[List[str]] = None) -> str:
+        """Wyślij prompt do modelu (text lub vision - auto detect)"""
         try:
             # Handle None max_tokens with model-specific fallback
-            max_tokens = config.max_tokens or MODEL_MAX_TOKENS[self.model]
+            max_tokens = config.max_tokens or MODEL_MAX_TOKENS.get(self.model, 32768)
             
             # Przygotuj messages
             messages = []
             if config.system_message:
                 messages.append({"role": "system", "content": config.system_message})
-            messages.append({"role": "user", "content": prompt})
             
-            # Przygotuj parametry - optimized for coding
+            # User message z opcjonalnymi obrazkami
+            user_message = {"role": "user", "content": prompt}
+            if images:  # Ollama auto-detect vision gdy images present
+                user_message["images"] = images
+            messages.append(user_message)
+            
+            # Przygotuj payload - ten sam dla text i vision
             payload = {
                 "model": self.model,
                 "messages": messages,
@@ -39,24 +45,25 @@ class OllamaClient(BaseLLMClient):
                 "options": {
                     "temperature": config.temperature,
                     "num_predict": max_tokens,
-                    # Coding-specific optimizations
-                    "repeat_penalty": 1.1,  # unikaj powtórzeń w kodzie
-                    "top_p": 0.9,           # zachowaj kreatywność ale z kontrolą
+                    "repeat_penalty": 1.1,
+                    "top_p": 0.9,
                 }
             }
             
             # Dodaj dodatkowe parametry
             if config.extra_params:
-                # Ollama obsługuje różne parametry w "options"
                 supported_params = ['top_p', 'top_k', 'repeat_penalty', 'seed', 'num_ctx']
                 for key, value in config.extra_params.items():
                     if key in supported_params:
                         payload["options"][key] = value
             
+            # Timeout: dłuższy dla vision
+            timeout = 600 if images else 300
+            
             response = requests.post(
                 f"{self.base_url}/api/chat",
                 json=payload,
-                timeout=300  # 5 minut timeout dla dużych modeli i długiego kodu
+                timeout=timeout
             )
             
             if response.status_code != 200:
@@ -83,7 +90,7 @@ class OllamaClient(BaseLLMClient):
         return ModelProvider.OLLAMA
     
     def list_models(self) -> list:
-        """Lista dostępnych modeli w Ollama - przydatne do sprawdzenia co mamy"""
+        """Lista dostępnych modeli w Ollama"""
         try:
             response = requests.get(f"{self.base_url}/api/tags")
             if response.status_code == 200:
@@ -94,7 +101,7 @@ class OllamaClient(BaseLLMClient):
             return []
     
     def pull_model(self, model_name: str = None) -> bool:
-        """Pobierz model jeśli nie istnieje - auto-pull bieżącego modelu"""
+        """Pobierz model jeśli nie istnieje"""
         try:
             target_model = model_name or self.model
             payload = {"name": target_model}
