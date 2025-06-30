@@ -1,3 +1,4 @@
+# PLIK: llm/models.py
 from enum import Enum
 
 class ModelProvider(Enum):
@@ -53,7 +54,7 @@ MODEL_PROVIDERS = {
     Models.LLAMA_VISION_90B: ModelProvider.OLLAMA,
 }
 
-# Vision models mapping
+# Vision models mapping - FIXED: Added Claude models
 VISION_MODELS = {
     # Ollama vision
     Models.LLAMA_VISION_11B: ModelProvider.OLLAMA,
@@ -62,6 +63,13 @@ VISION_MODELS = {
     # OpenAI vision
     Models.GPT_4O: ModelProvider.OPENAI,
     Models.GPT_4O_MINI: ModelProvider.OPENAI,
+    
+    # Anthropic vision - ADDED: All Claude models support vision
+    Models.CLAUDE_4_SONNET: ModelProvider.ANTHROPIC,
+    Models.CLAUDE_4_OPUS: ModelProvider.ANTHROPIC,
+    Models.CLAUDE_3_5_SONNET: ModelProvider.ANTHROPIC,
+    Models.CLAUDE_3_5_HAIKU: ModelProvider.ANTHROPIC,
+    Models.CLAUDE_3_HAIKU: ModelProvider.ANTHROPIC,
 }
 
 # Maksymalne limity OUTPUT tokenów
@@ -77,7 +85,7 @@ MODEL_MAX_TOKENS = {
     Models.CLAUDE_4_OPUS: 32000,
     Models.CLAUDE_3_5_SONNET: 8192,
     Models.CLAUDE_3_5_HAIKU: 8192,
-    Models.CLAUDE_3_HAIKU: 8192,
+    Models.CLAUDE_3_HAIKU: 4096,        # FIXED: Claude 3 Haiku ma limit 4096!
     
     # Ollama text
     Models.QWEN_CODER: 32768,

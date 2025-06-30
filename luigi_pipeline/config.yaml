@@ -1,35 +1,29 @@
-# Luigi Pipeline Configuration
-# Simple YAML config for all preprocessing tasks
+# PLIK: luigi_pipeline/config.yaml
 
-# LLM Markdown Processor settings
 LLMMarkdownProcessor:
-  model: "gpt-4o-mini"
-  temperature: 0.0
-  # max_tokens: auto-calculated from llm.models
+  model: "claude-3.5-haiku"
+  max_concurrent: 5 # NEW: sliding window size
+  retry_failed_pages: true
+  rate_limit_backoff: 20.0
 
-# PDF Processing settings
 PDFProcessing:
   extract_images: true
   extract_tables: true
 
-# Markdown Combiner settings
 MarkdownCombiner:
   save_individual_pages: true
   save_combined_file: true
   output_dir: "output"
 
-# File Router settings
 FileRouter:
   supported_pdf_extensions: [".pdf"]
   supported_text_extensions: [".txt", ".md"]
 
-# Provider-specific delays
 provider_delays:
   ollama: 3.0
   openai: 0.0
   anthropic: 0.5
 
-# Performance settings
 performance:
-  processing_timeout: 600 # seconds
+  processing_timeout: 600
   retry_attempts: 3

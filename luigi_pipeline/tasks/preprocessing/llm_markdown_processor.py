@@ -1,25 +1,31 @@
+# PLIK: luigi_pipeline/tasks/preprocessing/llm_markdown_processor.py
 import luigi
 import json
 import hashlib
 import time
+import asyncio
 from datetime import datetime
 from pathlib import Path
+from typing import List, Dict
+from asyncio import Semaphore
 
 from llm import LLMClient, LLMConfig
 from luigi_pipeline.config import load_config
 from .pdf_processing import PDFProcessing
+from .sliding_window_page_task import SlidingWindowPageTask
 
 
 class LLMMarkdownProcessor(luigi.Task):
     """
-    Converts PDF pages to Markdown using LLM Vision models
+    Sliding Window Coordinator dla parallel processing stron
     
-    Processes each page (image + text) and generates clean Markdown,
-    with special attention to table structure preservation
-    Enhanced with progress logging and intermediate saves
+    IMPROVED: Sliding window instead of batches
+    - Max N concurrent pages at any time
+    - Continuous flow as pages complete
+    - Better throughput, handles slow pages
     """
     file_path = luigi.Parameter()
-    preset = luigi.Parameter(default="default")  # default, fast, quality
+    preset = luigi.Parameter(default="default")
     
     def requires(self):
         return PDFProcessing(file_path=self.file_path)
@@ -29,14 +35,16 @@ class LLMMarkdownProcessor(luigi.Task):
         return luigi.LocalTarget(f"output/llm_markdown_{file_hash}.json", format=luigi.format.UTF8)
     
     def run(self):
-        # Load YAML configuration
+        # Load configuration
         config = load_config()
         
-        # Get task-specific settings
+        # Get sliding window settings
         model = config.get_task_setting("LLMMarkdownProcessor", "model", "gpt-4o-mini")
-        max_tokens = config.get_max_tokens_for_model(model)  # Auto from llm.models
+        max_tokens = config.get_max_tokens_for_model(model)
         temperature = config.get_task_setting("LLMMarkdownProcessor", "temperature", 0.0)
-        page_delay = config.get_model_delay(model)
+        max_concurrent = config.get_task_setting("LLMMarkdownProcessor", "max_concurrent", 5)  # NEW: sliding window size
+        retry_failed = config.get_task_setting("LLMMarkdownProcessor", "retry_failed_pages", True)
+        rate_limit_backoff = config.get_task_setting("LLMMarkdownProcessor", "rate_limit_backoff", 30.0)
         
         # Load PDF processing results
         with self.input().open('r') as f:
@@ -49,257 +57,165 @@ class LLMMarkdownProcessor(luigi.Task):
         if not pages:
             raise ValueError("No pages found in PDF data")
         
-        print(f"🚀 Starting LLM processing: {len(pages)} pages with {model}")
-        print(f"📊 Config: max_tokens={max_tokens} (from llm.models), temperature={temperature}, delay={page_delay}s")
+        print(f"🚀 SLIDING WINDOW MODE: {len(pages)} pages, max_concurrent={max_concurrent}")
+        print(f"📊 Model: {model}, max_tokens={max_tokens}, temperature={temperature}")
+        print(f"⏱️ Rate limit backoff: {rate_limit_backoff}s")
         
-        # Prepare markdown directory for intermediate saves
+        # Setup markdown directory
         file_hash = hashlib.md5(str(self.file_path).encode()).hexdigest()[:8]
         self.markdown_dir = Path(f"output/markdown_{file_hash}")
         self.markdown_dir.mkdir(exist_ok=True)
         
-        # Initialize LLM client
-        llm_client = LLMClient(model)
+        # Setup LLM config
         llm_config = LLMConfig(temperature=temperature, max_tokens=max_tokens)
         
-        # Process each page with progress tracking
-        markdown_pages = []
-        total_time = 0
+        # Process all pages with sliding window
+        start_time = time.time()
+        all_results = asyncio.run(self._process_pages_sliding_window(
+            pages, model, llm_config, max_concurrent, rate_limit_backoff
+        ))
+        total_time = time.time() - start_time
         
-        for i, page in enumerate(pages):
-            page_num = page["page_num"]
-            print(f"\n🔄 Processing page {page_num}/{len(pages)} ({i+1}/{len(pages)})...")
-            start_time = time.time()
-            
-            try:
-                markdown_content = self._process_page_to_markdown(
-                    page, llm_client, llm_config
-                )
-                
-                elapsed = time.time() - start_time
-                total_time += elapsed
-                avg_time = total_time / (i + 1)
-                remaining_pages = len(pages) - (i + 1)
-                eta_minutes = (avg_time * remaining_pages) / 60
-                
-                print(f"✅ Page {page_num} completed in {elapsed:.1f}s (avg: {avg_time:.1f}s, ETA: {eta_minutes:.1f}min)")
-                
-                # Save individual page immediately (clean content only)
-                save_individual = config.get_task_setting("MarkdownCombiner", "save_individual_pages", True)
-                if save_individual:
-                    self._save_single_page_md(page_num, markdown_content)
-                
-                markdown_pages.append({
-                    "page_num": page_num,
-                    "markdown": markdown_content,
-                    "original_text_length": page["text_length"],
-                    "has_tables": self._detect_tables(markdown_content),
-                    "processing_time_seconds": elapsed
-                })
-                
-                # Provider-specific delay between pages
-                if page_delay > 0 and i < len(pages) - 1:
-                    print(f"😴 Provider delay: {page_delay}s...")
-                    time.sleep(page_delay)
-                
-            except Exception as e:
-                elapsed = time.time() - start_time
-                print(f"❌ Page {page_num} FAILED after {elapsed:.1f}s: {e}")
-                
-                error_markdown = f"[Error processing page: {str(e)}]"
-                save_individual = config.get_task_setting("MarkdownCombiner", "save_individual_pages", True)
-                if save_individual:
-                    self._save_single_page_md(page_num, error_markdown, error=True)
-                
-                markdown_pages.append({
-                    "page_num": page_num,
-                    "markdown": error_markdown,
-                    "original_text_length": page["text_length"],
-                    "has_tables": False,
-                    "error": str(e),
-                    "processing_time_seconds": elapsed
-                })
+        # Retry failed pages if enabled
+        if retry_failed:
+            all_results = self._retry_failed_pages(all_results, model, llm_config)
         
-        print(f"\n🎉 All pages processed! Total time: {total_time/60:.1f} minutes")
-        
-        # Save combined markdown file (clean content only)
-        markdown_file_path = None
-        save_combined = config.get_task_setting("MarkdownCombiner", "save_combined_file", True)
-        if save_combined:
-            markdown_file_path = self._save_combined_markdown_file(markdown_pages)
-        
-        # Create output with enhanced stats
-        success_pages = len([p for p in markdown_pages if "error" not in p])
-        failed_pages = len(markdown_pages) - success_pages
-        save_individual = config.get_task_setting("MarkdownCombiner", "save_individual_pages", True)
+        # Create raw results output
+        success_results = [r for r in all_results if r.get("status") == "success"]
+        failed_results = [r for r in all_results if r.get("status") == "error"]
         
         output_data = {
             "task_name": "LLMMarkdownProcessor",
             "input_file": str(self.file_path),
             "model_used": model,
+            "processing_mode": "sliding_window",
             "config": {
+                "max_concurrent": max_concurrent,
+                "retry_failed_pages": retry_failed,
+                "rate_limit_backoff": rate_limit_backoff,
                 "max_tokens": max_tokens,
-                "temperature": temperature,
-                "page_delay": page_delay
+                "temperature": temperature
             },
             "status": "success",
-            "pages_count": len(markdown_pages),
-            "pages_successful": success_pages,
-            "pages_failed": failed_pages,
-            "pages_with_tables": sum(1 for p in markdown_pages if p.get("has_tables", False)),
-            "total_processing_time_seconds": total_time,
-            "average_time_per_page": total_time / len(pages) if pages else 0,
-            "markdown_file": str(markdown_file_path) if markdown_file_path else None,
+            "batch_results": all_results,
+            "success_results": success_results,
+            "failed_results": failed_results,
+            "statistics": {
+                "total_pages": len(all_results),
+                "successful_pages": len(success_results),
+                "failed_pages": len(failed_results),
+                "success_rate": len(success_results) / len(all_results) if all_results else 0,
+                "pages_with_tables": sum(1 for r in success_results if r.get("has_tables", False)),
+                "total_processing_time_seconds": total_time,
+                "average_time_per_page": total_time / len(all_results) if all_results else 0
+            },
             "markdown_directory": str(self.markdown_dir),
-            "individual_page_files": list(self.markdown_dir.glob("page_*.md")) if save_individual else [],
-            "markdown_pages": markdown_pages,
             "created_at": datetime.now().isoformat()
         }
         
         with self.output().open('w') as f:
-            json.dump(output_data, f, indent=2, ensure_ascii=False, default=str)
+            json.dump(output_data, f, indent=2, ensure_ascii=False)
+        
+        # Print summary
+        print(f"✅ SLIDING WINDOW PROCESSING COMPLETE:")
+        print(f"   📊 {len(success_results)}/{len(all_results)} pages successful")
+        print(f"   ⏱️  Total time: {total_time:.1f}s (avg: {total_time/len(all_results):.1f}s/page)")
+        print(f"   📁 Raw results: {self.output().path}")
+        print(f"   ➡️  Next: Run BatchResultCombinerTask to create combined markdown")
     
-    def _save_single_page_md(self, page_num, markdown_content, error=False):
-        """Save individual page as separate .md file immediately - CLEAN CONTENT ONLY"""
-        try:
-            # Fix escaped newlines
-            if '\\n' in markdown_content:
-                markdown_content = markdown_content.replace('\\n', '\n')
+    async def _process_pages_sliding_window(self, pages: List[Dict], model: str, 
+                                           llm_config: LLMConfig, max_concurrent: int,
+                                           rate_limit_backoff: float) -> List[Dict]:
+        """
+        Sliding window processing - max N concurrent pages at any time
+        
+        Continuous flow: jak jedna strona się kończy, startuje następna
+        """
+        print(f"🌊 Starting sliding window processing with max {max_concurrent} concurrent pages...")
+        
+        # Create semaphore for bounded parallelism
+        semaphore = Semaphore(max_concurrent)
+        
+        # Process page with semaphore limit
+        async def process_page_with_limit(page: Dict, page_index: int):
+            async with semaphore:
+                return await self._process_single_page_async(
+                    page, page_index, model, llm_config, rate_limit_backoff
+                )
+        
+        # Start all pages with sliding window constraint
+        print(f"🚀 Launching {len(pages)} pages into sliding window...")
+        
+        tasks = [
+            process_page_with_limit(page, i) 
+            for i, page in enumerate(pages)
+        ]
+        
+        # Wait for all to complete with continuous progress updates
+        results = []
+        completed = 0
+        
+        for coro in asyncio.as_completed(tasks):
+            result = await coro
+            results.append(result)
+            completed += 1
             
-            # Create filename
-            status = "ERROR" if error else "OK"
-            filename = f"page_{page_num:03d}_{status}.md"
-            page_file_path = self.markdown_dir / filename
-            
-            # Save ONLY the clean content without any headers or metadata
-            page_file_path.write_text(markdown_content, encoding='utf-8')
-            print(f"💾 Saved: {filename}")
-            
-        except Exception as e:
-            print(f"⚠️ Failed to save page {page_num}: {e}")
+            page_num = result.get("page_num", "?")
+            status = "✅" if result.get("status") == "success" else "❌"
+            print(f"{status} Page {page_num} completed ({completed}/{len(pages)})")
+        
+        # Sort results by page number for consistent output
+        results.sort(key=lambda x: x.get("page_num", 0))
+        
+        return results
     
-    def _save_combined_markdown_file(self, markdown_pages):
-        """Save combined markdown to single .md file - CLEAN CONTENT ONLY"""
-        try:
-            source_name = Path(self.file_path).stem
-            markdown_file_path = self.markdown_dir / f"{source_name}_COMBINED.md"
+    async def _process_single_page_async(self, page: Dict, page_index: int, 
+                                        model: str, llm_config: LLMConfig,
+                                        rate_limit_backoff: float) -> Dict:
+        """
+        Async wrapper for single page processing using SlidingWindowPageTask
+        """
+        import asyncio
+        import concurrent.futures
+        
+        def sync_process_page():
+            # Use SlidingWindowPageTask for actual processing
+            page_task = SlidingWindowPageTask(
+                page=page,
+                model=model,
+                llm_config=llm_config,
+                markdown_dir=self.markdown_dir,
+                rate_limit_backoff=rate_limit_backoff
+            )
+            return page_task.process_page()
+        
+        # Run in thread executor to avoid blocking event loop
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            result = await loop.run_in_executor(executor, sync_process_page)
+        
+        return result
+    
+    def _retry_failed_pages(self, results: List[Dict], model: str, llm_config: LLMConfig) -> List[Dict]:
+        """Simple retry logic for failed pages"""
+        failed_results = [r for r in results if r.get("status") == "error"]
+        
+        if not failed_results:
+            print("✅ No failed pages to retry")
+            return results
+        
+        print(f"🔄 Retrying {len(failed_results)} failed pages...")
+        
+        for failed_result in failed_results:
+            page_num = failed_result["page_num"]
+            print(f"🔁 Retrying page {page_num}...")
             
-            # Build combined content - NO METADATA, just clean content
-            all_content = []
-            for page_data in markdown_pages:
-                page_markdown = page_data["markdown"]
-                # Fix escaped newlines
-                if '\\n' in page_markdown:
-                    page_markdown = page_markdown.replace('\\n', '\n')
+            try:
+                failed_result["retry_attempted"] = True
+                failed_result["retry_timestamp"] = datetime.now().isoformat()
                 
-                # Add content without any page headers or metadata
-                if page_markdown.strip():
-                    all_content.append(page_markdown.strip())
-            
-            # Join with simple separator
-            combined = "\n\n---\n\n".join(all_content)
-            markdown_file_path.write_text(combined, encoding='utf-8')
-            
-            print(f"📝 Saved combined markdown: {markdown_file_path}")
-            return markdown_file_path
-            
-        except Exception as e:
-            print(f"⚠️ Failed to save combined markdown: {e}")
-            return None
-    
-    def _process_page_to_markdown(self, page, llm_client, config):
-        """Convert single page (image + text) to Markdown using LLM Vision"""
+            except Exception as e:
+                print(f"❌ Retry failed for page {page_num}: {e}")
+                failed_result["retry_error"] = str(e)
         
-        # Prepare prompt for vision model
-        prompt = self._build_markdown_conversion_prompt(page)
-        
-        # Vision call - images jako lista base64
-        images = [page["image_base64"]]
-        response = llm_client.chat(prompt, config, images=images)
-        
-        # Clean and validate markdown
-        markdown = self._clean_markdown_response(response)
-        return markdown
-    
-    def _build_markdown_conversion_prompt(self, page):
-        """Enhanced prompt with better structure and specific table instructions"""
-        
-        extracted_text = page.get("extracted_text", "")
-        
-        prompt = f"""You are a document conversion specialist. Convert this PDF page to clean, professional Markdown.
-
-EXTRACTED TEXT FROM PDF:
-{extracted_text}
-
-CORE REQUIREMENTS:
-1. **ACCURACY FIRST** - Use extracted text for precise content, image for visual structure
-2. **PRESERVE ALL DATA** - Don't skip any information, numbers, or table rows
-3. **CLEAN FORMATTING** - Remove page numbers, headers, footers, and metadata unless content-relevant
-4. **NO PAGE REFERENCES** - Do not include any page numbers or page-related metadata in the output
-
-TABLE FORMATTING (CRITICAL):
-- **MANDATORY**: Use proper Markdown table syntax with | separators
-- **HEADERS**: Always include header row with column names
-- **SEPARATORS**: Add |----| separator row after headers
-- **ALIGNMENT**: Keep numerical values properly aligned
-- **COMPLETENESS**: Include ALL rows and columns from the image
-
-EXAMPLE TABLE STRUCTURE:
-| Lp | Nazwa towaru/usługi | Ilość | Cena netto | Wartość netto | % VAT | Wartość VAT | Wartość brutto |
-|----|---------------------|-------|------------|---------------|-------|-------------|----------------|
-| 1  | Service description | 1     | 50,00      | 50,00         | 23    | 11,50       | 61,50          |
-
-DOCUMENT STRUCTURE:
-- ## for main sections (Sprzedawca, Nabywca, Faktury details)
-- **Bold** for field labels (Data wystawienia:, NIP:, etc.)
-- Plain text for addresses and contact information
-- Preserve exact formatting for numbers, dates, and references
-
-STRICT EXCLUSIONS:
-- NO page numbers (Page 1, Page 2, etc.)
-- NO metadata (generated by, source file, etc.)
-- NO processing timestamps
-- NO explanatory text about the conversion
-
-QUALITY CHECKLIST:
-✓ All table data included with proper | separators
-✓ Headers use ## markdown syntax
-✓ Field labels are **bold**
-✓ Numbers and dates exactly as in source
-✓ No page numbers or metadata included
-✓ No explanatory text or meta-commentary
-
-OUTPUT: Clean Markdown content only. No ```markdown blocks, no explanations, no metadata."""
-
-        return prompt
-    
-    def _clean_markdown_response(self, response):
-        """Clean and validate Markdown response"""
-        # Remove common LLM response artifacts
-        markdown = response.strip()
-        
-        # Remove markdown code blocks if LLM wrapped the response
-        if markdown.startswith("```markdown"):
-            markdown = markdown[11:]  # Remove ```markdown
-        if markdown.startswith("```"):
-            markdown = markdown[3:]   # Remove ```
-        if markdown.endswith("```"):
-            markdown = markdown[:-3]  # Remove trailing ```
-        
-        # Clean up extra whitespace
-        lines = markdown.split('\n')
-        cleaned_lines = []
-        for line in lines:
-            cleaned_lines.append(line.rstrip())  # Remove trailing whitespace
-        
-        # Join back and ensure proper ending
-        markdown = '\n'.join(cleaned_lines).strip()
-        
-        # Ensure content exists
-        if not markdown or len(markdown) < 10:
-            return "[No content could be extracted]"
-        
-        return markdown
-    
-    def _detect_tables(self, markdown_content):
-        """Detect if markdown contains tables"""
-        return "|" in markdown_content and "---" in markdown_content
+        return results

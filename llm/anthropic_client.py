@@ -1,3 +1,4 @@
+# PLIK: llm/anthropic_client.py
 import os
 from typing import Optional, List
 
@@ -5,11 +6,13 @@ from anthropic import Anthropic
 
 from .base import BaseLLMClient, LLMConfig
 from .models import ModelProvider, MODEL_MAX_TOKENS
+from .utils import detect_image_format
+
 
 class AnthropicClient(BaseLLMClient):
     """Klient dla Claude 4 - scenario & planning powerhouse"""
     
-    # Mapowanie nazw modeli na rzeczywiste nazwy API - tylko Claude 4
+    # Mapowanie nazw modeli na rzeczywiste nazwy API
     MODEL_MAPPING = {
         # Claude 4 - najnowsza rodzina
         "claude-4-sonnet": "claude-sonnet-4-20250514",
@@ -48,7 +51,7 @@ class AnthropicClient(BaseLLMClient):
         return self.MODEL_MAPPING.get(self.model, self.model)
     
     def chat(self, prompt: str, config: LLMConfig, images: Optional[List[str]] = None) -> str:
-        """Wyślij prompt do Claude 4 (text lub vision)"""
+        """Wyślij prompt do Claude (text lub vision)"""
         try:
             api_model = self._get_api_model_name()
             
@@ -60,11 +63,14 @@ class AnthropicClient(BaseLLMClient):
                 # Vision mode - Claude format z obrazkami
                 content = [{"type": "text", "text": prompt}]
                 for image_base64 in images:
+                    # Auto-detect image format using utils
+                    media_type = detect_image_format(image_base64)
+                    
                     content.append({
                         "type": "image",
                         "source": {
                             "type": "base64",
-                            "media_type": "image/png",
+                            "media_type": media_type,
                             "data": image_base64
                         }
                     })
@@ -73,7 +79,7 @@ class AnthropicClient(BaseLLMClient):
                 # Text-only mode
                 messages = [{"role": "user", "content": prompt}]
             
-            # Przygotuj parametry - Claude 4 lubi duże limity
+            # Przygotuj parametry - Claude lubi duże limity
             params = {
                 "model": api_model,
                 "max_tokens": max_tokens,
@@ -97,7 +103,7 @@ class AnthropicClient(BaseLLMClient):
             response = self.client.messages.create(**params)
             
             if not response.content:
-                raise RuntimeError("Brak odpowiedzi z Claude 4 (content == []).")
+                raise RuntimeError("Brak odpowiedzi z Claude (content == []).")
             
             # Claude zwraca listę bloków treści
             content = ""
@@ -106,12 +112,12 @@ class AnthropicClient(BaseLLMClient):
                     content += block.text
             
             if not content.strip():
-                raise RuntimeError("Claude 4 zwrócił pustą odpowiedź.")
+                raise RuntimeError("Claude zwrócił pustą odpowiedź.")
             
             return content.strip()
             
         except Exception as e:
-            raise RuntimeError(f"❌ Błąd Claude 4 ({self.model}): {e}")
+            raise RuntimeError(f"❌ Błąd Claude ({self.model}): {e}")
     
     def get_provider(self) -> ModelProvider:
         """Zwróć providera"""
