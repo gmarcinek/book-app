@@ -1,3 +1,4 @@
+# luigi_pipeline/tasks/conditional_processor.py
 import luigi
 import json
 import hashlib
@@ -34,20 +35,22 @@ class ConditionalProcessor(luigi.Task):
         # Create appropriate task chain
         if strategy == "text_processing":
             next_task = TextPreprocessing(file_path=self.file_path)
+            yield next_task
             
         elif strategy == "pdf_processing":
             # PDF chain: PDFProcessing → LLMMarkdownProcessor → MarkdownCombinerSingle
             llm_task = LLMMarkdownProcessor(file_path=self.file_path)
+            yield llm_task  # NAJPIERW LLMMarkdownProcessor
+            
             combine_task = MarkdownCombinerSingle(
-                llm_markdown_file=llm_task.output().path  # Auto-generated path
+                llm_markdown_file=llm_task.output().path
             )
-            next_task = combine_task
+            yield combine_task  # POTEM MarkdownCombinerSingle
+            
+            next_task = combine_task  # Final result
             
         else:
             raise ValueError(f"Unknown strategy: {strategy}")
-        
-        # Run the chosen task chain (Luigi will auto-run dependencies)
-        yield next_task
         
         # Read the final result
         with next_task.output().open('r') as f:
@@ -98,83 +101,3 @@ class ConditionalProcessor(luigi.Task):
                 "ConditionalProcessor"
             ]
         return ["FileRouter", "ConditionalProcessor"]
-
-
-class BatchProcessor(luigi.Task):
-    """
-    NEW: Batch processor for multiple files with final combining
-    
-    Processes all files in directory, then combines ALL markdown outputs
-    """
-    input_directory = luigi.Parameter()
-    file_pattern = luigi.Parameter(default="*.pdf")
-    
-    def output(self):
-        dir_hash = hashlib.md5(str(self.input_directory).encode()).hexdigest()[:8]
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return luigi.LocalTarget(f"output/batch_processor_{dir_hash}_{timestamp}.json", format=luigi.format.UTF8)
-    
-    def run(self):
-        from pathlib import Path
-        import glob
-        from .preprocessing.markdown_combiner import MarkdownCombiner
-        
-        # Find all matching files
-        search_pattern = str(Path(self.input_directory) / self.file_pattern)
-        files = glob.glob(search_pattern)
-        
-        if not files:
-            raise ValueError(f"No files found: {search_pattern}")
-        
-        print(f"📁 Found {len(files)} files to process")
-        
-        # Process each file through ConditionalProcessor
-        processed_files = []
-        for file_path in files:
-            try:
-                conditional_task = ConditionalProcessor(file_path=file_path)
-                yield conditional_task
-                
-                with conditional_task.output().open('r') as f:
-                    result = json.load(f)
-                
-                processed_files.append({
-                    "file_path": file_path,
-                    "status": "success",
-                    "result": result
-                })
-                
-            except Exception as e:
-                print(f"❌ Failed to process {file_path}: {e}")
-                processed_files.append({
-                    "file_path": file_path,
-                    "status": "error", 
-                    "error": str(e)
-                })
-        
-        # Run final MarkdownCombiner to combine all documents
-        combiner_task = MarkdownCombiner()
-        yield combiner_task
-        
-        with combiner_task.output().open('r') as f:
-            combiner_result = json.load(f)
-        
-        # Create batch output
-        successful = len([f for f in processed_files if f["status"] == "success"])
-        
-        output_data = {
-            "task_name": "BatchProcessor",
-            "input_directory": str(self.input_directory),
-            "file_pattern": self.file_pattern,
-            "files_found": len(files),
-            "files_successful": successful,
-            "files_failed": len(files) - successful,
-            "processed_files": processed_files,
-            "final_combiner_result": combiner_result,
-            "created_at": datetime.now().isoformat()
-        }
-        
-        with self.output().open('w') as f:
-            json.dump(output_data, f, indent=2, ensure_ascii=False)
-        
-        print(f"🎉 Batch complete: {successful}/{len(files)} files processed")

@@ -9,7 +9,6 @@ LLMMarkdownProcessor:
 
 # PDF Processing settings
 PDFProcessing:
-  dpi: 200
   extract_images: true
   extract_tables: true
 

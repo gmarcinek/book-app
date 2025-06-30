@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from llm import LLMClient, LLMConfig
-from ..config import load_config
+from luigi_pipeline.config import load_config
 from .pdf_processing import PDFProcessing
 
 
