@@ -57,13 +57,16 @@ class HierarchicalChunker(SemanticChunkingStrategy):
 Twoja rola: Analizujesz dokument od początku do końca i wyznaczasz naturalne punkty podziału na sekcje, jak głowica czytająca taśmę.
 
 Działasz jak parser - idziesz linia po linii i znajdujesz miejsca gdzie jeden temat się kończy a nowy zaczyna.
+Dzielisz dokument na sekcje:
+- zaczynające się od linii ## Artykuł
+- zawierające tabelkę JEDNĄ tabelkę, każda tabelka to osobna sekcja
 
 TEKST DO PODZIELENIA:
 {text}
 
 ALGORYTM:
 1. Zacznij od początku tekstu
-2. Idź sekwencyjnie w dół szukając naturalnych granic tematycznych  
+2. Idź sekwencyjnie w dół szukając naturalnych granic tematycznych, kierujesz się nagłówkami bardziej niż semantyką
 3. Każda granica to początek nowej sekcji
 4. Nie wracaj do tyłu, nie pomijaj fragmentów
 5. Każda sekcja kończy się tam gdzie zaczyna następna

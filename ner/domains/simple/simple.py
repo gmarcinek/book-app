@@ -31,7 +31,7 @@ class SimpleNER(BaseNER):
                 name = entity_data.get('name', '')
                 entity_id = entity_data.get('id', '')
                 entity_type = entity_data.get('type', '')
-                description = entity_data.get('description', '')
+                description = entity_data.get('description', '')[:350]
                 aliases = entity_data.get('aliases', [])[:3]  # Pierwsze 3 aliases
                 
                 aliases_str = ", ".join(aliases) if aliases else "brak"
@@ -105,7 +105,7 @@ JSON:
                 name = entity_data.get('name', '')
                 entity_id = entity_data.get('id', '')
                 entity_type = entity_data.get('type', '')
-                description = entity_data.get('description', '')
+                description = entity_data.get('description', '')[:350]
                 aliases = entity_data.get('aliases', [])
                 confidence = entity_data.get('confidence', 0.0)
                 

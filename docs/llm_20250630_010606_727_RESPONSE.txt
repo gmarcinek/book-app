@@ -1,0 +1,105 @@
+=== LLM RESPONSE ===
+Timestamp: 2025-06-30T01:06:06.727322
+Model: gpt-4.1-mini
+Prompt Length: 104321 chars
+Response Length: 6338 chars
+Response Word Count: 682
+
+RESPONSE:
+```json
+{
+  "entities": [
+    {
+      "type": "EXCLUSION",
+      "name": "uszkodzenia ciała powstałe w wyniku chorób i ich leczenia",
+      "description": "Ubezpieczyciel nie wypłaci świadczenia, jeśli uszkodzenia ciała powstały w wyniku choroby, niepełnosprawności fizycznej, zaburzeń psychicznych lub zaburzeń zachowania sklasyfikowanych w ICD-10, oraz medycznych lub chirurgicznych skutków ich leczenia, w tym lumbago, rwa kulszowa, zwyrodnienia kręgosłupa, dyskopatii, kręgozmyku, przepukliny, zatrucia ptomainami lub infekcji bakteryjnej, z wyjątkiem infekcji ropnej powstałej w wyniku przypadkowego skaleczenia lub zranienia.",
+      "confidence": 0.95,
+      "evidence": "art. 9, pkt a)",
+      "aliases": ["choroby wcześniejsze", "schorzenia uprzednie", "leczenie chorób wykluczone"]
+    },
+    {
+      "type": "EXCLUSION",
+      "name": "uszkodzenia ciała powstałe w stanie po spożyciu alkoholu, narkotyków lub innych substancji toksycznych",
+      "description": "Ubezpieczyciel nie wypłaci świadczenia, jeśli uszkodzenia ciała powstały w wyniku wypadku będącego skutkiem pozostawania Ubezpieczonego, Małżonka, Partnera lub Dziecka w stanie po spożyciu alkoholu, leków (z wyjątkiem zażywanych zgodnie z zaleceniem lekarza), narkotyków lub innych substancji toksycznych.",
+      "confidence": 0.95,
+      "evidence": "art. 9, pkt b)",
+      "aliases": ["stan po spożyciu alkoholu", "substancje toksyczne", "narkotyki wykluczone"]
+    },
+    {
+      "type": "EXCLUSION",
+      "name": "samookaleczenie lub okaleczenie na prośbę",
+      "description": "Ubezpieczyciel nie wypłaci świadczenia w przypadku uszkodzeń ciała powstałych w wyniku samookaleczenia lub okaleczenia na prośbę Ubezpieczonego, Małżonka, Partnera lub Dziecka, niezależnie od stanu ich poczytalności.",
+      "confidence": 0.9,
+      "evidence": "art. 9, pkt c)",
+      "aliases": ["samookaleczenie", "okalczenie na prośbę"]
+    },
+    {
+      "type": "EXCLUSION",
+      "name": "zdarzenia związane z masowym skażeniem chemicznym, biologicznym lub radioaktywnym",
+      "description": "Ubezpieczyciel nie wypłaci świadczenia za uszkodzenia ciała powstałe w wyniku zdarzeń związanych z masowym skażeniem chemicznym, biologicznym lub radioaktywnym spowodowanym działaniem broni lub urządzenia wykorzystującego energię rozszczepienia jądrowego lub promieniotwórczość.",
+      "confidence": 0.9,
+      "evidence": "art. 9, pkt d)",
+      "aliases": ["skażenie chemiczne", "skażenie biologiczne", "skażenie radioaktywne"]
+    },
+    {
+      "type": "EXCLUSION",
+      "name": "działania wojenne, akty terroru i masowe rozruchy społeczne",
+      "description": "Ubezpieczyciel nie wypłaci świadczenia za uszkodzenia ciała powstałe w wyniku działań wojennych, czynnego udziału w aktach terroru lub masowych rozruchach społecznych.",
+      "confidence": 0.95,
+      "evidence": "art. 9, pkt e)",
+      "aliases": ["wojna", "terror", "rozruchy społeczne"]
+    },
+    {
+      "type": "EXCLUSION",
+      "name": "obrażenia powstałe podczas popełnienia lub usiłowania popełnienia przestępstwa",
+      "description": "Ubezpieczyciel nie wypłaci świadczenia za obrażenia odniesione na skutek usiłowania popełnienia lub popełnienia umyślnego przestępstwa, umyślnego udziału w innym czynie zabronionym lub stawiania oporu podczas aresztowania lub zatrzymania.",
+      "confidence": 0.9,
+      "evidence": "art. 9, pkt f)",
+      "aliases": ["przestępstwo", "aresztowanie", "zatrzymanie"]
+    },
+    {
+      "type": "EXCLUSION",
+      "name": "wykonywanie czynności służbowych w służbach mundurowych i wojsku",
+      "description": "Ubezpieczyciel nie wypłaci świadczenia za uszkodzenia ciała powstałe podczas wykonywania czynności służbowych lub zawodowych właściwych dla policji, wojska, Straży Granicznej, straży pożarnej, straży gminnej (miejskiej) lub jednostek pomocniczych lub cywilnych działających w strukturach armii, niezależnie od formy zatrudnienia lub pełnienia służby.",
+      "confidence": 0.9,
+      "evidence": "art. 9, pkt g)",
+      "aliases": ["służby mundurowe", "wojsko", "czynności służbowe wykluczone"]
+    },
+    {
+      "type": "EXCLUSION",
+      "name": "zawodowe i wyczynowe uprawianie sportu",
+      "description": "Ubezpieczyciel nie wypłaci świadczenia za uszkodzenia ciała powstałe w wyniku zawodowego i wyczynowego uprawiania sportu, definiowanego jako regularne uprawianie dyscypliny sportowej z udziałem w rozgrywkach o charakterze profesjonalnym lub na podstawie umowy o pracę lub cywilnoprawnej za wynagrodzeniem.",
+      "confidence": 0.95,
+      "evidence": "art. 9, pkt h)",
+      "aliases": ["sport zawodowy", "sport wyczynowy"]
+    },
+    {
+      "type": "EXCLUSION",
+      "name": "uprawianie niebezpiecznych sportów i udział w zawodach motorowych",
+      "description": "Ubezpieczyciel nie wypłaci świadczenia za uszkodzenia ciała powstałe podczas uprawiania wspinaczki, skoków spadochronowych, lotów szybowcowych, paralotniarstwa, nurkowania, speleologii, sportów walki, sportów motorowych lub motorowodnych, uczestnictwa w rajdach samochodowych lub motocyklowych oraz jazdy motocyklem poza drogami publicznymi.",
+      "confidence": 0.95,
+      "evidence": "art. 9, pkt i)",
+      "aliases": ["sporty ekstremalne", "rajdy samochodowe", "motocykle poza drogą"]
+    },
+    {
+      "type": "EXCLUSION",
+      "name": "uczestnictwo w zawodach z użyciem pojazdów kołowych i innych zawodach sportowych",
+      "description": "Ubezpieczyciel nie wypłaci świadczenia za uszkodzenia ciała powstałe podczas uczestnictwa w zawodach z użyciem pojazdów kołowych, zawodach z użyciem łodzi lub nart wodnych oraz zawodach konnych.",
+      "confidence": 0.9,
+      "evidence": "art. 9, pkt j)",
+      "aliases": ["zawody pojazdów kołowych", "zawody wodne", "zawody konne"]
+    },
+    {
+      "type": "EXCLUSION",
+      "name": "podróże statkiem powietrznym poza lotami pasażerskimi licencjonowanych linii",
+      "description": "Ubezpieczyciel nie wypłaci świadczenia za uszkodzenia ciała powstałe podczas podróży jakimkolwiek statkiem powietrznym w charakterze pasażera lub innym, z wyjątkiem lotu w charakterze pasażera samolotem pasażerskich licencjonowanych linii lotniczych.",
+      "confidence": 0.9,
+      "evidence": "art. 9, pkt k)",
+      "aliases": ["loty niekomercyjne", "loty nielegalne", "statki powietrzne wykluczone"]
+    }
+  ]
+}
+```
+
+=====================================
+    
