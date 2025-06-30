@@ -1,0 +1,241 @@
+=== LLM RESPONSE ===
+Timestamp: 2025-06-30T02:25:05.898355
+Model: gpt-4.1-mini
+Prompt Length: 104370 chars
+Response Length: 17328 chars
+Response Word Count: 2022
+
+RESPONSE:
+```json
+{
+  "entities": [
+    {
+      "type": "DEFINITION",
+      "name": "Abonent",
+      "description": "Osoba fizyczna, która zawarła z T-Mobile Polska S.A. Umowę o świadczenie usług telekomunikacyjnych.",
+      "confidence": 0.95,
+      "evidence": "art. 2, pkt 1: Abonent – osoba fizyczna, która zawarła z T-Mobile Polska S.A. Umowę o świadczenie usług telekomunikacyjnych.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Agent",
+      "description": "T-Mobile Polska S.A. z siedzibą w Warszawie, operator sieci T-Mobile, wykonujący czynności pośrednictwa ubezpieczeniowego jako agent ubezpieczeniowy w imieniu i na rzecz Ubezpieczyciela, zarejestrowany w KRS pod nr 0000391193.",
+      "confidence": 0.95,
+      "evidence": "art. 2, pkt 2: Agent – T-Mobile Polska S.A. z siedzibą w Warszawie (02-674), przy ul. Marynarskiej 12, operator sieci T-Mobile, który wykonuje czynności pośrednictwa ubezpieczeniowego jako agent ubezpieczeniowy w imieniu i na rzecz Ubezpieczyciela, zarejestrowana w Sądzie Rejonowym dla m.st. Warszawy XIII Wydział Gospodarczy Krajowego Rejestru Sądowego, pod nr. KRS: 0000391193, NIP 526-10-40-567, REGON 011417295, kapitał zakładowy 711 210 000 złotych, kapitał wpłacony w całości.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "data rozpoczęcia ochrony ubezpieczeniowej",
+      "description": "Data określona w Polisie, która jest datą zawarcia Umowy lub datą zmiany Umowy.",
+      "confidence": 0.9,
+      "evidence": "art. 2, pkt 3: data rozpoczęcia ochrony ubezpieczeniowej – data określona w Polisie, która jest datą zawarcia Umowy lub datą zmiany Umowy.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "data zawarcia Umowy",
+      "description": "10. dzień po dniu, w którym Ubezpieczony zgodził się na zawarcie Umowy.",
+      "confidence": 0.9,
+      "evidence": "art. 2, pkt 4: data zawarcia Umowy – 10. dzień po dniu, w którym Ubezpieczony zgodził się na zawarcie Umowy.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "data zmiany Umowy",
+      "description": "Data określona w Polisie, która jest datą wejścia w życie zmiany zgodnie z artykułem 4 punkt 5.",
+      "confidence": 0.9,
+      "evidence": "art. 2, pkt 5: data zmiany Umowy – data określona w Polisie, która jest datą wejścia w życie zmiany zgodnie z artykułem 4 punkt 5.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Dziecko",
+      "description": "Każde z dzieci Ubezpieczonego, własne lub przysposobione, które w dniu zajścia zdarzenia ubezpieczeniowego ukończyło 6. miesiąc życia, a nie ukończyło 21. roku życia.",
+      "confidence": 0.95,
+      "evidence": "art. 2, pkt 6: Dziecko – każde z dzieci Ubezpieczonego, własne lub przysposobione, które w dniu zajścia zdarzenia ubezpieczeniowego ukończyło 6. miesiąc życia, a nie ukończyło 21. roku życia.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Infolinia Ubezpieczyciela",
+      "description": "Telefoniczne centrum informacji Ubezpieczyciela, odpowiedzialne za obsługę Umowy. Podmiotem odpowiedzialnym za prowadzenie Infolinii może być osoba trzecia działająca na zlecenie Ubezpieczyciela.",
+      "confidence": 0.9,
+      "evidence": "art. 2, pkt 7: Infolinia Ubezpieczyciela – telefoniczne centrum informacji Ubezpieczyciela, odpowiedzialne za obsługę Umowy. Podmiotem odpowiedzialnym za prowadzenie Infolinii Ubezpieczyciela może być osoba trzecia, która działa na zlecenie Ubezpieczyciela.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Małżonek",
+      "description": "Osoba, która w dniu zajścia zdarzenia ubezpieczeniowego ukończyła 18. rok życia, a nie ukończyła 65. roku życia, i pozostaje z Ubezpieczonym w związku małżeńskim, w rozumieniu Kodeksu rodzinnego i opiekuńczego.",
+      "confidence": 0.95,
+      "evidence": "art. 2, pkt 8: Małżonek – osoba, która w dniu zajścia zdarzenia ubezpieczeniowego ukończyła 18. rok życia, a nie ukończyła 65. roku życia, i pozostaje z Ubezpieczonym w związku małżeńskim, w rozumieniu Kodeksu rodzinnego i opiekuńczego.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "nieszczęśliwy wypadek (NW)",
+      "description": "Niezależne od woli odpowiednio Ubezpieczonego, Małżonka lub Partnera, lub Dziecka gwałtowne i nagłe zdarzenie wywołane przyczyną zewnętrzną, które nie może być związane z istniejącą chorobą.",
+      "confidence": 0.95,
+      "evidence": "art. 2, pkt 9: nieszczęśliwy wypadek (NW) – niezależne od woli odpowiednio Ubezpieczonego, Małżonka lub Partnera, lub Dziecka gwałtowne i nagłe zdarzenie wywołane przyczyną zewnętrzną. Zdarzenie nie może być związane z istniejącą odpowiednio u Ubezpieczonego, Małżonka lub Partnera, lub Dziecka chorobą.",
+      "aliases": ["NW"]
+    },
+    {
+      "type": "DEFINITION",
+      "name": "NN Usługi Finansowe",
+      "description": "Nationale-Nederlanden Usługi Finansowe Sp. z o.o. z siedzibą w Warszawie, upoważniona przez Ubezpieczyciela do występowania w jego imieniu w sprawach związanych z obsługą Umowy.",
+      "confidence": 0.9,
+      "evidence": "art. 2, pkt 10: NN Usługi Finansowe – Nationale-Nederlanden Usługi Finansowe Sp. z o.o. z siedzibą w Warszawie (00-342) przy ul. Topiel 12, upoważniona przez Ubezpieczyciela do występowania w jego imieniu w sprawach związanych z obsługą Umowy.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "okres obowiązywania Umowy",
+      "description": "Okres, na który Umowa zostaje zawarta lub przedłużona, rozpoczynający się od daty zawarcia Umowy i trwający do końca okresu rozliczeniowego następującego po okresie rozliczeniowym, w którym została zawarta Umowa. Może być przedłużony na kolejny okres odpowiadający okresowi rozliczeniowemu.",
+      "confidence": 0.9,
+      "evidence": "art. 2, pkt 11: okres obowiązywania Umowy – okres, na który Umowa zostaje zawarta lub przedłużona. Okres obowiązywania Umowy rozpoczyna się od daty zawarcia Umowy i trwa do końca okresu rozliczeniowego następującego po okresie rozliczeniowym, w którym została zawarta Umowa. Umowa może zostać przedłużona na kolejny okres obowiązywania Umowy odpowiadający okresowi rozliczeniowemu.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "okres rozliczeniowy",
+      "description": "Okres odpowiadający cyklowi bilingowemu przyjętemu dla rozliczeń związanych ze świadczeniem usług telekomunikacyjnych w ramach Umowy o świadczenie usług telekomunikacyjnych.",
+      "confidence": 0.9,
+      "evidence": "art. 2, pkt 12: okres rozliczeniowy – okres odpowiadający cyklowi bilingowemu przyjętemu dla rozliczeń związanych ze świadczeniem usług telekomunikacyjnych w ramach Umowy o świadczenie usług telekomunikacyjnych.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "OWU",
+      "description": "Ogólne Warunki Ubezpieczenia nr 7017KW23. Komentarze i wyjaśnienia w ramkach nie są treścią OWU, pełnią jedynie funkcję informacyjną. Słowa wyróżnione kursywą są zdefiniowane na początku dokumentu.",
+      "confidence": 0.95,
+      "evidence": "art. 2, pkt 13: OWU – Ogólne Warunki Ubezpieczenia nr 7017KW23. Komentarze i wyjaśnienia, które znajdują się w ramkach, nie są treścią OWU. Pełnią one jedynie funkcję informacyjną. Słowa wyróżnione kursywą są zdefiniowane na początku dokumentu.",
+      "aliases": ["Ogólne Warunki Ubezpieczenia"]
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Partner",
+      "description": "Osoba wskazana przez Ubezpieczonego w trakcie rozmowy telefonicznej, która w dniu zajścia zdarzenia ubezpieczeniowego ukończyła 18. rok życia, a nie ukończyła 65. roku życia, pozostaje z Ubezpieczonym w związku pozamałżeńskim, prowadzi wspólnie gospodarstwo domowe, nie pozostaje w stosunku pokrewieństwa lub przysposobienia.",
+      "confidence": 0.95,
+      "evidence": "Definicje, pkt 14: Partner – osoba wskazana przez Ubezpieczonego w trakcie rozmowy telefonicznej, która w dniu zajścia zdarzenia ubezpieczeniowego ukończyła 18. rok życia, a nie ukończyła 65. roku życia, i pozostaje z Ubezpieczonym w związku pozamałżeńskim, i prowadzi wspólnie z nim gospodarstwo domowe, które charakteryzuje się społeczną, fizyczną i ekonomiczną więzią pomiędzy partnerami, i nie pozostaje z Ubezpieczonym w stosunku pokrewieństwa oraz powinowactwa w linii prostej lub przysposobienia.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Polisa",
+      "description": "Dokument ubezpieczenia wystawiany przez Ubezpieczyciela, potwierdzający zawarcie Umowy oraz objęcie ochroną ubezpieczeniową Ubezpieczonego w zakresie wybranego pakietu ubezpieczenia.",
+      "confidence": 0.95,
+      "evidence": "Definicje, pkt 15: Polisa – dokument ubezpieczenia wystawiany przez Ubezpieczyciela, który potwierdza zawarcie Umowy oraz objęcie ochroną ubezpieczeniową Ubezpieczonego w zakresie wybranego pakietu ubezpieczenia.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Reklamacja",
+      "description": "Każde wystąpienie Ubezpieczonego, uprawnionego z Umowy lub spadkobiercy posiadającego interes prawny w ustaleniu odpowiedzialności lub spełnieniu świadczenia z Umowy, kierowane do Ubezpieczyciela, w którym zgłasza zastrzeżenia dotyczące usług lub działalności Ubezpieczyciela.",
+      "confidence": 0.95,
+      "evidence": "Definicje, pkt 16: Reklamacja – każde wystąpienie Ubezpieczonego, uprawnionego z Umowy lub spadkobiercy posiadającego interes prawny w ustaleniu odpowiedzialności lub spełnieniu świadczenia z Umowy, kierowane do Ubezpieczyciela, w którym zgłasza on zastrzeżenia dotyczące usług świadczonych przez Ubezpieczyciela lub jego działalności.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Składka",
+      "description": "Kwota określona w Polisie, jaką Ubezpieczony jest zobowiązany opłacać Ubezpieczycielowi z tytułu ochrony ubezpieczeniowej udzielanej na podstawie Umowy.",
+      "confidence": 0.95,
+      "evidence": "Definicje, pkt 17: Składka – kwota określona w Polisie, jaką Ubezpieczony jest zobowiązany opłacać Ubezpieczycielowi z tytułu ochrony ubezpieczeniowej, której udziela Ubezpieczyciel na podstawie Umowy.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Suma ubezpieczenia",
+      "description": "Kwota określona w Polisie, która określa zobowiązanie Ubezpieczyciela w przypadku zajścia zdarzenia ubezpieczeniowego.",
+      "confidence": 0.95,
+      "evidence": "Definicje, pkt 18: Suma ubezpieczenia – kwota określona w Polisie, która określa zobowiązanie Ubezpieczyciela w przypadku zajścia zdarzenia ubezpieczeniowego.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Termin płatności składki",
+      "description": "Termin zapłaty składki wskazany przez T-Mobile Polska S.A. w treści faktury za usługi telekomunikacyjne za dany okres rozliczeniowy.",
+      "confidence": 0.9,
+      "evidence": "Definicje, pkt 19: Termin płatności składki – termin zapłaty składki wskazany przez T-Mobile Polska S.A. w treści faktury za usługi telekomunikacyjne za dany okres rozliczeniowy.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Ubezpieczony",
+      "description": "Abonent wskazany w Polisie, który zawarł Umowę z Ubezpieczycielem i którego zdrowie jest przedmiotem Umowy. Na potrzeby Umowy oznacza także Ubezpieczającego.",
+      "confidence": 0.95,
+      "evidence": "Definicje, pkt 20: Ubezpieczony – Abonent wskazany w Polisie, który zawarł Umowę z Ubezpieczycielem i którego zdrowie jest przedmiotem Umowy. Na potrzeby Umowy Ubezpieczony oznacza odpowiednio także Ubezpieczającego.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Ubezpieczyciel",
+      "description": "Nationale-Nederlanden Towarzystwo Ubezpieczeń Spółka Akcyjna z siedzibą w Warszawie, posiadająca zezwolenie Komisji Nadzoru Finansowego na prowadzenie działalności ubezpieczeniowej.",
+      "confidence": 0.95,
+      "evidence": "Definicje, pkt 21: Ubezpieczyciel – Nationale-Nederlanden Towarzystwo Ubezpieczeń Spółka Akcyjna z siedzibą w Warszawie przy ul. Topiel 12, 00-342 Warszawa; www.nn.pl; KRS 0000647311, NIP: 525-26-85-595; Kapitał zakładowy – 39 000 000 zł, wpłacony w całości. Zezwolenie na prowadzenie działalności udzielone zostało przez Komisję Nadzoru Finansowego (daty wydania zezwolenia 04.10.2016).",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Umowa o świadczenie usług telekomunikacyjnych",
+      "description": "Umowa o świadczenie usług telekomunikacyjnych zawarta w formie pisemnej pomiędzy Abonentem a T-Mobile Polska S.A.",
+      "confidence": 0.9,
+      "evidence": "Definicje, pkt 22: Umowa o świadczenie usług telekomunikacyjnych – umowa o świadczenie usług telekomunikacyjnych zawarta w formie pisemnej pomiędzy Abonentem a T-Mobile Polska S.A.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Umowa",
+      "description": "Umowa ubezpieczenia zawarta pomiędzy Ubezpieczycielem a Ubezpieczonym, na którą składają się postanowienia OWU, Tabela uszkodzeń ciała wskutek nieszczęśliwego wypadku, Polisa oraz wszelkie oświadczenia woli Ubezpieczonego i Ubezpieczyciela załączone do umowy ubezpieczenia, stanowiące integralną część.",
+      "confidence": 0.95,
+      "evidence": "Definicje, pkt 23: Umowa – umowa ubezpieczenia zawarta pomiędzy Ubezpieczycielem a Ubezpieczonym, na którą składają się postanowienia tych OWU, Tabela uszkodzeń ciała wskutek nieszczęśliwego wypadku, Polisa oraz wszelkie oświadczenia woli Ubezpieczonego i Ubezpieczyciela załączone do umowy ubezpieczenia, które są jej integralną częścią.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Uszkodzenie ciała wskutek NW",
+      "description": "Fizyczne obrażenie ciała Ubezpieczonego, Małżonka, Partnera lub Dziecka, powstałe w wyniku tego samego nieszczęśliwego wypadku, wskazane w Tabeli uszkodzeń ciała, będącej załącznikiem do Umowy. Obrażenie musi być bezpośrednim i wyłącznym skutkiem NW i stwierdzone w ciągu 180 dni od daty NW.",
+      "confidence": 0.95,
+      "evidence": "Definicje, pkt 24: Uszkodzenie ciała wskutek NW – fizyczne obrażenie ciała odpowiednio Ubezpieczonego, Małżonka lub Partnera, lub Dziecka, które powstało w wyniku tego samego NW, wskazane w Tabeli uszkodzeń ciała wskutek nieszczęśliwego wypadku, która stanowi załącznik do Umowy. Obrażenie to musi być bezpośrednim i wyłącznym skutkiem NW i musi być stwierdzone w ciągu 180 dni od daty tego NW.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Zaopatrzenie chirurgiczne",
+      "description": "Założenie przez lekarza szwów, klamer lub stripów na rany skóry lub tkanki podskórnej powstałe w wyniku nieszczęśliwego wypadku.",
+      "confidence": 0.9,
+      "evidence": "Definicje, pkt 25: Zaopatrzenie chirurgiczne – założenie przez lekarza szwów, klamer lub stripów na powstałe w wyniku NW rany skóry lub tkanki podskórnej.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Zawodowe i wyczynowe uprawianie sportu",
+      "description": "Forma aktywności fizycznej polegająca na regularnym uprawianiu danej dyscypliny sportowej połączonej z udziałem w rozgrywkach i zawodach o charakterze profesjonalnym, ogólnokrajowym lub międzynarodowym, lub uprawianiu dyscypliny sportowej na podstawie umowy o pracę lub umowy cywilnoprawnej za wynagrodzeniem, w tym stypendium.",
+      "confidence": 0.9,
+      "evidence": "Definicje, pkt 26: Zawodowe i wyczynowe uprawianie sportu – forma aktywności fizycznej, która polega na regularnym uprawianiu danej dyscypliny sportowej połączonej z udziałem w rozgrywkach i zawodach o charakterze profesjonalnym, ogólnokrajowym lub międzynarodowym, lub uprawianiu dyscypliny sportowej na podstawie umowy o pracę lub umowy cywilnoprawnej za wynagrodzeniem, w tym stypendium.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Zawody z użyciem pojazdów kołowych",
+      "description": "Rywalizacja o charakterze indywidualnym lub zespołowym, ukierunkowana na uzyskanie optymalnych rezultatów z użyciem samochodu osobowego, ciężarowego, roweru, motoroweru, motocykla lub quada.",
+      "confidence": 0.9,
+      "evidence": "Definicje, pkt 27: Zawody z użyciem pojazdów kołowych – rywalizacja o charakterze indywidualnym lub zespołowym, ukierunkowana na uzyskanie, przez osoby uczestniczące, optymalnych rezultatów z użyciem samochodu osobowego, samochodu ciężarowego, roweru, motoroweru, motocykla lub quada.",
+      "aliases": []
+    },
+    {
+      "type": "DEFINITION",
+      "name": "Zdarzenie ubezpieczeniowe",
+      "description": "Zdarzenia objęte ochroną ubezpieczeniową w ramach Umowy: uszkodzenie ciała Ubezpieczonego, Małżonka, Partnera lub Dziecka wskutek nieszczęśliwego wypadku, które zaistniało w trakcie trwania ochrony ubezpieczeniowej.",
+      "confidence": 0.95,
+      "evidence": "Definicje, pkt 28: Zdarzenie ubezpieczeniowe – zdarzenia objęte ochroną ubezpieczeniową w ramach tej Umowy: uszkodzenie ciała odpowiednio Ubezpieczonego, Małżonka lub Partnera, lub Dziecka wskutek NW, które zaistniało w trakcie trwania ochrony ubezpieczeniowej.",
+      "aliases": []
+    }
+  ]
+}
+```
+
+=====================================
+    
