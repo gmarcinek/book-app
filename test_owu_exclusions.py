@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple test: Find EXCLUSIONS from OWU document using GPT-4.1-nano
+Simple test: Find EXCLUSIONS from OWU document using GPT-4.1-mini
 Tests if LLM can identify WYŁĄCZENIE_Z_UMOWY entities from the document
 """
 
@@ -40,6 +40,7 @@ SZUKAJ ODPOWIEDZI NA PYTANIA:
 - Kiedy ubezpieczyciel NIE wypłaci odszkodowania?
 - Jakie są ograniczenia i wyłączenia?
 - W jakich sytuacjach odmówią wypłaty?
+- Znajdź wszystkie encje EXCLUSION 
 
 WZORCE DO SZUKANIA:
 - "nie obejmuje", "wyłącza się", "nie podlega"
@@ -59,8 +60,8 @@ JSON (max 10 najważniejszych wyłączeń):
     {{
       "type": "EXCLUSION",
       "name": "deskryptywna_nazwa_podstawowa",
-      "description": "semantycznie użyteczny opis dla wyszukiwarki embedera, minimalna długość to 10 słów, spróbuj powiedzieć i ekstrapolować jak najwiecej można prawdziwych stwierdzeń na temat encji",
-      "confidence": 0.9,
+      "description": "semantycznie użyteczny opis dla RAG retrieval, minimalna długość to 10 słów, spróbuj znaleźć jak najwiecej merytorycznych stwierdzeń na temat encji",
+      "confidence": 0.XX,
       "evidence": "art X, pkt Y",
       "aliases": ["choroby wcześniejsze", "schorzenia uprzednie"]
     }}
@@ -72,7 +73,7 @@ Zwróć TYLKO JSON bez komentarzy."""
     # Initialize LLM client
     print(f"🤖 Using model: {Models.GPT_4_1_MINI}")
     llm_client = LLMClient(Models.GPT_4_1_MINI)
-    config = LLMConfig(temperature=0.0, max_tokens=24000)
+    config = LLMConfig(temperature=0.0, max_tokens=30000)
     
     try:
         print("🔍 Sending request to LLM...")
@@ -142,11 +143,11 @@ def main():
     """Main test function"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="OWU Exclusions Test - GPT-4.1-nano")
+    parser = argparse.ArgumentParser(description="OWU Exclusions Test - GPT-4.1-mini")
     parser.add_argument("file_path", help="Path to OWU document (e.g., docs/owu_COMBINED_5281a67c.md)")
     args = parser.parse_args()
     
-    print("🧪 OWU Exclusions Test - GPT-4.1-nano")
+    print("🧪 OWU Exclusions Test - GPT-4.1-mini")
     print("=" * 50)
     
     # Load document from provided path

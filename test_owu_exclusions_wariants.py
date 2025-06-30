@@ -119,7 +119,7 @@ def parse_and_display_results(response_data: dict):
         data = json.loads(clean_response.strip())
         entities = data.get('entities', [])
         
-        print(f"\n🎯 RESULTS: Found {len(entities)} exclusions")
+        print(f"\n🎯 RESULTS: FOUND {len(entities)} WARIANTS")
         print("=" * 80)
         
         for i, entity in enumerate(entities, 1):
