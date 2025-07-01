@@ -98,8 +98,6 @@ class LLMMarkdownProcessor(luigi.Task):
             },
             "status": "success",
             "batch_results": all_results,
-            "success_results": success_results,
-            "failed_results": failed_results,
             "statistics": {
                 "total_pages": len(all_results),
                 "successful_pages": len(success_results),

@@ -1,14 +1,19 @@
+# llm/adapter.py
+
 from typing import Dict, Any, Optional, List
 from .base import LLMConfig, BaseLLMClient
 from .models import ModelProvider, MODEL_PROVIDERS, MODEL_MAX_TOKENS, VISION_MODELS
 from .openai_client import OpenAIClient
 from .anthropic_client import AnthropicClient
 from .ollama_client import OllamaClient
+from .utils import log_llm_request, log_llm_response
+
 
 class LLMClient:
     """Minimalistyczny adapter zarządzający różnymi providerami LLM z vision support"""
     
-    def __init__(self, model: str, max_tokens: Optional[int] = None, temperature: float = 0.0, system_message: Optional[str] = None):
+    def __init__(self, model: str, max_tokens: Optional[int] = None, temperature: float = 0.0, 
+                 system_message: Optional[str] = None, fresh_client_every_request: bool = False):
         """
         Inicjalizuj klienta LLM
         
@@ -17,12 +22,14 @@ class LLMClient:
             max_tokens: Maksymalna liczba tokenów (None = użyj maksimum dla modelu)
             temperature: Temperatura modelu (0.0-1.0)
             system_message: Opcjonalny system message
+            fresh_client_every_request: Create fresh client each request (prevents context bleeding)
         """
         if model not in MODEL_PROVIDERS:
             raise ValueError(f"Nieobsługiwany model: {model}. Dostępne: {list(MODEL_PROVIDERS.keys())}")
         
         self.model = model
         self.provider = MODEL_PROVIDERS[model]
+        self.fresh_every_request = fresh_client_every_request
         
         # Ustaw max_tokens - użyj maksimum dla modelu jeśli nie podano
         if max_tokens is None:
@@ -59,8 +66,12 @@ class LLMClient:
         """
         use_config = config if config else self.config
         
+        # TYLKO TO: Fresh client every request
+        if self.fresh_every_request:
+            self.client = self._create_client()
+        
         # LOG REQUEST
-        self._log_llm_request(prompt, use_config)
+        log_llm_request(prompt, use_config, self.model)
         
         # Vision vs text routing
         if images:
@@ -71,9 +82,17 @@ class LLMClient:
             response = self.client.chat(prompt, use_config)
         
         # LOG RESPONSE  
-        self._log_llm_response(prompt, response, use_config)
+        log_llm_response(prompt, response, use_config, self.model)
         
         return response
+    
+    def clear_context(self):
+        """Manually clear context - useful for debugging"""
+        if hasattr(self.client, 'clear_context'):
+            self.client.clear_context()
+        else:
+            # Fallback: recreate client
+            self.client = self._create_client()
     
     def _supports_vision(self) -> bool:
         """Check if current model supports vision"""
@@ -90,69 +109,10 @@ class LLMClient:
             "provider": self.provider.value,
             "max_tokens_available": MODEL_MAX_TOKENS[self.model],
             "supports_vision": self._supports_vision(),
+            "fresh_every_request": self.fresh_every_request,
             "current_config": {
                 "max_tokens": self.config.max_tokens,
                 "temperature": self.config.temperature,
                 "has_system_message": bool(self.config.system_message)
             }
         }
-    
-    def _log_llm_request(self, prompt: str, config: LLMConfig):
-        """Log LLM request to file"""
-        try:
-            from pathlib import Path
-            from datetime import datetime
-            import json
-            
-            # Create logs directory
-            logs_dir = Path("semantic_store/logs")
-            logs_dir.mkdir(parents=True, exist_ok=True)
-            
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # milliseconds
-            filename = f"llm_{timestamp}_REQUEST.txt"
-            
-            log_content = f"""=== LLM REQUEST ===
-Timestamp: {datetime.now().isoformat()}
-Model: {self.model}
-Temperature: {config.temperature}
-Max Tokens: {config.max_tokens}
-System Message: {config.system_message or 'None'}
-
-PROMPT:
-{prompt}
-
-=====================================
-    """
-            
-            (logs_dir / filename).write_text(log_content, encoding='utf-8')
-            
-        except Exception as e:
-            print(f"⚠️ Failed to log LLM request: {e}")
-
-    def _log_llm_response(self, prompt: str, response: str, config: LLMConfig):
-        """Log LLM response to file"""
-        try:
-            from pathlib import Path
-            from datetime import datetime
-            
-            logs_dir = Path("semantic_store/logs")
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
-            filename = f"llm_{timestamp}_RESPONSE.txt"
-            
-            log_content = f"""=== LLM RESPONSE ===
-Timestamp: {datetime.now().isoformat()}
-Model: {self.model}
-Prompt Length: {len(prompt)} chars
-Response Length: {len(response)} chars
-Response Word Count: {len(response.split())}
-
-RESPONSE:
-{response}
-
-=====================================
-    """
-            
-            (logs_dir / filename).write_text(log_content, encoding='utf-8')
-            
-        except Exception as e:
-            print(f"⚠️ Failed to log LLM response: {e}")

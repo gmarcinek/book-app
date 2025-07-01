@@ -1,4 +1,10 @@
-# PLIK: llm/utils.py
+# llm/utils.py
+
+from typing import Optional
+from datetime import datetime
+from pathlib import Path
+from .base import LLMConfig
+
 
 def detect_image_format(image_base64: str) -> str:
     """
@@ -26,3 +32,57 @@ def detect_image_format(image_base64: str) -> str:
     except Exception:
         # Safe fallback
         return "image/jpeg"
+
+
+def log_llm_request(prompt: str, config: LLMConfig, model: str):
+    """Log LLM request to file"""
+    try:
+        logs_dir = Path("semantic_store/logs")
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+        filename = f"llm_{timestamp}_REQUEST.txt"
+        
+        log_content = f"""=== LLM REQUEST ===
+Timestamp: {datetime.now().isoformat()}
+Model: {model}
+Temperature: {config.temperature}
+Max Tokens: {config.max_tokens}
+System Message: {config.system_message or 'None'}
+
+PROMPT:
+{prompt}
+
+=====================================
+"""
+        
+        (logs_dir / filename).write_text(log_content, encoding='utf-8')
+        
+    except Exception as e:
+        print(f"⚠️ Failed to log LLM request: {e}")
+
+
+def log_llm_response(prompt: str, response: str, config: LLMConfig, model: str):
+    """Log LLM response to file"""
+    try:
+        logs_dir = Path("semantic_store/logs")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+        filename = f"llm_{timestamp}_RESPONSE.txt"
+        
+        log_content = f"""=== LLM RESPONSE ===
+Timestamp: {datetime.now().isoformat()}
+Model: {model}
+Prompt Length: {len(prompt)} chars
+Response Length: {len(response)} chars
+Response Word Count: {len(response.split())}
+
+RESPONSE:
+{response}
+
+=====================================
+"""
+        
+        (logs_dir / filename).write_text(log_content, encoding='utf-8')
+        
+    except Exception as e:
+        print(f"⚠️ Failed to log LLM response: {e}")

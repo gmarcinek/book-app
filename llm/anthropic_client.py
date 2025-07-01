@@ -1,4 +1,5 @@
-# PLIK: llm/anthropic_client.py
+# llm/anthropic_client.py
+
 import os
 from typing import Optional, List
 
@@ -41,10 +42,19 @@ class AnthropicClient(BaseLLMClient):
     
     def __init__(self, model: str):
         self.model = model
-        self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        self._init_client()
         
         if not os.getenv("ANTHROPIC_API_KEY"):
             raise RuntimeError("Brak zmiennej środowiskowej ANTHROPIC_API_KEY")
+    
+    def _init_client(self):
+        """Initialize or re-initialize Anthropic client"""
+        self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    
+    def clear_context(self):
+        """Force clear any cached context by recreating client"""
+        print(f"🧹 Clearing Anthropic context for {self.model}")
+        self._init_client()
     
     def _get_api_model_name(self) -> str:
         """Zwróć rzeczywistą nazwę modelu dla API"""

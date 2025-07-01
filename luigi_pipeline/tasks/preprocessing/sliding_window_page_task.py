@@ -107,15 +107,24 @@ class SlidingWindowPageTask:
         image_base64 = self.page.get("image_base64")
         
         # Build enhanced prompt (medium-length, key essentials)
-        prompt = f"""Convert this PDF page to clean, professional Markdown.
+        prompt = f"""Look at the provided image and extracted text. You are converting **a single page** from a multi-page PDF document into clean, structured Markdown.
+This page is only one of many (dozens), so **do not assume it starts a new article or section**.
 
-EXTRACTED TEXT:
+EXTRACTED TEXT (from OCR or PDF text layer):
 {extracted_text}
 
 REQUIREMENTS:
+0. **LITERARY HEADINGS** - Valid headings always include **words**, not just a number. 
 1. **ACCURACY** - Use extracted text for content, image for visual structure
 2. **PRESERVE ALL DATA** - Include all information, numbers, table rows
 3. **NO PAGE METADATA** - Remove page numbers, headers, footers
+
+HEADER VS POINT LIST
+❌ `7.` → likely a numbered item  
+✅ `Art. 5 – Zakres` → heading  
+❌ `9.` → subpoint  
+✅ `Rozdział 3 – Warianty` → heading  
+✅ `Chapter 19 – Termination` → heading  
 
 TABLE FORMATTING:
 - Use proper Markdown syntax: | separators and |----| header separators
@@ -131,6 +140,7 @@ STRUCTURE:
 - ## for main sections
 - **Bold** for field labels
 - Clean formatting for addresses and contact info
+- Remove page numbers
 
 OUTPUT: Clean Markdown only, no explanations or metadata."""
         
