@@ -7,16 +7,18 @@ from datetime import datetime
 from .preprocessing.file_router import FileRouter
 from .preprocessing.text_processing import TextPreprocessing
 from .preprocessing.llm_markdown_processor import LLMMarkdownProcessor
+from .preprocessing.markdown_header_cleaner import MarkdownHeaderCleaner  # ← NOWY IMPORT
 from .preprocessing.batch_result_combiner import BatchResultCombinerTask
-from .preprocessing.header_cleaner import HeaderCleaner
+
 
 class ConditionalProcessor(luigi.Task):
     """
-    Enhanced conditional orchestrator with new pipeline flow
+    Enhanced conditional orchestrator with CORRECTED pipeline flow
 
-    Flow:
+    UPDATED Flow:
     - text_processing: TextPreprocessing
-    - pdf_processing: PDFProcessing → HeaderCleaner → LLMMarkdownProcessor → BatchResultCombinerTask
+    - pdf_processing: PDFProcessing → LLMMarkdownProcessor → MarkdownHeaderCleaner → BatchResultCombinerTask
+                                                         ↑ MOVED HERE (after LLM, before combiner)
     """
     file_path = luigi.Parameter()
 
@@ -38,15 +40,23 @@ class ConditionalProcessor(luigi.Task):
             yield next_task
 
         elif strategy == "pdf_processing":
-            # NEW PDF chain: PDFProcessing → HeaderCleaner → LLMMarkdownProcessor → BatchResultCombinerTask
-            header_task = HeaderCleaner(file_path=self.file_path)
-            yield header_task
-
+            # CORRECTED PDF chain: PDFProcessing → LLMMarkdownProcessor → MarkdownHeaderCleaner → BatchResultCombinerTask
+            print("🔄 Starting PDF processing pipeline...")
+            
+            # STEP 1: LLM converts PDF pages to markdown
             llm_task = LLMMarkdownProcessor(file_path=self.file_path)
             yield llm_task
-
+            print("✅ LLM markdown conversion complete")
+            
+            # STEP 2: Clean repetitive headers/footers from markdown (NEW POSITION!)
+            header_task = MarkdownHeaderCleaner(file_path=self.file_path)
+            yield header_task
+            print("✅ Markdown header cleaning complete")
+            
+            # STEP 3: Combine cleaned markdown into final file
             combine_task = BatchResultCombinerTask(file_path=self.file_path)
             yield combine_task
+            print("✅ Batch combination complete")
 
             next_task = combine_task  # Final result
 
@@ -80,7 +90,11 @@ class ConditionalProcessor(luigi.Task):
                     "pages_count": combined_result.get("statistics", {}).get("total_pages"),
                     "pages_successful": combined_result.get("statistics", {}).get("successful_pages"),
                     "pages_with_tables": combined_result.get("statistics", {}).get("pages_with_tables"),
-                    "processing_time": combined_result.get("statistics", {}).get("total_processing_time_seconds")
+                    "processing_time": combined_result.get("statistics", {}).get("total_processing_time_seconds"),
+                    # NEW: Header cleaning stats
+                    "header_cleaning_applied": combined_result.get("header_cleaning_applied", False),
+                    "patterns_detected": combined_result.get("cleaning_statistics", {}).get("patterns_detected", 0),
+                    "bytes_removed_by_cleaning": combined_result.get("cleaning_statistics", {}).get("total_bytes_removed", 0)
                 })
 
         with self.output().open('w') as f:
@@ -91,6 +105,8 @@ class ConditionalProcessor(luigi.Task):
         print(f"   📁 Final output: {self.output().path}")
         if strategy == "pdf_processing":
             print(f"   📄 Combined markdown: {output_data.get('combined_markdown_file')}")
+            if output_data.get('header_cleaning_applied'):
+                print(f"   🧹 Header cleaning: {output_data.get('patterns_detected')} patterns, {output_data.get('bytes_removed_by_cleaning'):,} bytes removed")
 
     def _get_pipeline_steps(self, strategy):
         """Return list of pipeline steps for given strategy"""
@@ -104,9 +120,9 @@ class ConditionalProcessor(luigi.Task):
             return [
                 "FileRouter", 
                 "PDFProcessing",
-                "HeaderCleaner",
-                "LLMMarkdownProcessor",
-                "BatchResultCombinerTask",
+                "LLMMarkdownProcessor",        # ← STEP 1: PDF → Markdown
+                "MarkdownHeaderCleaner",       # ← STEP 2: Clean headers (NEW POSITION!)
+                "BatchResultCombinerTask",     # ← STEP 3: Combine final result
                 "ConditionalProcessor"
             ]
         return ["FileRouter", "ConditionalProcessor"]
