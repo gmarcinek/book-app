@@ -27,6 +27,13 @@ DOMAIN_EMBEDDING_CONFIGS = {
        "description": "OpenAI embeddings for simple Polish content"
    },
 
+   "financial": {
+       "model_name": DEFAULT_MODEL,
+       "strategy": ChunkingStrategy.HIERARCHICAL,
+       "percentile": 50,  # More aggressive
+       "description": "OpenAI embeddings for simple Polish content"
+   },
+
    "owu": {
        "model_name": DEFAULT_MODEL,
        "strategy": ChunkingStrategy.HIERARCHICAL,

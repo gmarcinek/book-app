@@ -3,6 +3,7 @@ from .factory import DomainFactory
 from .literary import LiteraryNER
 from .simple import SimpleNER
 from .owu import OwuNER
+from .financial import FinancialNER
 
 __all__ = [
     'BaseNER',
@@ -11,4 +12,5 @@ __all__ = [
     'LiteraryNER',
     'SimpleNER',
     'OwuNER', 
+    'FinancialNER', 
 ]

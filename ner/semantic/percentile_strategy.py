@@ -88,6 +88,7 @@ class PercentileChunker(SemanticChunkingStrategy):
             domain_percentiles = {
                 "literary": 92.0,    # Less aggressive - preserve narrative flow
                 "simple": 88.0,      # More aggressive for simple content
+                "financial":95.0,   # Low aggressive - preserve narrative flow
                 "auto": 95.0         # Default
             }
             

@@ -16,6 +16,7 @@ venv/
 
 # 📁 Output agenta
 /output/
+/_output/
 /.cache
 
 # 🛠 IDE (VSCode, PyCharm)

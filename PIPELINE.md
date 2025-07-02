@@ -60,6 +60,19 @@ luigi --module luigi_pipeline.tasks.preprocessing.llm_markdown_processor LLMMark
 poetry run luigi --module luigi_pipeline.tasks.preprocessing.pdf_processing PDFProcessing --file-path "docs/document.pdf" --local-scheduler
 ```
 
+````
+
+### 3.1. LLMLocalLayoutDetector (Images → Block Images + Text)
+
+**Extracts images and text from PDF pages**
+
+**Poetry:**
+
+```bash
+poetry run luigi --module luigi_pipeline.tasks.preprocessing.llm_layout_detector LLMLocalLayoutDetector --file-path "docs/your-file.pdf" --local-scheduler
+
+````
+
 **Pip:**
 
 ```bash

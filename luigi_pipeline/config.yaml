@@ -3,7 +3,8 @@
 LLMMarkdownProcessor:
   # model: "claude-3.5-haiku"
   model: "claude-4-sonnet"
-  max_concurrent: 5 # NEW: sliding window size
+  # model: "qwen2.5vl:7b"
+  max_concurrent: 2 # NEW: sliding window size
   retry_failed_pages: true
   rate_limit_backoff: 20.0
 

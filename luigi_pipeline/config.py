@@ -11,20 +11,9 @@ from llm.models import ModelProvider, get_model_provider, get_model_output_limit
 class PipelineConfig:
     """
     Simple YAML-based configuration loader for Luigi preprocessing pipeline
-    
-    Usage:
-        config = PipelineConfig()
-        model = config.get_task_setting("LLMMarkdownProcessor", "model")
-        tokens = config.get_max_tokens_for_model(model)  # Auto from llm.models
     """
     
     def __init__(self, config_file: str = "luigi_pipeline/config.yaml"):
-        """
-        Load configuration from YAML file
-        
-        Args:
-            config_file: Path to YAML config file
-        """
         self.config_file = Path(config_file)
         self._load_config()
     
@@ -37,17 +26,6 @@ class PipelineConfig:
             self.config = yaml.safe_load(f)
     
     def get_task_setting(self, task_name: str, setting_name: str, default: Any = None) -> Any:
-        """
-        Get setting for specific task
-        
-        Args:
-            task_name: Name of the Luigi task (e.g., "LLMMarkdownProcessor")
-            setting_name: Name of the setting (e.g., "model", "temperature")
-            default: Default value if setting not found
-            
-        Returns:
-            Setting value or default
-        """
         return self.config.get(task_name, {}).get(setting_name, default)
     
     def get_max_tokens_for_model(self, model: str) -> int:
@@ -55,16 +33,6 @@ class PipelineConfig:
         return get_model_output_limit(model)
     
     def get_global_setting(self, setting_path: str, default: Any = None) -> Any:
-        """
-        Get global setting using dot notation
-        
-        Args:
-            setting_path: Dot-separated path (e.g., "performance.timeout")
-            default: Default value if setting not found
-            
-        Returns:
-            Setting value or default
-        """
         keys = setting_path.split('.')
         value = self.config
         

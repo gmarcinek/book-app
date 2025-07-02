@@ -1,5 +1,6 @@
 from typing import List
 
+from .financial import FinancialNER
 from .owu import OwuNER
 from .base import BaseNER
 from .literary import LiteraryNER
@@ -17,6 +18,8 @@ class DomainFactory:
                 domains.append(LiteraryNER())
             elif name == "simple":
                 domains.append(SimpleNER())
+            elif name == "financial":
+                domains.append(FinancialNER())
             elif name == "owu":
                 domains.append(OwuNER())
             else:
@@ -26,4 +29,4 @@ class DomainFactory:
     
     @staticmethod
     def get_available_domains() -> List[str]:
-        return ["literary", "simple", "owu"]
+        return ["literary", "simple", "owu", "financial"]

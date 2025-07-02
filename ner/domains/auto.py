@@ -17,15 +17,6 @@ class AutoNER:
         pass
     
     def classify_chunk(self, text: str) -> List[str]:
-        """
-        Classify text chunk and return list of appropriate domain names
-        
-        Args:
-            text: Text chunk to classify
-            
-        Returns:
-            List of domain names (e.g. ["literary"] or [""] or ["literary", ""])
-        """
         prompt = self._get_classification_prompt(text)
         
         # This would be called by the extractor with its LLM client
@@ -39,6 +30,7 @@ class AutoNER:
 MOŻLIWE GRUPY:
 1. literary - proza, narracja, opisy, dialogi, wspomnienia, autobiografia, tekst literacki
 2. simple - podstawowe encje (osoby, miejsca, organizacje, przedmioty, wydarzenia, czas)
+2. financial - faktury, paragony, potwierdzenia zapłaty (konta bankowe, kwoty, towary, instytucje)
 
 TEKST DO KLASYFIKACJI:
 {text}
@@ -47,6 +39,7 @@ ZASADY:
 - Jeśli tekst jest prozą/narracją → ["literary"] 
 - Jeśli tekst zawiera głównie podstawowe informacje → ["simple"]
 - Jeśli niepewny lub mieszany → ["literary", "simple"]
+- Jeśli tekst finansowy → ["financial"]
 - Jeśli bardzo niepewny → ["simple"] (fallback)
 
 ZWRÓĆ TYLKO JSON:
@@ -79,7 +72,7 @@ ZWRÓĆ TYLKO JSON:
             
             # Validate domains
             valid_domains = []
-            available_domains = ["literary", "simple", "owu"]
+            available_domains = ["literary", "simple", "financial", "owu"]
             
             for domain in domains:
                 if isinstance(domain, str) and domain in available_domains:

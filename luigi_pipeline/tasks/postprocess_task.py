@@ -104,8 +104,8 @@ class PostprocessTask(luigi.Task):
             cmd = [
                 "poetry", "run", "app", 
                 str(markdown_file),
-                "-m", "gpt-4.1-nano",
-                "-d", "owu"
+                "-m", "claude-4-sonnet",
+                "-d", "financial"
             ]
             
             print(f"🚀 Running NER: {' '.join(cmd)}")

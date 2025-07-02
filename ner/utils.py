@@ -151,3 +151,56 @@ def parse_llm_json_response(response: str, expected_key: str = None) -> Optional
         
     except Exception:
         return None  # Just fallback, don't log noise
+    
+
+import re
+
+def parse_markdown_table(table_lines):
+    headers = [h.strip() for h in table_lines[0].strip('|').split('|')]
+    rows = table_lines[2:]  # pomijamy separator z myślnikami
+    parsed_rows = []
+
+    for line in rows:
+        if not line.strip().startswith('|'):
+            continue
+        cells = [c.strip() for c in line.strip('|').split('|')]
+        row_text = '; '.join(f"{k}: {v}" for k, v in zip(headers, cells))
+        parsed_rows.append(row_text)
+
+    return parsed_rows
+
+def markdown_to_plain_text(md_text: str) -> str:
+    lines = md_text.split('\n')
+    result_lines = []
+    in_table = False
+    table_block = []
+
+    for line in lines:
+        # Detekcja początku tabeli
+        if re.match(r'^\s*\|.*\|\s*$', line):
+            table_block.append(line)
+            in_table = True
+        elif in_table and re.match(r'^\s*\|[-:\s|]+\|\s*$', line):
+            table_block.append(line)
+        elif in_table and re.match(r'^\s*\|.*\|\s*$', line):
+            table_block.append(line)
+        elif in_table:
+            # koniec tabeli
+            result_lines.extend(parse_markdown_table(table_block))
+            in_table = False
+            table_block = []
+            result_lines.append(line.strip())  # kontynuuj analizę dla pozostałych linii
+        else:
+            # zwykły tekst markdown bez formatowania
+            plain_line = re.sub(r'\*\*(.*?)\*\*', r'\1', line)  # bold
+            plain_line = re.sub(r'\*(.*?)\*', r'\1', plain_line)  # italic
+            plain_line = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', plain_line)  # link
+            plain_line = re.sub(r'^#+\s*', '', plain_line)  # nagłówki
+            plain_line = re.sub(r'`([^`]*)`', r'\1', plain_line)  # inline code
+            result_lines.append(plain_line.strip())
+
+    # jeśli tabela była na końcu
+    if in_table:
+        result_lines.extend(parse_markdown_table(table_block))
+
+    return '\n'.join([line for line in result_lines if line.strip()])

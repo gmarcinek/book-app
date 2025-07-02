@@ -28,6 +28,8 @@ class Models:
     # Ollama - vision models
     LLAMA_VISION_11B = "llama3.2-vision:11b"
     LLAMA_VISION_90B = "llama3.2-vision:90b"
+    QWEN_VISION_7B = "qwen2.5vl:7b"
+    GEMMA3_12B = "gemma3:12b"
 
 # Mapowanie modeli na providerów
 MODEL_PROVIDERS = {
@@ -52,6 +54,8 @@ MODEL_PROVIDERS = {
     # Ollama vision models
     Models.LLAMA_VISION_11B: ModelProvider.OLLAMA,
     Models.LLAMA_VISION_90B: ModelProvider.OLLAMA,
+    Models.QWEN_VISION_7B: ModelProvider.OLLAMA,
+    Models.GEMMA3_12B: ModelProvider.OLLAMA,
 }
 
 # Vision models mapping - FIXED: Added Claude models
@@ -59,6 +63,8 @@ VISION_MODELS = {
     # Ollama vision
     Models.LLAMA_VISION_11B: ModelProvider.OLLAMA,
     Models.LLAMA_VISION_90B: ModelProvider.OLLAMA,
+    Models.QWEN_VISION_7B: ModelProvider.OLLAMA,
+    Models.GEMMA3_12B: ModelProvider.OLLAMA,
     
     # OpenAI vision
     Models.GPT_4O: ModelProvider.OPENAI,
@@ -91,10 +97,12 @@ MODEL_MAX_TOKENS = {
     Models.QWEN_CODER: 32768,
     Models.QWEN_CODER_32B: 32768,
     Models.CODESTRAL: 32768,
+    Models.GEMMA3_12B: 8192,
     
     # Ollama vision
     Models.LLAMA_VISION_11B: 32768,
     Models.LLAMA_VISION_90B: 32768,
+    Models.QWEN_VISION_7B: 128000,
 }
 
 # INPUT context window limits
@@ -120,6 +128,8 @@ MODEL_INPUT_CONTEXT = {
     # Ollama vision
     Models.LLAMA_VISION_11B: 128000,
     Models.LLAMA_VISION_90B: 128000,
+    Models.QWEN_VISION_7B: 32768,
+    Models.GEMMA3_12B: 128000,
 }
 
 def get_model_input_limit(model_name: str) -> int:
