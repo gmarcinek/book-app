@@ -11,6 +11,8 @@ from pathlib import Path
 
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
+
+from ner.semantic.line_strategy import LineChunker
 from ..utils import log_memory_usage, validate_text_content, safe_filename
 from ..config import ChunkingStrategy, NERConfig, create_default_ner_config
 from llm.models import Models, get_model_input_limit
@@ -143,16 +145,17 @@ class TextChunker:
         
         if semantic_config.strategy == ChunkingStrategy.HIERARCHICAL:
             from .hierarchical_strategy import HierarchicalChunker
-            print(f"🕐 {datetime.now()}: Hierarchical strategy imported")
-            
             chunker = HierarchicalChunker(semantic_config)
-            chunker.llm_model = self.model_name  # ← DODAĆ
+            chunker.llm_model = self.model_name
             print(f"🤖 HIERARCHICAL: Using model {self.model_name}")
-            print(f"🕐 {datetime.now()}: Hierarchical chunker created")
+
+        elif semantic_config.strategy == ChunkingStrategy.LINEAR:
+            from .line_strategy import LineChunker
+            chunker = LineChunker(semantic_config)
+            print(f"LINEAR CHUNKER")
+
         else:
             from .percentile_strategy import PercentileChunker
-            print(f"🕐 {datetime.now()}: Percentile strategy imported")
-            
             chunker = PercentileChunker(semantic_config)
             print(f"🕐 {datetime.now()}: Percentile chunker created")
         

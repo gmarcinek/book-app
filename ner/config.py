@@ -8,6 +8,7 @@ from enum import Enum
 class ChunkingStrategy(Enum):
     PERCENTILE = "percentile"
     HIERARCHICAL = "hierarchical"
+    LINEAR = "linear"
 
 @dataclass
 class NERConfig:
