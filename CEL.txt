@@ -1,0 +1,20 @@
+
+docelowa architektura to Luigi robi to co do tej pory czyli tnie i tłumaczy na markdown, a potem wchodzi FAZA NER która:
+1. tnie semantycznie całego zlepieńca markdown i sprawdza czy nie za długi a jak za długi to rekurencja na chunking semantyczny
+2. jak czunki już są wystarczająco sensowne to uruchamia na każdym chunku domain clasifikator z dostępnych domen (EXCLUSION, DEFINITION,... GENERAL)
+3. Uruchamia równolegle wszystkie czunki i dla każdego równolegle domeny (WOW)
+
+Luigi Pipeline - HYBRID OPTIMAL:
+
+Phase 1: DOCUMENT PROCESSING
+├── FileDecisionTask
+├── PDFToMarkdownTask 
+└── MarkdownCleanupTask
+
+Phase 2: INTELLIGENT NER
+├── SemanticChunkingTask (recursive until optimal size)
+├── ChunkDomainClassificationTask (EXCLUSION|DEFINITION|VARIANT|GENERAL)
+└── MegaParallelNERTasks:
+    ├── Chunk1 × [Domain1, Domain2, Domain3] → 3 parallel
+    ├── Chunk2 × [Domain4] → 1 parallel  
+    └── ChunkN × [Domain1, Domain5] → 2 parallel
