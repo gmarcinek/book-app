@@ -1,4 +1,3 @@
-# PLIK: luigi_pipeline/tasks/preprocessing/sliding_window_page_task.py
 import time
 from pathlib import Path
 from typing import Dict
@@ -8,15 +7,13 @@ from llm import LLMClient, LLMConfig
 
 class SlidingWindowPageTask:
     """
-    Single page processor dla sliding window
+    Single page processor for sliding window
     
-    Replaces BatchLLMTask for individual page processing
-    Contains all prompt logic and LLM interaction
+    Helper class (not Luigi task) - processes individual pages for LLMMarkdownProcessor
     """
     
     def __init__(self, page: Dict, model: str, llm_config: LLMConfig, 
                  markdown_dir: Path, rate_limit_backoff: float = 30.0):
-
         self.page = page
         self.model = model
         self.llm_config = llm_config
@@ -25,6 +22,7 @@ class SlidingWindowPageTask:
         self.llm_client = LLMClient(model)
     
     def process_page(self) -> Dict:
+        """Process single page and save to markdown_dir"""
         page_num = self.page["page_num"]
         
         try:
@@ -33,7 +31,7 @@ class SlidingWindowPageTask:
             # Convert page to markdown using LLM Vision
             markdown_content = self._convert_page_to_markdown()
             
-            # Save individual page file
+            # Save individual page file to provided markdown_dir
             page_file = self._save_page_markdown(page_num, markdown_content)
             
             return {
@@ -84,11 +82,12 @@ class SlidingWindowPageTask:
             }
     
     def _convert_page_to_markdown(self) -> str:
+        """Convert page using LLM vision"""
         page_num = self.page["page_num"]
         extracted_text = self.page.get("text", "")
         image_base64 = self.page.get("image_base64")
         
-        # Build enhanced prompt (medium-length, key essentials)
+        # Build enhanced prompt
         prompt = f"""Look at the provided image and extracted text. You are converting **a single page** from a multi-page PDF document into clean, structured Markdown.
 This page is only one of many (dozens), so **do not assume it starts a new article or section**.
 
@@ -138,27 +137,23 @@ OUTPUT: Clean Markdown only, no explanations or metadata."""
         return markdown_content
     
     def _clean_markdown_response(self, response: str) -> str:
-        """
-        Clean and validate Markdown response
-        
-        Same logic as original BatchLLMTask
-        """
+        """Clean and validate Markdown response"""
         # Remove common LLM response artifacts
         markdown = response.strip()
         
         # Remove markdown code blocks if LLM wrapped the response
         if markdown.startswith("```markdown"):
-            markdown = markdown[11:]  # Remove ```markdown
+            markdown = markdown[11:]
         if markdown.startswith("```"):
-            markdown = markdown[3:]   # Remove ```
+            markdown = markdown[3:]
         if markdown.endswith("```"):
-            markdown = markdown[:-3]  # Remove trailing ```
+            markdown = markdown[:-3]
         
         # Clean up extra whitespace
         lines = markdown.split('\n')
         cleaned_lines = []
         for line in lines:
-            cleaned_lines.append(line.rstrip())  # Remove trailing whitespace
+            cleaned_lines.append(line.rstrip())
         
         # Join back and ensure proper ending
         markdown = '\n'.join(cleaned_lines).strip()
@@ -170,7 +165,7 @@ OUTPUT: Clean Markdown only, no explanations or metadata."""
         return markdown
     
     def _save_page_markdown(self, page_num: int, content: str) -> Path:
-        """Save markdown for single page"""
+        """Save markdown for single page to provided markdown_dir"""
         page_file = self.markdown_dir / f"page_{page_num:03d}.md"
         page_file.write_text(content, encoding='utf-8')
         return page_file

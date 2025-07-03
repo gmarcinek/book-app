@@ -1,5 +1,5 @@
 """
-financial Domain Implementation - Clean and simplified
+Financial Domain Implementation - Invoices, receipts, payments
 """
 
 from typing import List
@@ -7,104 +7,124 @@ from ner.domains.base import BaseNER, DomainConfig
 from ner.types import DEFAULT_ENTITY_TYPES, DEFAULT_CONFIDENCE_THRESHOLDS
 
 class FinancialNER(BaseNER):
-    """FinancialNER Domain with clean entity types and relationship extraction"""
+    """Financial NER Domain for invoices, receipts, and financial documents"""
     
     def __init__(self):
         config = DomainConfig(
             name="financial",
-            entity_types=DEFAULT_ENTITY_TYPES,
+            entity_types=["FAKTURA", "KWOTA", "FIRMA", "TOWAR", "DATA_PLATNOSCI", "NUMER_KONTA", "NIP", "ADRES"],
             confidence_threshold=DEFAULT_CONFIDENCE_THRESHOLDS["entity_extraction"],
         )
         super().__init__(config)
     
     def get_entity_types(self) -> List[str]:
-        return DEFAULT_ENTITY_TYPES
+        return ["FAKTURA", "KWOTA", "FIRMA", "TOWAR", "DATA_PLATNOSCI", "NUMER_KONTA", "NIP", "ADRES"]
     
     def get_meta_analysis_prompt(self, text: str, contextual_entities: List[dict] = None) -> str:
-        """META-PROMPT: Clean and focused"""
-        prompt = f"""Przeanalizuj tekst i stwórz SPERSONALIZOWANY PROMPT NER.
-TEKST:
+        """META-PROMPT: Analyze financial documents"""
+        
+        contextual_info = ""
+        if contextual_entities:
+            contextual_info = "\n\nKONTEKST Z POPRZEDNICH DOKUMENTÓW:\n"
+            for entity_data in contextual_entities:
+                name = entity_data.get('name', '')
+                entity_type = entity_data.get('type', '')
+                description = entity_data.get('description', '')
+                
+                contextual_info += f"- {name} ({entity_type}): {description}...\n"
+        
+        prompt = f"""Przeanalizuj dokument finansowy i stwórz SPERSONALIZOWANY PROMPT NER.
+
+{contextual_info}
+
+TEKST DOKUMENTU FINANSOWEGO:
 {text}
 
 ANALIZA:
-- Każda linia tekstu to encja skutecznego przejścia sportowej drogi wspinaczkowej. Drogę pokonał KAŻDORAZOWO Grzegorz Marcinek 
+- Faktury, paragony, potwierdzenia płatności
+- Kwoty pieniężne (brutto, netto, VAT)
+- Firmy (sprzedawca, nabywca)
+- Towary i usługi
+- Daty płatności i wystawienia
+- Numery kont bankowych
+- Numery NIP
+- Adresy firm
 
 DOSTĘPNE TYPY ENCJI:
-(LEAD)
+FAKTURA, KWOTA, FIRMA, TOWAR, DATA_PLATNOSCI, NUMER_KONTA, NIP, ADRES
 
-ZWRÓĆ GOTOWY PROMPT BEZ JSON WRAPPERA:"""
+ZWRÓĆ GOTOWY PROMPT NER BEZ JSON WRAPPERA:"""
            
         return prompt
 
     def get_base_extraction_prompt(self, text: str) -> str:
-        """FALLBACK: Simple and direct"""
+        """FALLBACK: Simple financial document extraction"""
 
-        prompt = f"""Jesteś agentem AI wyspecjalizowanym w Named Entity Recognition.
+        prompt = f"""Jesteś agentem AI wyspecjalizowanym w analizie dokumentów finansowych.
 
-DANE:
+DOKUMENT FINANSOWY:
 {text}
 
-DOSTĘPNE TYPY ENCJI:
-- LEAD
+TYPY ENCJI:
+- FAKTURA: numery faktur, rachunków
+- KWOTA: kwoty pieniężne (brutto, netto, VAT)
+- FIRMA: nazwy firm (sprzedawca, nabywca)
+- TOWAR: nazwy towarów i usług
+- DATA_PLATNOSCI: terminy płatności
+- NUMER_KONTA: numery rachunków bankowych
+- NIP: numery identyfikacji podatkowej
+- ADRES: adresy firm
 
 ZWRÓĆ TYLKO JSON:
 {{
     "entities": [
         {{
-            "name": "Nazwa Drogi Wspinaczkowej",
-            "type": "LEAD", 
-            "description": "(wycena) - data przejscia - miejsce  - poprawiony stylistycznie opis przejścia występujący w treści",
-            "grade": "wycena drogi wspinaczkowej w skali francuskiej",
-            "date": "data przejscia",
-            "confidence": 0.85
+            "name": "Faktura VAT 2024/001",
+            "type": "FAKTURA", 
+            "description": "numer dokumentu sprzedażowego",
+            "confidence": 0.9
         }}
     ]
 }}"""
         return prompt
     
     def build_custom_extraction_prompt(self, text: str, custom_instructions: str, known_aliases: dict = None) -> str:
-        """Ekstrakcja danych o przejściach dróg wspinaczkowych"""
+        """Custom extraction for financial documents"""
         
+        aliases_info = ""
+        if known_aliases:
+            aliases_info = "\n\nZNANE PODMIOTY FINANSOWE:\n"
+            
+            for entity_data in known_aliases:
+                name = entity_data.get('name', '')
+                entity_type = entity_data.get('type', '')
+                description = entity_data.get('description', '')
+                
+                aliases_info += f"- '{name}' ({entity_type}): {description}\n"
+
         final_prompt = f"""{custom_instructions}
 
-DANE - PRZEJŚCIA DRÓG WSPINACZKOWYCH:
+{aliases_info}
+
+DOKUMENT FINANSOWY:
 {text}
 
-INSTRUKCJE:
-- Każda linia to jedno przejście drogi wspinaczkowej przez Grzegorza Marcinka
-- Format linii: "Nazwa Drogi (wycena) - Lokalizacja - Komentarz - Styl przejścia - Data"
-- Wyciągnij dla każdej linii wszystkie informacje
-
 DOSTĘPNE TYPY ENCJI:
-- LEAD (przejście drogi wspinaczkowej)
+FAKTURA, KWOTA, FIRMA, TOWAR, DATA_PLATNOSCI, NUMER_KONTA, NIP, ADRES
+
+ZASADY:
+- Wyciągnij wszystkie kwoty z walutą
+- Zidentyfikuj firmy (sprzedawca/nabywca)
+- Znajdź numery dokumentów
+- Wypisz wszystkie towary/usługi
 
 ZWRÓĆ TYLKO JSON:
 {{
     "entities": [
         {{
-            "name": "nazwa drogi z linii",
-            "type": "LEAD",
-            "description": "pełny komentarz/opis przejścia z linii", 
-            "grade": "wycena w nawiasach (np. 6b+, 7a)",
-            "location": "pełna lokalizacja (kraj, region, sektor)",
-            "style": "styl przejścia (2nd Go, Hard, itp.)",
-            "date": "data przejścia",
-            "confidence": 0.9
-        }}
-    ]
-}}
-
-PRZYKŁAD dla linii "Rysa Kozickiego (6b+) - Poland, Jura Krakowsko - Częstochowska, Dolina Będkowska - Skurwiałe jurajskie gowno - 2nd Go - 12 Apr 2025":
-{{
-    "entities": [
-        {{
-            "name": "Rysa Kozickiego",
-            "type": "LEAD",
-            "description": "Skurwiałe jurajskie gowno",
-            "grade": "6b+",
-            "location": "Poland, Jura Krakowsko - Częstochowska, Dolina Będkowska", 
-            "style": "2nd Go",
-            "date": "12 Apr 2025",
+            "name": "nazwa encji",
+            "type": "TYP_Z_LISTY",
+            "description": "semantyczny opis encji finansowej",
             "confidence": 0.9
         }}
     ]

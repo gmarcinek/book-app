@@ -1,7 +1,5 @@
-# PLIK: luigi_pipeline/tasks/preprocessing/markdown_header_cleaner.py
 import luigi
 import json
-import hashlib
 import re
 from pathlib import Path
 from typing import List, Dict
@@ -9,24 +7,27 @@ from datetime import datetime
 
 from llm import LLMClient, LLMConfig
 from luigi_pipeline.config import load_config
-from .llm_markdown_processor import LLMMarkdownProcessor
+from luigi_pipeline.tasks.base.structured_task import StructuredTask
+from luigi_pipeline.tasks.preprocessing.llm_markdown_processor.llm_markdown_processor import LLMMarkdownProcessor
 
 
-class MarkdownHeaderCleaner(luigi.Task):
+class MarkdownHeaderCleaner(StructuredTask):
     """
     AI-powered header/footer removal from markdown pages
-    
-    SIMPLIFIED APPROACH: GPT decides what to remove, no heuristics
     """
     file_path = luigi.Parameter()
     preset = luigi.Parameter(default="default")
     
+    @property
+    def pipeline_name(self) -> str:
+        return "preprocessing"
+    
+    @property
+    def task_name(self) -> str:
+        return "markdown_header_cleaner"
+    
     def requires(self):
         return LLMMarkdownProcessor(file_path=self.file_path, preset=self.preset)
-    
-    def output(self):
-        file_hash = hashlib.md5(str(self.file_path).encode()).hexdigest()[:8]
-        return luigi.LocalTarget(f"output/markdown_cleaned_{file_hash}.json", format=luigi.format.UTF8)
     
     def run(self):
         print("🤖 Starting AI-powered markdown header cleaning...")

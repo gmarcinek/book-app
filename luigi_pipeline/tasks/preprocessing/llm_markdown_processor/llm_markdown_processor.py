@@ -1,8 +1,5 @@
-# PLIK: luigi_pipeline/tasks/preprocessing/llm_markdown_processor.py
 import luigi
 import json
-import hashlib
-import time
 import asyncio
 from datetime import datetime
 from pathlib import Path
@@ -11,23 +8,29 @@ from asyncio import Semaphore
 
 from llm import LLMConfig
 from luigi_pipeline.config import load_config
-from .pdf_processing.pdf_processing import PDFProcessing
-from .sliding_window_page_task import SlidingWindowPageTask
+from luigi_pipeline.tasks.base.structured_task import StructuredTask
+from luigi_pipeline.tasks.preprocessing.pdf_processing.pdf_processing import PDFProcessing
+from luigi_pipeline.tasks.preprocessing.sliding_window_page_task.sliding_window_page_task import SlidingWindowPageTask
 
 
-class LLMMarkdownProcessor(luigi.Task):
+class LLMMarkdownProcessor(StructuredTask):
     """
     Sliding Window with page persistence - resume from last success
+    Saves markdown files to task-specific directory
     """
     file_path = luigi.Parameter()
     preset = luigi.Parameter(default="default")
     
+    @property
+    def pipeline_name(self) -> str:
+        return "preprocessing"
+    
+    @property
+    def task_name(self) -> str:
+        return "llm_markdown_processor"
+    
     def requires(self):
         return PDFProcessing(file_path=self.file_path)
-    
-    def output(self):
-        file_hash = hashlib.md5(str(self.file_path).encode()).hexdigest()[:8]
-        return luigi.LocalTarget(f"output/llm_markdown_{file_hash}.json", format=luigi.format.UTF8)
     
     def run(self):
         # Load config
@@ -36,6 +39,7 @@ class LLMMarkdownProcessor(luigi.Task):
         max_tokens = config.get_max_tokens_for_model(model)
         temperature = config.get_task_setting("LLMMarkdownProcessor", "temperature", 0.0)
         max_concurrent = config.get_task_setting("LLMMarkdownProcessor", "max_concurrent", 5)
+        rate_limit_backoff = config.get_task_setting("LLMMarkdownProcessor", "rate_limit_backoff", 30.0)
         
         # Load PDF data
         with self.input().open('r') as f:
@@ -45,12 +49,12 @@ class LLMMarkdownProcessor(luigi.Task):
         if not pages:
             raise ValueError("No pages found")
         
-        # Setup directories
-        file_hash = hashlib.md5(str(self.file_path).encode()).hexdigest()[:8]
-        self.markdown_dir = Path(f"output/markdown_{file_hash}")
-        self.page_results_dir = Path(f"output/page_results_{file_hash}")
-        self.markdown_dir.mkdir(exist_ok=True)
-        self.page_results_dir.mkdir(exist_ok=True)
+        # Create task-specific directories
+        task_dir = Path("output") / self.pipeline_name / self.task_name
+        markdown_dir = task_dir / "markdown"
+        page_results_dir = task_dir / "page_results"
+        markdown_dir.mkdir(parents=True, exist_ok=True)
+        page_results_dir.mkdir(parents=True, exist_ok=True)
         
         llm_config = LLMConfig(temperature=temperature, max_tokens=max_tokens)
         
@@ -58,7 +62,7 @@ class LLMMarkdownProcessor(luigi.Task):
         pages_to_process = []
         for page in pages:
             page_num = page["page_num"]
-            result_file = self.page_results_dir / f"page_{page_num:03d}.json"
+            result_file = page_results_dir / f"page_{page_num:03d}.json"
             
             if result_file.exists():
                 try:
@@ -76,13 +80,14 @@ class LLMMarkdownProcessor(luigi.Task):
         
         # Process remaining pages
         if pages_to_process:
-            asyncio.run(self._process_with_save(pages_to_process, model, llm_config, max_concurrent))
+            asyncio.run(self._process_with_save(pages_to_process, model, llm_config, max_concurrent, 
+                                              markdown_dir, page_results_dir, rate_limit_backoff))
         
         # Load all results and sort by page number
         all_results = []
         for page in pages:
             page_num = page["page_num"]
-            result_file = self.page_results_dir / f"page_{page_num:03d}.json"
+            result_file = page_results_dir / f"page_{page_num:03d}.json"
             
             if result_file.exists():
                 with open(result_file, 'r') as f:
@@ -90,13 +95,13 @@ class LLMMarkdownProcessor(luigi.Task):
             else:
                 all_results.append({"page_num": page_num, "status": "error", "error": "Missing result"})
         
-        # Sort by page number - CRITICAL for correct order
+        # Sort by page number
         all_results.sort(key=lambda x: x.get("page_num", 0))
         
         # Final output
         success_count = sum(1 for r in all_results if r.get("status") == "success")
         
-        output_data = {
+        result = {
             "task_name": "LLMMarkdownProcessor",
             "input_file": str(self.file_path),
             "model_used": model,
@@ -106,17 +111,20 @@ class LLMMarkdownProcessor(luigi.Task):
                 "successful_pages": success_count,
                 "failed_pages": len(all_results) - success_count
             },
-            "markdown_directory": str(self.markdown_dir),
+            "markdown_directory": str(markdown_dir),
+            "page_results_directory": str(page_results_dir),
             "created_at": datetime.now().isoformat()
         }
         
         with self.output().open('w') as f:
-            json.dump(output_data, f, indent=2, ensure_ascii=False)
+            json.dump(result, f, indent=2, ensure_ascii=False)
         
         print(f"✅ {success_count}/{len(all_results)} pages successful")
     
-    async def _process_with_save(self, pages: List[Dict], model: str, llm_config: LLMConfig, max_concurrent: int):
-        """Process pages with immediate save"""
+    async def _process_with_save(self, pages: List[Dict], model: str, llm_config: LLMConfig, 
+                                max_concurrent: int, markdown_dir: Path, page_results_dir: Path,
+                                rate_limit_backoff: float):
+        """Process pages with immediate save to task directories"""
         semaphore = Semaphore(max_concurrent)
         
         async def process_and_save(page: Dict):
@@ -126,8 +134,8 @@ class LLMMarkdownProcessor(luigi.Task):
                     page=page,
                     model=model,
                     llm_config=llm_config,
-                    markdown_dir=self.markdown_dir,
-                    rate_limit_backoff=30.0
+                    markdown_dir=markdown_dir,
+                    rate_limit_backoff=rate_limit_backoff
                 )
                 
                 import concurrent.futures
@@ -135,9 +143,9 @@ class LLMMarkdownProcessor(luigi.Task):
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     result = await loop.run_in_executor(executor, page_task.process_page)
                 
-                # Save immediately
+                # Save result to task directory
                 page_num = result.get("page_num", 0)
-                result_file = self.page_results_dir / f"page_{page_num:03d}.json"
+                result_file = page_results_dir / f"page_{page_num:03d}.json"
                 
                 with open(result_file, 'w') as f:
                     json.dump(result, f, indent=2)

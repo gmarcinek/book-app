@@ -1,10 +1,12 @@
 import luigi
+import json
 from pathlib import Path
+from datetime import datetime
 
 from luigi_pipeline.tasks.base.structured_task import StructuredTask
 
 
-class FileRouterTask(StructuredTask):
+class FileRouter(StructuredTask):
     """Routes files to appropriate processing strategy"""
     
     file_path = luigi.Parameter()
@@ -16,11 +18,6 @@ class FileRouterTask(StructuredTask):
     @property
     def task_name(self) -> str:
         return "file_router"
-    
-    def output(self):
-        file_hash = self.get_file_hash(self.file_path)
-        filename = f"file_router_{file_hash}.txt"
-        return self.create_output_target(filename)
     
     def run(self):
         file_path = Path(self.file_path)
@@ -40,5 +37,13 @@ class FileRouterTask(StructuredTask):
         else:
             strategy = 'unsupported'
         
+        result = {
+            "task_name": "FileRouter",
+            "file_path": str(self.file_path),
+            "strategy": strategy,
+            "file_extension": file_ext,
+            "created_at": datetime.now().isoformat()
+        }
+        
         with self.output().open('w') as f:
-            f.write(f"{strategy}\n")
+            json.dump(result, f, indent=2)

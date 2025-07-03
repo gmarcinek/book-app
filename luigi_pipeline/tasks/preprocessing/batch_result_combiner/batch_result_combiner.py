@@ -1,57 +1,56 @@
-# PLIK: luigi_pipeline/tasks/preprocessing/batch_result_combiner.py
 import luigi
 import json
-import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from .markdown_header_cleaner import MarkdownHeaderCleaner  # ← CHANGED from LLMMarkdownProcessor
+from luigi_pipeline.tasks.base.structured_task import StructuredTask
+from luigi_pipeline.tasks.preprocessing.markdown_header_cleaner.markdown_header_cleaner import MarkdownHeaderCleaner
 
 
-class BatchResultCombinerTask(luigi.Task):
+class BatchResultCombiner(StructuredTask):
     """
-    Luigi Task dla kombinowania wyników z batch processing
-    
-    UPDATED INPUT: Now takes cleaned markdown from MarkdownHeaderCleaner
-    Pipeline: PDFProcessing → LLMMarkdownProcessor → MarkdownHeaderCleaner → BatchResultCombinerTask
-                                                    ↑ NEW INPUT SOURCE
+    Combines results from batch processing and creates final markdown file
     """
     file_path = luigi.Parameter()
     preset = luigi.Parameter(default="default")
     
-    def requires(self):
-        return MarkdownHeaderCleaner(file_path=self.file_path, preset=self.preset)  # ← CHANGED
+    @property
+    def pipeline_name(self) -> str:
+        return "preprocessing"
     
-    def output(self):
-        file_hash = hashlib.md5(str(self.file_path).encode()).hexdigest()[:8]
-        return luigi.LocalTarget(f"output/batch_combined_{file_hash}.json", format=luigi.format.UTF8)
+    @property
+    def task_name(self) -> str:
+        return "batch_result_combiner"
+    
+    def requires(self):
+        return MarkdownHeaderCleaner(file_path=self.file_path, preset=self.preset)
     
     def run(self):
         print("🔗 Starting batch result combination...")
         
-        # Load MarkdownHeaderCleaner results (not LLMMarkdownProcessor)
+        # Load header cleaned results
         with self.input().open('r') as f:
             header_cleaned_data = json.load(f)
         
-        # Validate input - can be either MarkdownHeaderCleaner or LLMMarkdownProcessor (fallback)
+        # Validate input
         expected_tasks = ["MarkdownHeaderCleaner", "LLMMarkdownProcessor"]
         if header_cleaned_data.get("task_name") not in expected_tasks:
             raise ValueError(f"Expected {expected_tasks} input data, got: {header_cleaned_data.get('task_name')}")
         
-        # Extract batch results (works for both input types)
+        # Extract batch results
         batch_results = self._extract_batch_results(header_cleaned_data)
         
         if not batch_results:
             raise ValueError("No batch results found in input data")
         
-        # Get metadata
+        # Create task-specific directory
+        task_dir = Path("output") / self.pipeline_name / self.task_name
+        task_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Extract metadata
         source_file = header_cleaned_data.get("input_file", str(self.file_path))
         model = header_cleaned_data.get("model_used", "unknown")
-        config = header_cleaned_data.get("config", {})
-        total_time = header_cleaned_data.get("statistics", {}).get("total_processing_time_seconds", 0.0)
-        
-        # NEW: Extract header cleaning metadata
         header_cleaning_info = self._extract_header_cleaning_info(header_cleaned_data)
         
         print(f"📊 Found {len(batch_results)} batch results to combine")
@@ -63,16 +62,15 @@ class BatchResultCombinerTask(luigi.Task):
             batch_results=batch_results,
             source_file=source_file,
             model=model,
-            total_time=total_time,
-            config=config,
-            header_cleaning_info=header_cleaning_info  # ← NEW
+            header_cleaning_info=header_cleaning_info,
+            task_dir=task_dir
         )
         
-        # Create Luigi task output
-        output_data = {
-            "task_name": "BatchResultCombinerTask",
+        # Create output
+        result = {
+            "task_name": "BatchResultCombiner",
             "input_file": str(self.file_path),
-            "input_source": header_cleaned_data.get("task_name"),  # Track what we combined
+            "input_source": header_cleaned_data.get("task_name"),
             "model_used": model,
             "status": "success",
             "combined_result": combined_result,
@@ -80,19 +78,18 @@ class BatchResultCombinerTask(luigi.Task):
         }
         
         with self.output().open('w') as f:
-            json.dump(output_data, f, indent=2, ensure_ascii=False)
+            json.dump(result, f, indent=2, ensure_ascii=False)
         
         # Print summary
         stats = combined_result.get("statistics", {})
         print(f"✅ BATCH COMBINATION COMPLETE:")
         print(f"   📊 {stats.get('successful_pages', 0)}/{stats.get('total_pages', 0)} pages combined")
         print(f"   📁 Combined file: {combined_result.get('combined_markdown_file')}")
-        print(f"   💾 Task output: {self.output().path}")
         if header_cleaning_info["applied"]:
             print(f"   🧹 Header cleaning efficiency: {header_cleaning_info['efficiency']:.1%}")
     
     def _extract_batch_results(self, input_data: Dict) -> List[Dict]:
-        """Extract batch results from MarkdownHeaderCleaner or LLMMarkdownProcessor output"""
+        """Extract batch results from input data"""
         batch_results = []
         
         # Try different result structures
@@ -111,21 +108,17 @@ class BatchResultCombinerTask(luigi.Task):
     def _extract_header_cleaning_info(self, input_data: Dict) -> Dict:
         """Extract header cleaning metadata"""
         return {
-            "applied": input_data.get("header_cleaning_applied", False),
-            "patterns_detected": input_data.get("cleaning_statistics", {}).get("patterns_detected", 0),
-            "bytes_removed": input_data.get("cleaning_statistics", {}).get("total_bytes_removed", 0),
-            "pages_cleaned": input_data.get("cleaning_statistics", {}).get("pages_cleaned", 0),
-            "efficiency": input_data.get("cleaning_statistics", {}).get("cleaning_efficiency", 0.0),
-            "pattern_types": input_data.get("cleaning_statistics", {}).get("detected_pattern_types", [])
+            "applied": input_data.get("ai_cleaning_applied", False),
+            "patterns_detected": input_data.get("ai_statistics", {}).get("headers_detected", 0),
+            "bytes_removed": input_data.get("ai_statistics", {}).get("total_bytes_removed", 0),
+            "pages_cleaned": input_data.get("ai_statistics", {}).get("pages_cleaned", 0),
+            "efficiency": input_data.get("ai_statistics", {}).get("cleaning_efficiency", 0.0),
+            "pattern_types": input_data.get("detected_headers", [])
         }
     
-    def _combine_batch_results(self, batch_results: List[Dict], 
-                              source_file: str, model: str, 
-                              total_time: float, config: Dict,
-                              header_cleaning_info: Dict) -> Dict:  # ← NEW parameter
-        """
-        Kombinuje i finalizuje wyniki z batch processing + header cleaning info
-        """
+    def _combine_batch_results(self, batch_results: List[Dict], source_file: str, 
+                              model: str, header_cleaning_info: Dict, task_dir: Path) -> Dict:
+        """Combine batch results and create final markdown file"""
         print(f"🔗 Combining results from {len(batch_results)} processed pages...")
         
         # Separate success/failed results
@@ -135,31 +128,28 @@ class BatchResultCombinerTask(luigi.Task):
         print(f"📊 Results: {len(success_results)} success, {len(failed_results)} failed")
         
         # Create combined markdown file
-        combined_markdown_file = self._create_combined_markdown(success_results, source_file)
+        combined_markdown_file = self._create_combined_markdown(success_results, source_file, task_dir)
         
-        # Generate enhanced statistics
-        stats = self._generate_enhanced_statistics(batch_results, total_time, header_cleaning_info)
+        # Generate statistics
+        stats = self._generate_statistics(batch_results, header_cleaning_info)
         
-        # Create final output
-        final_result = {
-            "task_name": "BatchResultCombinerTask",
+        # Create final result
+        return {
+            "task_name": "BatchResultCombiner",
             "source_file": source_file,
             "model_used": model,
             "processing_mode": "batch_parallel",
-            "config": config,
             "status": "success",
             "statistics": stats,
             "combined_markdown_file": str(combined_markdown_file) if combined_markdown_file else None,
             "success_results": success_results,
             "failed_results": failed_results,
-            "header_cleaning": header_cleaning_info,  # ← NEW
+            "header_cleaning": header_cleaning_info,
             "created_at": datetime.now().isoformat()
         }
-        
-        return final_result
     
-    def _create_combined_markdown(self, success_results: List[Dict], source_file: str) -> Optional[Path]:
-        """Create combined markdown file from successful results"""
+    def _create_combined_markdown(self, success_results: List[Dict], source_file: str, task_dir: Path) -> Optional[Path]:
+        """Create combined markdown file in task directory"""
         if not success_results:
             print("⚠️ No successful results to combine")
             return None
@@ -180,15 +170,11 @@ class BatchResultCombinerTask(luigi.Task):
             print("⚠️ No content to combine")
             return None
         
-        # Create filename
+        # Create filename in task directory
         source_name = Path(source_file).stem
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         combined_filename = f"{source_name}_combined_{timestamp}.md"
-        
-        # Use output directory
-        output_dir = Path("output")
-        output_dir.mkdir(exist_ok=True)
-        combined_path = output_dir / combined_filename
+        combined_path = task_dir / combined_filename
         
         # Save combined file
         combined_content = "\n".join(combined_parts)
@@ -197,9 +183,8 @@ class BatchResultCombinerTask(luigi.Task):
         print(f"📝 Combined markdown saved: {combined_filename}")
         return combined_path
     
-    def _generate_enhanced_statistics(self, batch_results: List[Dict], total_time: float, 
-                                    header_cleaning_info: Dict) -> Dict:
-        """Generate enhanced statistics including header cleaning info"""
+    def _generate_statistics(self, batch_results: List[Dict], header_cleaning_info: Dict) -> Dict:
+        """Generate comprehensive statistics"""
         total_pages = len(batch_results)
         success_pages = len([r for r in batch_results if r.get("status") == "success"])
         failed_pages = total_pages - success_pages
@@ -209,29 +194,25 @@ class BatchResultCombinerTask(luigi.Task):
                               if r.get("status") == "success" and r.get("has_tables", False))
         
         # Content length stats
-        original_lengths = [r.get("original_content_length", r.get("content_length", 0)) 
-                          for r in batch_results if r.get("status") == "success"]
-        cleaned_lengths = [r.get("cleaned_content_length", r.get("content_length", 0)) 
-                         for r in batch_results if r.get("status") == "success"]
+        success_results = [r for r in batch_results if r.get("status") == "success"]
+        original_lengths = [r.get("original_length", r.get("content_length", 0)) for r in success_results]
+        cleaned_lengths = [r.get("cleaned_length", r.get("content_length", 0)) for r in success_results]
         
         avg_original_length = sum(original_lengths) / len(original_lengths) if original_lengths else 0
         avg_cleaned_length = sum(cleaned_lengths) / len(cleaned_lengths) if cleaned_lengths else 0
         
         # Header cleaning stats
         pages_with_headers_removed = sum(1 for r in batch_results 
-                                       if r.get("status") == "success" and r.get("header_cleaned", False))
+                                       if r.get("status") == "success" and r.get("ai_cleaned", False))
         
-        stats = {
+        return {
             "total_pages": total_pages,
             "successful_pages": success_pages,
             "failed_pages": failed_pages,
             "success_rate": success_pages / total_pages if total_pages > 0 else 0,
             "pages_with_tables": pages_with_tables,
-            "total_processing_time_seconds": total_time,
-            "average_time_per_page": total_time / total_pages if total_pages > 0 else 0,
             "average_original_content_length": int(avg_original_length),
             "average_cleaned_content_length": int(avg_cleaned_length),
-            # NEW: Header cleaning statistics
             "header_cleaning": {
                 "applied": header_cleaning_info["applied"],
                 "patterns_detected": header_cleaning_info["patterns_detected"],
@@ -241,5 +222,3 @@ class BatchResultCombinerTask(luigi.Task):
                 "pattern_types_found": header_cleaning_info["pattern_types"]
             }
         }
-        
-        return stats

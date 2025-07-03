@@ -1,47 +1,55 @@
 import luigi
 import json
-import hashlib
 import subprocess
 import time
-import os  # ← ADD THIS IMPORT
+import os
 from datetime import datetime
 from pathlib import Path
 
-from .preprocessing_task import PreprocessingTask
+from luigi_pipeline.tasks.base.structured_task import StructuredTask
+from luigi_pipeline.tasks.preprocessing.batch_result_combiner.batch_result_combiner import BatchResultCombiner
 
 
-class PostprocessTask(luigi.Task):
+class PostprocessTask(StructuredTask):
     """
-    Postprocessing: combine markdown from JSON + run NER pipeline
+    Postprocessing: combine markdown from preprocessing + run NER pipeline
     """
     file_path = luigi.Parameter()
     
-    def requires(self):
-        return PreprocessingTask(file_path=self.file_path)
+    @property
+    def pipeline_name(self) -> str:
+        return "postprocessing"
     
-    def output(self):
-        file_hash = hashlib.md5(str(self.file_path).encode()).hexdigest()[:8]
-        return luigi.LocalTarget(f"output/postprocess_{file_hash}.json")
+    @property
+    def task_name(self) -> str:
+        return "postprocess_task"
+    
+    def requires(self):
+        return BatchResultCombiner(file_path=self.file_path)
     
     def run(self):
         # Load preprocessing results
         with self.input().open('r') as f:
             preprocessing_data = json.load(f)
         
-        # Extract batch results and combine markdown
+        # Create task-specific directory
+        task_dir = Path("output") / self.pipeline_name / self.task_name
+        task_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Extract and combine markdown
         combined_markdown = self._extract_and_combine_markdown(preprocessing_data)
         
-        # Save combined markdown file
-        markdown_file = self._save_combined_markdown(combined_markdown)
+        # Save combined markdown file in task directory
+        markdown_file = self._save_combined_markdown(combined_markdown, task_dir)
         
-        # Wait 0.5 sec for file system
+        # Wait for file system
         time.sleep(0.5)
         
         # Run NER pipeline
         ner_results = self._run_ner_pipeline(markdown_file)
         
         # Create output
-        output = {
+        result = {
             "task_name": "PostprocessTask",
             "input_file": str(self.file_path),
             "markdown_file_created": str(markdown_file),
@@ -51,19 +59,16 @@ class PostprocessTask(luigi.Task):
         }
         
         with self.output().open('w') as f:
-            json.dump(output, f, indent=2)
+            json.dump(result, f, indent=2, ensure_ascii=False)
         
         print(f"✅ Postprocessing complete: {markdown_file.name}")
         print(f"✅ NER pipeline executed")
     
     def _extract_and_combine_markdown(self, preprocessing_data):
-        """Extract markdown content from preprocessing JSON and combine"""
-        # Navigate nested structure: combined_result.combined_result
+        """Extract markdown content from BatchResultCombiner output"""
+        # ZMIENIONE: Bezpośrednio z BatchResultCombiner
         combined_result = preprocessing_data.get("combined_result", {})
-        inner_combined_result = combined_result.get("combined_result", {})
-        
-        # Get success_results from inner structure
-        success_results = inner_combined_result.get("success_results", [])
+        success_results = combined_result.get("success_results", [])
         
         if not success_results:
             raise ValueError(f"No successful pages found in preprocessing data")
@@ -81,21 +86,18 @@ class PostprocessTask(luigi.Task):
         
         return "\n\n".join(combined_parts) + "\n"
     
-    def _save_combined_markdown(self, content):
-        """Save combined markdown to file"""
+    def _save_combined_markdown(self, content, task_dir):
+        """Save combined markdown to task directory"""
         # Create filename
         source_name = Path(self.file_path).stem
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{source_name}_postprocess_{timestamp}.md"
         
-        # Save file
-        output_dir = Path("output")
-        output_dir.mkdir(exist_ok=True)
-        markdown_file = output_dir / filename
-        
+        # Save file in task directory
+        markdown_file = task_dir / filename
         markdown_file.write_text(content, encoding='utf-8')
-        print(f"📝 Combined markdown saved: {filename}")
         
+        print(f"📝 Combined markdown saved: {filename}")
         return markdown_file
     
     def _run_ner_pipeline(self, markdown_file):
@@ -105,7 +107,6 @@ class PostprocessTask(luigi.Task):
                 "poetry", "run", "app", 
                 str(markdown_file),
                 "-m", "claude-4-sonnet",
-                "-d", "financial"
             ]
             
             print(f"🚀 Running NER: {' '.join(cmd)}")
@@ -118,8 +119,8 @@ class PostprocessTask(luigi.Task):
                 cmd,
                 capture_output=True,
                 text=True,
-                encoding='utf-8',  # ← EXPLICIT ENCODING
-                errors='replace',  # ← HANDLE BAD CHARS
+                encoding='utf-8',
+                errors='replace',
                 cwd=Path.cwd(),
                 timeout=600,
                 env=env

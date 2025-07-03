@@ -1,52 +1,68 @@
 import luigi
 import json
-import hashlib
 from datetime import datetime
 
-from .preprocessing.file_router import FileRouter
-from .preprocessing.text_processing import TextPreprocessing
-from .preprocessing_task import PreprocessingTask
-from .postprocess_task import PostprocessTask  # ← NEW IMPORT
+from luigi_pipeline.tasks.base.structured_task import StructuredTask
+from luigi_pipeline.tasks.preprocessing.file_router.file_router import FileRouter
+from luigi_pipeline.tasks.preprocessing.text_processing.text_processing import TextProcessing
+from luigi_pipeline.tasks.postprocessing.postprocess_task.postprocess_task import PostprocessTask
 
 
-class ConditionalProcessor(luigi.Task):
+class ConditionalProcessor(StructuredTask):
     """
-    EXTENDED conditional orchestrator with postprocessing
+    Main orchestrator task that routes to appropriate processing pipeline
     """
     file_path = luigi.Parameter()
+
+    @property
+    def pipeline_name(self) -> str:
+        return "orchestration"
+    
+    @property
+    def task_name(self) -> str:
+        return "conditional_processor"
 
     def requires(self):
         return FileRouter(file_path=self.file_path)
 
-    def output(self):
-        file_hash = hashlib.md5(str(self.file_path).encode()).hexdigest()[:8]
-        return luigi.LocalTarget(f"output/conditional_processor_{file_hash}.json")
-
     def run(self):
+        # Read file router decision
         with self.input().open('r') as f:
-            strategy = f.read().strip()
+            router_data = json.load(f)
 
+        strategy = router_data.get("strategy")
+        
         if strategy == "text_processing":
-            next_task = TextPreprocessing(file_path=self.file_path)
+            next_task = TextProcessing(file_path=self.file_path)
             yield next_task
+            
+            # Load text processing result
+            with next_task.output().open('r') as f:
+                result = json.load(f)
+                
         elif strategy == "pdf_processing":
             print("🚀 Starting PDF processing with NER pipeline...")
-            next_task = PostprocessTask(file_path=self.file_path)  # Remove preset
+            next_task = PostprocessTask(file_path=self.file_path)
             yield next_task
+            
+            # Load postprocessing result
+            with next_task.output().open('r') as f:
+                result = json.load(f)
+                
         else:
             raise ValueError(f"Unknown strategy: {strategy}")
 
-        with next_task.output().open('r') as f:
-            result = json.load(f)
-
+        # Create final orchestration result
         output = {
             "task_name": "ConditionalProcessor",
             "strategy": strategy,
+            "file_path": str(self.file_path),
+            "status": "success",
             "result": result,
             "created_at": datetime.now().isoformat()
         }
 
         with self.output().open('w') as f:
-            json.dump(output, f, indent=2)
+            json.dump(output, f, indent=2, ensure_ascii=False)
 
         print(f"✅ Strategy {strategy} complete")
