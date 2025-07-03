@@ -1,24 +1,30 @@
 import luigi
-import hashlib
 from pathlib import Path
 
+from luigi_pipeline.tasks.base.structured_task import StructuredTask
 
-class FileRouter(luigi.Task):
-    """
-    Routes files to appropriate processing strategy based on file extension
+
+class FileRouterTask(StructuredTask):
+    """Routes files to appropriate processing strategy"""
     
-    Output: text file with strategy name (text_processing, pdf_processing, unsupported)
-    """
     file_path = luigi.Parameter()
     
+    @property
+    def pipeline_name(self) -> str:
+        return "preprocessing"
+    
+    @property
+    def task_name(self) -> str:
+        return "file_router"
+    
     def output(self):
-        file_hash = hashlib.md5(str(self.file_path).encode()).hexdigest()[:8]
-        return luigi.LocalTarget(f"output/file_router_{file_hash}.txt")
+        file_hash = self.get_file_hash(self.file_path)
+        filename = f"file_router_{file_hash}.txt"
+        return self.create_output_target(filename)
     
     def run(self):
         file_path = Path(self.file_path)
         
-        # Validate file exists and is actually a file
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {self.file_path}")
         

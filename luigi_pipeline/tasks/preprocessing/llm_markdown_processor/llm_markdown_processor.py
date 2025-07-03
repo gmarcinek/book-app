@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import List, Dict
 from asyncio import Semaphore
 
-from llm import LLMClient, LLMConfig
+from llm import LLMConfig
 from luigi_pipeline.config import load_config
-from .pdf_processing import PDFProcessing
+from .pdf_processing.pdf_processing import PDFProcessing
 from .sliding_window_page_task import SlidingWindowPageTask
 
 

@@ -16,14 +16,7 @@ class SlidingWindowPageTask:
     
     def __init__(self, page: Dict, model: str, llm_config: LLMConfig, 
                  markdown_dir: Path, rate_limit_backoff: float = 30.0):
-        """
-        Args:
-            page: Single page data from PDFProcessing
-            model: LLM model to use
-            llm_config: LLM configuration
-            markdown_dir: Directory to save markdown files
-            rate_limit_backoff: Wait time after rate limit error
-        """
+
         self.page = page
         self.model = model
         self.llm_config = llm_config
@@ -32,12 +25,6 @@ class SlidingWindowPageTask:
         self.llm_client = LLMClient(model)
     
     def process_page(self) -> Dict:
-        """
-        Process single page to markdown
-        
-        Returns:
-            Dict with result or error
-        """
         page_num = self.page["page_num"]
         
         try:
@@ -97,11 +84,6 @@ class SlidingWindowPageTask:
             }
     
     def _convert_page_to_markdown(self) -> str:
-        """
-        Convert page to markdown using LLM Vision
-        
-        Contains all prompt logic and LLM interaction
-        """
         page_num = self.page["page_num"]
         extracted_text = self.page.get("text", "")
         image_base64 = self.page.get("image_base64")

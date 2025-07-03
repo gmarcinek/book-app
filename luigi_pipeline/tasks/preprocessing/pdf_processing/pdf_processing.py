@@ -7,7 +7,7 @@ from datetime import datetime
 import fitz  # PyMuPDF - screenshots
 import PyPDF2  # Clean text extraction
 
-from .file_router import FileRouter
+from ..file_router import FileRouter
 
 
 class PDFProcessing(luigi.Task):

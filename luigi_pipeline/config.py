@@ -4,8 +4,8 @@ Simple YAML-based Luigi Pipeline Configuration
 
 import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional
-from llm.models import ModelProvider, get_model_provider, get_model_output_limit
+from typing import Dict, Any
+from llm.models import get_model_provider, get_model_output_limit
 
 
 class PipelineConfig:
