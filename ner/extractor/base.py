@@ -119,11 +119,11 @@ class EntityExtractor:
         return self.semantic_store
 
     def _initialize_llm(self):
-        """Initialize LLM client"""
+        """Initialize LLM client with fresh context every request to prevent context bleeding"""
         if self.llm_client is None:
             from llm import LLMClient
-            self.llm_client = LLMClient(self.model)
-            print(f"🤖 LLM initialized: {self.model}")
+            self.llm_client = LLMClient(self.model, fresh_client_every_request=True)
+            print(f"🤖 LLM initialized: {self.model} (fresh_client_every_request=True)")
    
     def _call_llm_for_meta_analysis(self, prompt: str) -> str:
         """Call LLM for meta-analysis"""
@@ -311,7 +311,9 @@ class EntityExtractor:
         return {
             "extraction": self.extraction_stats,
             "meta_prompts": self.meta_prompt_stats,
-            "context": self.context_stats
+            "context": self.context_stats,
+            "failed_extractions": 0,
+            "semantic_enhancements": 0,
         }
 
     def print_final_stats(self):

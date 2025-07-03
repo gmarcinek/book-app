@@ -41,7 +41,9 @@ class LiteraryNER(BaseNER):
             contextual_info += "\nUwzględnij te znane encje w analizie.\n"
         
         prompt = f"""Przeanalizuj tekst i stwórz SPERSONALIZOWANY PROMPT NER.
+
 {contextual_info}
+
 TEKST: {text}
 
 ANALIZA:

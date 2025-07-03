@@ -281,7 +281,7 @@ class SemanticStore:
     
     def search_entities_by_name(self, query: str,
                                threshold: float = 0.8,
-                               max_results: int = 5) -> List[Tuple[str, float]]:
+                               max_results: int = 200) -> List[Tuple[str, float]]:
         """Search entities by name/alias similarity"""
         if not query.strip():
             return []

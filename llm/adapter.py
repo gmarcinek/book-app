@@ -13,7 +13,7 @@ class LLMClient:
     """Minimalistyczny adapter zarządzający różnymi providerami LLM z vision support"""
     
     def __init__(self, model: str, max_tokens: Optional[int] = None, temperature: float = 0.0, 
-                 system_message: Optional[str] = None, fresh_client_every_request: bool = False):
+                 system_message: Optional[str] = None, fresh_client_every_request: bool = True):
         """
         Inicjalizuj klienta LLM
         

@@ -33,7 +33,7 @@ class FinancialNER(BaseNER):
                 
                 contextual_info += f"- {name} ({entity_type}): {description}...\n"
         
-        prompt = f"""Przeanalizuj dokument finansowy i stwórz SPERSONALIZOWANY PROMPT NER.
+        prompt = f"""Przeanalizuj dokument finansowy i stwórz SPERSONALIZOWANY PROMPT dla Named Entity Recognition.
 
 {contextual_info}
 
@@ -60,7 +60,7 @@ ZWRÓĆ GOTOWY PROMPT NER BEZ JSON WRAPPERA:"""
     def get_base_extraction_prompt(self, text: str) -> str:
         """FALLBACK: Simple financial document extraction"""
 
-        prompt = f"""Jesteś agentem AI wyspecjalizowanym w analizie dokumentów finansowych.
+        prompt = f"""Jesteś agentem AI wyspecjalizowanym w Named Entity Recognition.
 
 DOKUMENT FINANSOWY:
 {text}
@@ -91,26 +91,23 @@ ZWRÓĆ TYLKO JSON:
     def build_custom_extraction_prompt(self, text: str, custom_instructions: str, known_aliases: dict = None) -> str:
         """Custom extraction for financial documents"""
         
-        aliases_info = ""
-        if known_aliases:
-            aliases_info = "\n\nZNANE PODMIOTY FINANSOWE:\n"
-            
-            for entity_data in known_aliases:
-                name = entity_data.get('name', '')
-                entity_type = entity_data.get('type', '')
-                description = entity_data.get('description', '')
-                
-                aliases_info += f"- '{name}' ({entity_type}): {description}\n"
+        final_prompt = f"""esteś agentem AI wyspecjalizowanym w Named Entity Recognition.
 
-        final_prompt = f"""{custom_instructions}
-
-{aliases_info}
+INSTRUKCJE SPECYFICZNE DLA TEGO TEKSTU:
+{custom_instructions}
 
 DOKUMENT FINANSOWY:
 {text}
 
-DOSTĘPNE TYPY ENCJI:
-FAKTURA, KWOTA, FIRMA, TOWAR, DATA_PLATNOSCI, NUMER_KONTA, NIP, ADRES
+TYPY ENCJI:
+- FAKTURA: numery faktur, rachunków
+- KWOTA: kwoty pieniężne (brutto, netto, VAT)
+- FIRMA: nazwy firm (sprzedawca, nabywca)
+- TOWAR: nazwy towarów i usług
+- DATA_PLATNOSCI: terminy płatności
+- NUMER_KONTA: numery rachunków bankowych
+- NIP: numery identyfikacji podatkowej
+- ADRES: adresy firm
 
 ZASADY:
 - Wyciągnij wszystkie kwoty z walutą

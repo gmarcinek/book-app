@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Simple search thresholds - no complex deduplication logic
 DEFAULT_CONTEXT_SEARCH_THRESHOLD = 0.6
-DEFAULT_MAX_SEARCH_RESULTS = 10
+DEFAULT_MAX_SEARCH_RESULTS = 200
 
 
 class FAISSManager:
