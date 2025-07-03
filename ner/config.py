@@ -27,7 +27,7 @@ class NERConfig:
     # Chunking settings
     chunk_size: int = 9000
     chunk_overlap: int = 400
-    chunking_mode: str = "semantic"  # "model_aware" or "semantic"
+    chunking_mode: str = "semantic"
     semantic_strategy: ChunkingStrategy = ChunkingStrategy.PERCENTILE
     
     # Processing limits

@@ -6,7 +6,6 @@ import logging
 from typing import Dict, Any, Optional
 from ..utils import validate_entity_name, validate_entity_type
 from ..domains import BaseNER
-from ..entity_config import DeduplicationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +71,12 @@ def _validate_and_clean_entity(entity_data: Dict[str, Any], domain: BaseNER = No
     else:
         # Use a sensible minimum for entity validation (not search threshold)
         # Different thresholds for different entity types based on precision needs
+        from ner.types import get_confidence_threshold_for_type
         try:
-            # Try to get merge threshold and use it as basis for validation
-            type_merge_threshold = DeduplicationConfig.get_merge_threshold_for_type(entity_type)
-            # Validation should be more lenient than merge threshold
-            min_confidence = max(0.15, type_merge_threshold - 0.3)
+            # Get type-specific confidence threshold
+            min_confidence = get_confidence_threshold_for_type(entity_type)
+            # Make validation slightly more lenient than extraction threshold
+            min_confidence = max(0.15, min_confidence - 0.1)
         except:
             min_confidence = 0.2  # Safe fallback for validation
     

@@ -3,8 +3,8 @@ financial Domain Implementation - Clean and simplified
 """
 
 from typing import List
-from ..base import BaseNER, DomainConfig
-from ...entity_config import DEFAULT_ENTITY_TYPES, DEFAULT_CONFIDENCE_THRESHOLDS
+from ner.domains.base import BaseNER, DomainConfig
+from ner.types import DEFAULT_ENTITY_TYPES, DEFAULT_CONFIDENCE_THRESHOLDS
 
 class FinancialNER(BaseNER):
     """FinancialNER Domain with clean entity types and relationship extraction"""
@@ -23,20 +23,14 @@ class FinancialNER(BaseNER):
     def get_meta_analysis_prompt(self, text: str, contextual_entities: List[dict] = None) -> str:
         """META-PROMPT: Clean and focused"""
         prompt = f"""Przeanalizuj tekst i stwórz SPERSONALIZOWANY PROMPT NER.
-TEKST: {text}
+TEKST:
+{text}
 
 ANALIZA:
-- Nazwane organizacje / Firmy (INSTITUTION)
-- Osoby (PERSON)
-- Forma płatnośc (PAYMENT_TYPE)
-- Role (ROLE)
-- Konta bankowe (IBAN)
-- Tytuł przelewu (PAYMENT_DESCRIPTION)
-- Numer faktury (INVOICE_NUMBER)
-- Określone daty / godziny(DATE)
-- Numery Rejestracyjne / kody / klucze / PESEL / NIP / REGON (CODE)
-- Konkretne adresy (ADDRESS)
-- Przedmioty / Produkty (ITEM)
+- Każda linia tekstu to encja skutecznego przejścia sportowej drogi wspinaczkowej. Drogę pokonał KAŻDORAZOWO Grzegorz Marcinek 
+
+DOSTĘPNE TYPY ENCJI:
+(LEAD)
 
 ZWRÓĆ GOTOWY PROMPT BEZ JSON WRAPPERA:"""
            
@@ -47,91 +41,74 @@ ZWRÓĆ GOTOWY PROMPT BEZ JSON WRAPPERA:"""
 
         prompt = f"""Jesteś agentem AI wyspecjalizowanym w Named Entity Recognition.
 
-TEKST: {text}
+DANE:
+{text}
 
-TYPY ENCJI:
-{', '.join([
-"INSTITUTION",
-"PERSON",
-"PAYMENT_TYPE",
-"ROLE",
-"IBAN",
-"PAYMENT_DESCRIPTION",
-"INVOICE_NUMBER",
-"DATE",
-"CODE",
-"ADDRESS",
-"ITEM"
-])}
+DOSTĘPNE TYPY ENCJI:
+- LEAD
 
-ZASADY:
-- Forma podstawowa
-- Tylko encje jawnie obecne
-- Aliases: wszystkie warianty nazwy
-
-JSON:
+ZWRÓĆ TYLKO JSON:
 {{
     "entities": [
         {{
-            "name": "Jan Kowalski",
-            "type": "PERSON", 
-            "description": "semantycznie użyteczny opis dla wyszukiwarki embedera, używaj wiedzy z tekstu i wiedzy ogólnej o świecie jednocześnie bądź precyzyjny jak matematyk opisujacy to co widzi",
-            "evidence": "nabywca: Jan Kowalski...",
-            "aliases": ["Jan", "Kowalski", "Nabywca"],
+            "name": "Nazwa Drogi Wspinaczkowej",
+            "type": "LEAD", 
+            "description": "(wycena) - data przejscia - miejsce  - poprawiony stylistycznie opis przejścia występujący w treści",
+            "grade": "wycena drogi wspinaczkowej w skali francuskiej",
+            "date": "data przejscia",
             "confidence": 0.85
         }}
     ]
- ]
 }}"""
         return prompt
     
     def build_custom_extraction_prompt(self, text: str, custom_instructions: str, known_aliases: dict = None) -> str:
-        """FinancialNer: ekstrakcja danych finansowych i kontraktowych"""
-        aliases_info = ""
-        if known_aliases:
-            aliases_info = "\n\nZNANE ENCJE Z KONTEKSTEM (uwzględnij w ekstrakcji):\n"
-            
-            for entity_data in known_aliases:
-                name = entity_data.get('name', '')
-                entity_id = entity_data.get('id', '')
-                entity_type = entity_data.get('type', '')
-                description = entity_data.get('description', '')[:350]
-                aliases = entity_data.get('aliases', [])
-                confidence = entity_data.get('confidence', 0.0)
-                
-                aliases_str = ", ".join(aliases) if aliases else "brak"
-                aliases_info += f"- '{name}' ({entity_type}): {description}\n"
-                aliases_info += f"  Aliases: [{aliases_str}] | Confidence: {confidence:.2f}\n\n"
-            
-            aliases_info += "UWAGA: Jeśli znajdziesz te encje lub ich aliases, użyj głównej nazwy jako 'name', zachowaj lub poszerz description, dodaj aliases.\n"
+        """Ekstrakcja danych o przejściach dróg wspinaczkowych"""
+        
+        final_prompt = f"""{custom_instructions}
 
-        return f"""{custom_instructions}
+DANE - PRZEJŚCIA DRÓG WSPINACZKOWYCH:
+{text}
 
-    ZADANIE: Wyodrębnij wszystkie wystąpienia encji finansowych i kontraktowych z podanego tekstu. Skup się na następujących typach:
-    - numery faktur (np. "FV/2023/07/15")
-    - numery kont bankowych (np. IBAN)
-    - instytucje (banki, urzędy, firmy)
-    - osoby (w kontekście występujących nazwisk lub pełnych imion)
-    - towary lub przedmioty świadczeń (np. "abonament", "usługa ochrony", "paliwo", "czujnik alarmowy")
+INSTRUKCJE:
+- Każda linia to jedno przejście drogi wspinaczkowej przez Grzegorza Marcinka
+- Format linii: "Nazwa Drogi (wycena) - Lokalizacja - Komentarz - Styl przejścia - Data"
+- Wyciągnij dla każdej linii wszystkie informacje
 
-    Każdą encję oznacz odpowiednim typem i dołącz dowód cytatu z tekstu (evidence). Ustal także aliases i poziom pewności (confidence).
+DOSTĘPNE TYPY ENCJI:
+- LEAD (przejście drogi wspinaczkowej)
 
-    {aliases_info}
-    TEKST: {text}
-
-    JSON (EVIDENCE obowiązkowy):
-    {{
+ZWRÓĆ TYLKO JSON:
+{{
     "entities": [
         {{
-        "name": "deskryptywna_nazwa_podstawowa",
-        "type": "TYP_Z_LISTY", 
-        "description": "semantycznie użyteczny opis dla wyszukiwarki embedera, minimalna długość to 10 słów, spróbuj powiedzieć i ekstrapolować jak najwięcej można prawdziwych stwierdzeń na temat encji",
-        "confidence": 0.X,
-        "evidence": "cytat lub lokalizacja w tekście",
-        "aliases": ["alias1", "alias2"]
+            "name": "nazwa drogi z linii",
+            "type": "LEAD",
+            "description": "pełny komentarz/opis przejścia z linii", 
+            "grade": "wycena w nawiasach (np. 6b+, 7a)",
+            "location": "pełna lokalizacja (kraj, region, sektor)",
+            "style": "styl przejścia (2nd Go, Hard, itp.)",
+            "date": "data przejścia",
+            "confidence": 0.9
         }}
     ]
-    }}"""
+}}
+
+PRZYKŁAD dla linii "Rysa Kozickiego (6b+) - Poland, Jura Krakowsko - Częstochowska, Dolina Będkowska - Skurwiałe jurajskie gowno - 2nd Go - 12 Apr 2025":
+{{
+    "entities": [
+        {{
+            "name": "Rysa Kozickiego",
+            "type": "LEAD",
+            "description": "Skurwiałe jurajskie gowno",
+            "grade": "6b+",
+            "location": "Poland, Jura Krakowsko - Częstochowska, Dolina Będkowska", 
+            "style": "2nd Go",
+            "date": "12 Apr 2025",
+            "confidence": 0.9
+        }}
+    ]
+}}"""
         
         return final_prompt
     

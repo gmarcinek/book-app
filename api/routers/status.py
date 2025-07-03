@@ -31,12 +31,20 @@ async def get_stats():
     try:
         store = get_store()
         stats = store.get_stats()
+        
+        # Handle relationships - can be int or dict
+        relationships_count = stats.get('relationships', 0)
+        if isinstance(relationships_count, dict):
+            relationships_count = relationships_count.get('total_relationships', 0)
+        elif not isinstance(relationships_count, int):
+            relationships_count = 0
+        
         return {
-            "entities": stats['entities'],
-            "chunks": stats['chunks'],
-            "relationships": stats['relationships'].get('total_relationships', 0),
-            "storage_size_mb": round(stats['storage'].get('total_size_mb', 0), 2),
-            "embedding_model": stats['embedder']['model_name'],
+            "entities": stats.get('entities', 0),
+            "chunks": stats.get('chunks', 0),
+            "relationships": relationships_count,
+            "storage_size_mb": round(stats.get('storage', {}).get('total_size_mb', 0), 2),
+            "embedding_model": stats.get('embedder', {}).get('model_name', 'unknown'),
         }
     except RuntimeError:
         raise HTTPException(status_code=500, detail="Store not initialized")

@@ -1,3 +1,4 @@
+# ner/__init__.py
 """
 NER (Named Entity Recognition) Package - SemanticStore-based version
 
@@ -20,15 +21,17 @@ from .domains import DomainFactory, BaseNER, DomainConfig
 # Import config system
 from .config import NERConfig, create_default_ner_config
 
-# Import entity configuration
-from .entity_config import (
+# Import entity types and configuration - now from ner.types
+from .types import (
+    EntityType,
+    RelationType,
     DEFAULT_ENTITY_TYPES,
     DEFAULT_RELATIONSHIP_PATTERNS,
     CORE_RELATIONSHIP_TYPES,
+    DEFAULT_CONFIDENCE_THRESHOLDS,
+    get_all_entity_types,
     get_all_relationship_types,
-    extend_entity_types,
-    extend_relationship_patterns,
-    DEFAULT_CONFIDENCE_THRESHOLDS
+    get_confidence_threshold_for_type
 )
 
 # Import main pipeline functions
@@ -39,8 +42,17 @@ from .pipeline import (
     NERProcessingError
 )
 
+# Legacy functions for backward compatibility
+def extend_entity_types(base_types: list, additional_types: list) -> list:
+    """Extend base entity types with domain-specific types"""
+    return list(set(base_types + additional_types))
+
+def extend_relationship_patterns(base_patterns: list, additional_patterns: list) -> list:
+    """Extend base relationship patterns with domain-specific patterns"""
+    return list(set(base_patterns + additional_patterns))
+
 # Version info
-__version__ = "0.5.0"  # Bumped version for SemanticStore-based release
+__version__ = "0.6.0"  # Bumped version for deduplication removal
 __author__ = "NER Team"
 
 # Public API - SemanticStore-based
@@ -67,14 +79,18 @@ __all__ = [
     'NERConfig',
     'create_default_ner_config',
     
-    # Entity configuration
+    # Entity types and configuration
+    'EntityType',
+    'RelationType',
     'DEFAULT_ENTITY_TYPES',
     'DEFAULT_RELATIONSHIP_PATTERNS',
     'CORE_RELATIONSHIP_TYPES',
+    'DEFAULT_CONFIDENCE_THRESHOLDS',
+    'get_all_entity_types',
     'get_all_relationship_types',
+    'get_confidence_threshold_for_type',
     'extend_entity_types',
     'extend_relationship_patterns',
-    'DEFAULT_CONFIDENCE_THRESHOLDS',
     
     # Data classes
     'TextChunk',

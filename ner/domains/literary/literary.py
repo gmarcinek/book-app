@@ -4,7 +4,7 @@ Literary Domain Implementation - Clean and simplified
 
 from typing import List
 from ..base import BaseNER, DomainConfig
-from ...entity_config import DEFAULT_ENTITY_TYPES, DEFAULT_RELATIONSHIP_PATTERNS, DEFAULT_CONFIDENCE_THRESHOLDS
+from ner.types import DEFAULT_ENTITY_TYPES, DEFAULT_RELATIONSHIP_PATTERNS, DEFAULT_CONFIDENCE_THRESHOLDS
 
 class LiteraryNER(BaseNER):
     """Literary Domain with clean entity types and relationship extraction"""

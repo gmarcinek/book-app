@@ -1,8 +1,7 @@
+# ner/storage/__init__.py
 """
-ner/storage/__init__.py
-
 Storage module for semantic entity management with FAISS and NetworkX
-Enhanced with clustering-based deduplication
+Clean version without deduplication components
 """
 
 from .models import StoredEntity, StoredChunk, EntityRelationship, RelationType
@@ -11,11 +10,6 @@ from .indices import FAISSManager
 from .relations import RelationshipManager
 from .persistence import StoragePersistence
 from .store import SemanticStore
-
-# New clustering components
-from .clustering.union_find import EntityUnionFind
-from .clustering.merger import EntityMerger
-from .similarity.engine import EntitySimilarityEngine
 
 __all__ = [
     'StoredEntity',
@@ -26,8 +20,5 @@ __all__ = [
     'FAISSManager',
     'RelationshipManager',
     'StoragePersistence',
-    'SemanticStore',
-    'EntityUnionFind',
-    'EntityMerger',
-    'EntitySimilarityEngine'
+    'SemanticStore'
 ]

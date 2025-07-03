@@ -22,14 +22,14 @@ DOMAIN_EMBEDDING_CONFIGS = {
    
    "simple": {
        "model_name": DEFAULT_MODEL,
-       "strategy": ChunkingStrategy.LINEAR,
+       "strategy": ChunkingStrategy.PERCENTILE,
        "percentile": 88.0,  # More aggressive
        "description": "OpenAI embeddings for simple Polish content"
    },
 
    "financial": {
        "model_name": DEFAULT_MODEL,
-       "strategy": ChunkingStrategy.HIERARCHICAL,
+       "strategy": ChunkingStrategy.PERCENTILE,
        "percentile": 50,  # More aggressive
        "description": "OpenAI embeddings for simple Polish content"
    },

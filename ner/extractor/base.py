@@ -1,5 +1,7 @@
+# ner/extractor/base.py
 """
-Enhanced Entity Extractor with OpenAI embeddings
+Enhanced Entity Extractor - CLEAN VERSION without deduplication
+Simple extraction with SemanticStore integration
 """
 
 from datetime import datetime
@@ -17,7 +19,6 @@ from ..domains import DomainFactory
 from ..config import NERConfig, create_default_ner_config
 from ..storage import SemanticStore
 from llm import Models, LLMConfig
-from .entity_linker import EntityLinker
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,6 +37,7 @@ class ExtractedEntity:
     context: Optional[str] = None
     domain: Optional[str] = None
     evidence: str = ""
+    semantic_store_id: Optional[str] = None  # ID in semantic store
     
     def __post_init__(self):
         # Initialize aliases as empty list if None
@@ -44,16 +46,16 @@ class ExtractedEntity:
 
 
 class EntityExtractor:
-    """Enhanced multi-domain entity extractor with OpenAI embeddings"""
+    """Enhanced multi-domain entity extractor - CLEAN VERSION"""
     
     def __init__(self, 
-               model: str = Models.QWEN_CODER, 
-               config: Optional[NERConfig] = None,
-               domain_names: List[str] = None,
-               storage_dir: str = "semantic_store",
-               enable_semantic_store: bool = True):
+                 model: str = Models.QWEN_CODER, 
+                 config: Optional[NERConfig] = None,
+                 domain_names: List[str] = None,
+                 storage_dir: str = "semantic_store",
+                 enable_semantic_store: bool = True):
         
-        # Initialize extractor with OpenAI embeddings
+        # Initialize extractor
         self.config = config if config is not None else create_default_ner_config()
         self.model = model
         self.llm_client = None
@@ -71,68 +73,60 @@ class EntityExtractor:
             self.domains = DomainFactory.use(domain_names)
             print(f"🔄 Initialized extractor with domains: 🗂️ {domain_names}")
        
-        # Initialize SemanticStore with OpenAI embeddings
+        # Initialize SemanticStore
         if self.enable_semantic_store:
             try:
                 self.semantic_store = SemanticStore(
                     storage_dir=storage_dir,
-                    embedding_model="text-embedding-3-small"  # OpenAI model
+                    embedding_model="text-embedding-3-small"
                 )
-                print(f"🧠 SemanticStore enabled with OpenAI embeddings: {storage_dir}")
+                print(f"🏗️ SemanticStore initialized at {storage_dir}")
             except Exception as e:
                 print(f"⚠️ Failed to initialize SemanticStore: {e}")
                 self.semantic_store = None
-                self.enable_semantic_store = False
         else:
             self.semantic_store = None
-            print("🚫 SemanticStore disabled")
-
-        # Initialize EntityLinker
-        self.entity_linker = EntityLinker(self.semantic_store)
-        
-        # Stats
-        available_domains = ["literary", "simple", "owu", "financial"] if domain_names == ["auto"] else domain_names
-       
+            
+        # Initialize statistics
         self.extraction_stats = {
             "chunks_processed": 0,
-            "domains_used": len(self.domains) if self.domains else 0,
             "entities_extracted_raw": 0,
             "entities_extracted_valid": 0,
             "entities_rejected": 0,
-            "failed_extractions": 0,
-            "auto_classifications": 0,
-            "auto_classification_failures": 0,
-            "semantic_enhancements": 0,
-            "semantic_deduplication_hits": 0,
-            "by_domain": {name: {"raw": 0, "valid": 0, "rejected": 0} for name in available_domains}
-        }
-       
-        self.context_stats = {
-            'contexts_generated': 0,
-            'entities_found_in_context': 0,
-            'fallback_contexts_used': 0
+            "by_domain": {}
         }
         
         self.meta_prompt_stats = {
-            'meta_prompts_generated': 0,
-            'meta_prompts_failed': 0,
-            'fallback_to_standard_prompt': 0,
-            'by_domain': {name: {"generated": 0, "failed": 0} for name in available_domains}
+            "meta_prompts_generated": 0,
+            "meta_prompts_failed": 0,
+            "fallback_to_standard_prompt": 0,
+            "by_domain": {}
         }
-   
+        
+        self.context_stats = {
+            "contexts_generated": 0,
+            "entities_found_in_context": 0,
+            "fallback_contexts_used": 0
+        }
+        
+        # Initialize domain stats
+        for domain_name in self.domain_names:
+            self.extraction_stats["by_domain"][domain_name] = {"raw": 0, "valid": 0}
+            self.meta_prompt_stats["by_domain"][domain_name] = {"generated": 0, "failed": 0}
+
+    def get_semantic_store(self) -> Optional[SemanticStore]:
+        """Get the semantic store instance"""
+        return self.semantic_store
+
     def _initialize_llm(self):
-        # Initialize LLM client if needed
+        """Initialize LLM client"""
         if self.llm_client is None:
-            try:
-                from llm import LLMClient
-                self.llm_client = LLMClient(self.model)
-                print(f"🤖 Initialized LLM model: {self.model}")
-            except Exception as e:
-                print(f"💥 Failed to initialize LLM: {e}")
-                raise
+            from llm import LLMClient
+            self.llm_client = LLMClient(self.model)
+            print(f"🤖 LLM initialized: {self.model}")
    
     def _call_llm_for_meta_analysis(self, prompt: str) -> str:
-        # Call LLM for meta-analysis
+        """Call LLM for meta-analysis"""
         try:
             if self.llm_client is None:
                 self._initialize_llm()
@@ -149,7 +143,7 @@ class EntityExtractor:
             raise
    
     def _call_llm_for_entity_extraction(self, prompt: str) -> str:
-        # Call LLM for entity extraction
+        """Call LLM for entity extraction"""
         try:
             if self.llm_client is None:
                 self._initialize_llm()
@@ -166,7 +160,7 @@ class EntityExtractor:
             raise
    
     def _call_llm_for_auto_classification(self, prompt: str) -> str:
-        # Call LLM for auto-classification
+        """Call LLM for auto-classification"""
         try:
             if self.llm_client is None:
                 self._initialize_llm()
@@ -183,11 +177,8 @@ class EntityExtractor:
             raise
     
     def extract_entities(self, chunks: List[TextChunk]) -> List[ExtractedEntity]:
-        # Extract entities using OpenAI embeddings for similarity
+        """Extract entities using simple approach - NO deduplication"""
         from .extraction import extract_entities_from_chunk_multi_domain
-        from .deduplication import _deduplicate_entities
-        from .batch_clustering import EntityBatchClusterer
-        from .entity_linker import EntityLinker
         
         self._initialize_llm()
         
@@ -204,148 +195,140 @@ class EntityExtractor:
         
         # PHASE 1: Register chunks
         if self.semantic_store:
-            print(f"📝 Registering {len(chunks)} chunks...")
+            print(f"📝 Registering {len(chunks)} chunks in SemanticStore")
             for chunk in chunks:
-                chunk_data = {
+                chunk_id = self.semantic_store.register_chunk({
                     'text': chunk.text,
-                    'document_source': chunk.document_source,
-                    'start_pos': chunk.start,
-                    'end_pos': chunk.end,
-                    'chunk_index': chunk.id
-                }
-                chunk_id = self.semantic_store.register_chunk(chunk_data)
+                    'start': chunk.start,
+                    'end': chunk.end,
+                    'index': chunk.id,
+                    'document_source': getattr(chunk, 'document_source', 'unknown'),
+                    'metadata': getattr(chunk, 'metadata', {})
+                })
                 chunk_ids_mapping[chunk.id] = chunk_id
         
-        # PHASE 2: Extract + batch cluster per chunk
-        clusterer = EntityBatchClusterer(self.semantic_store, self.extraction_stats) if self.semantic_store else None
-        
+        # PHASE 2: Extract entities from each chunk
         for chunk in chunks:
+            print(f"\n📄 Processing chunk {chunk.id}: {len(chunk.text):,} chars")
+            
             try:
-                chunk_id = chunk_ids_mapping.get(chunk.id) if self.semantic_store else None
-                
                 # Extract entities and relationships
-                entities, chunk_relationships = extract_entities_from_chunk_multi_domain(
-                    self, chunk, self.domains, self.domain_names, chunk_id
+                chunk_entities, chunk_relationships = extract_entities_from_chunk_multi_domain(
+                    self,
+                    chunk, 
+                    self.domains,
+                    self.domain_names,
+                    chunk_id=chunk_ids_mapping.get(chunk.id)
                 )
                 
-                for entity in entities:
-                    entity.chunk_id = chunk.id
-                    if chunk_id:
-                        entity.semantic_chunk_id = chunk_id
+                # Process entities - simple validation and storage
+                for entity in chunk_entities:
+                    if self._validate_entity(entity):
+                        # Add to semantic store directly
+                        if self.semantic_store:
+                            self._add_entity_to_store(entity, chunk_ids_mapping.get(chunk.id))
+                        
+                        all_entities.append(entity)
                 
-                # Batch cluster entities using OpenAI embeddings
-                if clusterer and entities:
-                    entity_ids = clusterer.batch_cluster_chunk_entities(entities, chunk_id)
-                    self.semantic_store.persist_chunk_with_entities(chunk_id, entity_ids)
-
-                # Resolve relationships
-                resolved_relationships = []
-                for rel in chunk_relationships:
-                    resolved = self.entity_linker.resolve_relationship(rel)
-                    if resolved:
-                        resolved_relationships.append(resolved)
-
-                print(f"🔍 Relationships: {len(chunk_relationships)} raw → {len(resolved_relationships)} resolved")
-
-                # Store resolved relationships
-                if self.semantic_store and resolved_relationships:
-                    for rel in resolved_relationships:
-                        self.semantic_store.relationship_manager.add_structural_relationship(
-                            rel['source_id'], rel['target_id'], rel['pattern'], 
-                            rel['confidence'], evidence=rel['evidence']
-                        )
+                # Process relationships
+                if chunk_relationships and self.semantic_store:
+                    self._process_relationships(chunk_relationships)
                 
-                all_entities.extend(entities)
+                print(f"✅ Found {len(chunk_entities)} entities, {len(chunk_relationships)} relationships")
                 self.extraction_stats["chunks_processed"] += 1
                 
-                if self.domain_names == ["auto"]:
-                    self.extraction_stats["auto_classifications"] += 1
-                
-                if self.extraction_stats["chunks_processed"] % 5 == 0:
-                    print(f"⏱️ Processed {self.extraction_stats['chunks_processed']}/{len(chunks)} chunks")
-                
-                log_memory_usage(f"After chunk {chunk.id}")
-                
             except Exception as e:
-                print(f"💥 Error processing chunk {chunk.id}: {e}")
-                if self.domain_names == ["auto"]:
-                    self.extraction_stats["auto_classification_failures"] += 1
+                print(f"❌ Error processing chunk {chunk.id}: {e}")
                 continue
         
-        # PHASE 3: Cross-chunk relationships using OpenAI embeddings
-        if self.semantic_store and len(all_entities) > 0:
-            try:
-                print(f"🔗 Discovering cross-chunk relationships...")
-                relationships_count = self.semantic_store.discover_cross_chunk_relationships()
-                print(f"🔗 Discovered {relationships_count} relationships")
-            except Exception as e:
-                print(f"⚠️ Failed to discover relationships: {e}")
+        print(f"\n🎯 FINAL: Extracted {len(all_entities)} entities total")
         
-        # PHASE 4: Final deduplication
-        print(f"🔄 Final deduplication of {len(all_entities)} entities...")
-        deduplicated_entities = _deduplicate_entities(all_entities)
-        
-        # PHASE 5: Save
+        # Save semantic store
         if self.semantic_store:
+            self.semantic_store.save_to_disk()
+            print(f"💾 Saved semantic store to disk")
+        
+        return all_entities
+
+    def _validate_entity(self, entity: ExtractedEntity) -> bool:
+        """Simple entity validation"""
+        if not entity.name or not entity.type:
+            return False
+        if entity.confidence < 0.2:  # Basic confidence threshold
+            return False
+        if len(entity.name.strip()) < 2:
+            return False
+        return True
+
+    def _add_entity_to_store(self, entity: ExtractedEntity, chunk_id: str):
+        """Add entity to semantic store without deduplication"""
+        from ..storage.models import StoredEntity, create_entity_id
+        
+        # Create entity directly
+        entity_id = create_entity_id(entity.name, entity.type)
+        
+        stored_entity = StoredEntity(
+            id=entity_id,
+            name=entity.name,
+            type=entity.type,
+            description=entity.description,
+            confidence=entity.confidence,
+            aliases=entity.aliases,
+            context=entity.context or ""
+        )
+        
+        # Add chunk reference
+        if chunk_id:
+            stored_entity.add_source_chunk(chunk_id)
+            # Get document source from chunk
+            if chunk_id in self.semantic_store.chunks:
+                doc_source = self.semantic_store.chunks[chunk_id].document_source
+                stored_entity.add_document_source(doc_source)
+        
+        # Add to store (no deduplication)
+        self.semantic_store.add_entity(stored_entity)
+        
+        # Update ExtractedEntity with ID
+        entity.semantic_store_id = entity_id
+
+    def _process_relationships(self, relationships: List[Dict]):
+        """Process relationships - simplified without EntityLinker"""
+        if not self.semantic_store or not relationships:
+            return
+        
+        # Simple relationship processing without complex linking
+        for relationship in relationships:
             try:
-                self.semantic_store.save_to_disk()
-                print("💾 Semantic store saved")
+                # Basic relationship validation
+                if 'source' in relationship and 'target' in relationship:
+                    # For now, just log relationships - can implement simple linking later
+                    logger.info(f"Relationship found: {relationship['source']} -> {relationship['target']}")
             except Exception as e:
-                print(f"⚠️ Failed to save: {e}")
-        
-        self._log_final_stats_with_chunks(deduplicated_entities, len(chunks))
-        return deduplicated_entities
-    
-    def _log_final_stats_with_chunks(self, deduplicated_entities: List[ExtractedEntity], chunk_count: int):
-        # Log final extraction statistics
-        validation_rate = (self.extraction_stats["entities_extracted_valid"] / 
-                        self.extraction_stats["entities_extracted_raw"] 
-                        if self.extraction_stats["entities_extracted_raw"] > 0 else 0)
-        
-        if self.domain_names == ["auto"]:
-            auto_success_rate = ((self.extraction_stats["auto_classifications"] - 
-                                self.extraction_stats["auto_classification_failures"]) / 
-                                self.extraction_stats["auto_classifications"] 
-                                if self.extraction_stats["auto_classifications"] > 0 else 0)
-            
-            print(f"🎯 Batch auto-classification complete:")
-            print(f"  📊 Chunks: {self.extraction_stats['chunks_processed']}/{chunk_count}")
-            print(f"  ✅ Auto success: {auto_success_rate:.1%}")
-        else:
-            print(f"🎯 Batch multi-domain complete:")
-            print(f"  📊 Chunks: {self.extraction_stats['chunks_processed']}/{chunk_count}")
-            print(f"  🗂️ Domains: {self.extraction_stats['domains_used']} {self.domain_names}")
-        
-        print(f"  📝 Raw: {self.extraction_stats['entities_extracted_raw']}")
-        print(f"  ✅ Valid: {self.extraction_stats['entities_extracted_valid']}")
-        print(f"  🎯 Final: {len(deduplicated_entities)}")
-        print(f"  📊 Validation: {validation_rate:.1%}")
-        
-        if self.semantic_store:
-            semantic_stats = self.semantic_store.get_stats()
-            print(f"  🧠 Dedup hits: {self.extraction_stats['semantic_deduplication_hits']}")
-            print(f"  💾 Stored entities: {semantic_stats['entities']}")
-            print(f"  📝 Stored chunks: {semantic_stats['chunks']}")
-            print(f"  🔗 Relationships: {semantic_stats['relationships']['total_relationships']}")
-    
+                logger.warning(f"Failed to process relationship: {e}")
+
     def get_extraction_stats(self) -> Dict[str, Any]:
-        # Get extraction statistics
-        stats = self.extraction_stats.copy()
-        stats.update(self.context_stats)
-        stats.update(self.meta_prompt_stats)
+        """Get extraction statistics"""
+        return {
+            "extraction": self.extraction_stats,
+            "meta_prompts": self.meta_prompt_stats,
+            "context": self.context_stats
+        }
+
+    def print_final_stats(self):
+        """Print final extraction statistics"""
+        stats = self.get_extraction_stats()
         
-        if stats["entities_extracted_raw"] > 0:
-            stats["validation_rate"] = stats["entities_extracted_valid"] / stats["entities_extracted_raw"]
-            stats["rejection_rate"] = stats["entities_rejected"] / stats["entities_extracted_raw"]
-        else:
-            stats["validation_rate"] = 0
-            stats["rejection_rate"] = 0
+        print(f"\n📊 EXTRACTION STATISTICS:")
+        print(f"   📄 Chunks processed: {stats['extraction']['chunks_processed']}")
+        print(f"   🎯 Entities extracted (raw): {stats['extraction']['entities_extracted_raw']}")
+        print(f"   ✅ Entities extracted (valid): {stats['extraction']['entities_extracted_valid']}")
+        print(f"   ❌ Entities rejected: {stats['extraction']['entities_rejected']}")
         
-        if self.semantic_store:
-            stats["semantic_store"] = self.semantic_store.get_stats()
+        print(f"\n📊 BY DOMAIN:")
+        for domain, counts in stats['extraction']['by_domain'].items():
+            print(f"   🗂️ {domain}: {counts['valid']}/{counts['raw']} valid")
         
-        return stats
-    
-    def get_semantic_store(self) -> Optional[SemanticStore]:
-        # Get semantic store instance
-        return self.semantic_store if self.enable_semantic_store else None
+        print(f"\n📊 META-PROMPTS:")
+        print(f"   🧠 Generated: {stats['meta_prompts']['meta_prompts_generated']}")
+        print(f"   ❌ Failed: {stats['meta_prompts']['meta_prompts_failed']}")
+        print(f"   🔄 Fallbacks: {stats['meta_prompts']['fallback_to_standard_prompt']}")

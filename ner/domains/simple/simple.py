@@ -4,7 +4,7 @@ Literary Domain Implementation - Clean and simplified
 
 from typing import List
 from ..base import BaseNER, DomainConfig
-from ...entity_config import DEFAULT_ENTITY_TYPES, DEFAULT_CONFIDENCE_THRESHOLDS
+from ner.types import DEFAULT_ENTITY_TYPES, DEFAULT_CONFIDENCE_THRESHOLDS
 
 class SimpleNER(BaseNER):
     """Literary Domain with clean entity types and relationship extraction"""
@@ -69,7 +69,8 @@ ZWRÓĆ GOTOWY PROMPT BEZ JSON WRAPPERA:"""
 
         prompt = f"""Jesteś agentem AI wyspecjalizowanym w Named Entity Recognition.
 
-TEKST: {text}
+TEKST:
+{text}
 
 TYPY ENCJI:
 {', '.join(DEFAULT_ENTITY_TYPES)}

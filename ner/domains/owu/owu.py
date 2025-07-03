@@ -1,7 +1,7 @@
 from typing import List
 
 from .owu_consts import OWU_ENTITY_TYPES, format_owu_entity_types
-from ...entity_config import DEFAULT_CONFIDENCE_THRESHOLDS
+from ner.types import DEFAULT_CONFIDENCE_THRESHOLDS
 from ..base import BaseNER, DomainConfig
 
 class OwuNER(BaseNER):
