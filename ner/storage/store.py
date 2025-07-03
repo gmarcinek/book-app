@@ -310,3 +310,37 @@ class SemanticStore:
     def get_entity_relationships(self, entity_id: str) -> List[Dict[str, Any]]:
         """Get all relationships for entity"""
         return self.relationship_manager.get_entity_relationships(entity_id)
+    
+    def get_entity_by_id(self, entity_id: str) -> Optional[StoredEntity]:
+        """Get entity by ID - API compatibility method"""
+        return self.entities.get(entity_id)
+
+    def get_chunk_by_id(self, chunk_id: str) -> Optional[StoredChunk]:
+        """Get chunk by ID - API compatibility method"""
+        return self.chunks.get(chunk_id)
+
+    def search_entities_by_name(self, query: str, max_results: int = 10) -> List[Tuple[StoredEntity, float]]:
+        """Search entities by name - API compatibility method"""
+        if not query.strip():
+            return []
+        
+        query_lower = query.lower().strip()
+        results = []
+        
+        for entity in self.entities.values():
+            # Check main name
+            if query_lower in entity.name.lower():
+                score = len(query_lower) / len(entity.name)
+                results.append((entity, score))
+                continue
+            
+            # Check aliases
+            for alias in entity.aliases:
+                if query_lower in alias.lower():
+                    score = len(query_lower) / len(alias)
+                    results.append((entity, score))
+                    break
+        
+        # Sort by score and limit
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results[:max_results]

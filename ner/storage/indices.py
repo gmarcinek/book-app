@@ -16,7 +16,6 @@ from .models import StoredEntity, StoredChunk
 logger = logging.getLogger(__name__)
 
 # Simple search thresholds - no complex deduplication logic
-DEFAULT_NAME_SEARCH_THRESHOLD = 0.8
 DEFAULT_CONTEXT_SEARCH_THRESHOLD = 0.6
 DEFAULT_MAX_SEARCH_RESULTS = 10
 
@@ -100,24 +99,7 @@ class FAISSManager:
         except Exception as e:
             print(f"❌ Failed to add chunk {chunk.id} to FAISS: {e}")
             return False
-    
-    def search_similar_entities_by_name(self, 
-                                      query_embedding: np.ndarray,
-                                      threshold: float = None,
-                                      max_results: int = None) -> List[Tuple[str, float]]:
-        """Search entities by name embedding"""
-        if threshold is None:
-            threshold = DEFAULT_NAME_SEARCH_THRESHOLD
-        if max_results is None:
-            max_results = DEFAULT_MAX_SEARCH_RESULTS
-            
-        return self._search_entities(
-            self.entity_name_index, 
-            self.name_idx_to_entity_id,
-            query_embedding, 
-            threshold, 
-            max_results
-        )
+
     
     def search_similar_entities_by_context(self, 
                                          query_embedding: np.ndarray,
