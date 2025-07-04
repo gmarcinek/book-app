@@ -32,9 +32,19 @@ class TOCVerificationEngine:
         if not uncertain_candidates:
             return []
         
+        # SAFETY: Limit max candidates to prevent excessive LLM calls
+        MAX_CANDIDATES_TO_VERIFY = 25
+        
+        if len(uncertain_candidates) > MAX_CANDIDATES_TO_VERIFY:
+            print(f"🚨 Too many uncertain TOCs to verify: {len(uncertain_candidates)} > {MAX_CANDIDATES_TO_VERIFY}")
+            print(f"🚨 This could indicate poor pattern detection or unusual document structure")
+            print(f"🚨 Aborting verification to prevent excessive LLM costs")
+            return []
+        
         print(f"🤖 LLM verifying {len(uncertain_candidates)} uncertain TOCs...")
         
         verified_tocs = []
+        rejected_count = 0
         doc = fitz.open(self.pdf_path)
         
         for candidate in uncertain_candidates:
@@ -47,7 +57,15 @@ class TOCVerificationEngine:
                     verified_tocs.append(candidate)
                     print(f"   ✅ Verified TOC at page {candidate['start_page']}")
                 else:
+                    rejected_count += 1
                     print(f"   ❌ Rejected TOC at page {candidate['start_page']}")
+                    
+                    # SAFETY: Too many rejections = probably bad pattern detection
+                    if rejected_count >= 4:
+                        print(f"🚨 LLM rejected {rejected_count} candidates - pattern detection likely failing")
+                        print(f"🚨 Aborting verification to prevent further waste of LLM calls")
+                        doc.close()
+                        return []  # Return empty = signal failure to caller
                     
             except Exception as e:
                 print(f"   ⚠️ LLM verification failed for page {candidate['start_page']}: {e}")

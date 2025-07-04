@@ -81,6 +81,7 @@ class TOCPatternDetector:
         start_y = toc_start['start_y']
         
         toc_entries_count = 0
+        total_lines_count = 0  # NEW: count all lines
         last_entry_y = start_y
         
         # Search up to 3 pages from start (realistyczny limit)
@@ -105,79 +106,168 @@ class TOCPatternDetector:
                     
                     line_text = "".join(span["text"] for span in line["spans"]).strip()
                     
+                    # Skip empty lines
+                    if len(line_text) < 3:
+                        continue
+                    
+                    total_lines_count += 1  # NEW: count every non-empty line
+                    
                     if self._looks_like_toc_entry(line_text):
                         toc_entries_count += 1
                         last_entry_y = line_y
-                    elif toc_entries_count >= self.min_toc_entries and self._looks_like_content_start(line_text):
-                        # Found clear end
-                        return {
-                            'end_page': page_num,
-                            'end_y': line_y,
-                            'entry_count': toc_entries_count,
-                            'end_method': 'content_start'
-                        }
+                    elif self._looks_like_content_start(line_text):
+                        # Check if we have enough TOC-like lines before ending
+                        if total_lines_count > 0:
+                            toc_ratio = toc_entries_count / total_lines_count
+                            if toc_ratio >= 0.3:  # 30% lines look like TOC = good enough
+                                return {
+                                    'end_page': page_num,
+                                    'end_y': line_y,
+                                    'entry_count': toc_entries_count,
+                                    'total_lines': total_lines_count,
+                                    'toc_ratio': toc_ratio,
+                                    'end_method': 'content_start'
+                                }
         
         # Fallback: end after last entry
+        toc_ratio = toc_entries_count / max(1, total_lines_count)
         return {
             'end_page': start_page + min(2, len(self.doc) - start_page - 1),
             'end_y': last_entry_y + 50,
             'entry_count': toc_entries_count,
+            'total_lines': total_lines_count,
+            'toc_ratio': toc_ratio,
             'end_method': 'fallback'
         }
-    
+
+
     def _looks_like_toc_entry(self, text: str) -> bool:
-        """Check if text looks like TOC entry"""
+        """Check if text looks like TOC entry - IMPROVED PATTERNS"""
         text_clean = text.strip()
-        if len(text_clean) < 3:
+        if len(text_clean) < 5:  # minimum reasonable length
             return False
         
         patterns = [
-            r'.+\.{3,}\s*\d+\s*$',  # dots + page number
-            r'.+\s{3,}\d+\s*$',     # spaces + page number  
-            r'^\d+\.?\d*\.?\s*.+\s+\d+\s*$'  # numbered sections
+            # Classic dot leaders
+            r'.+\.{3,}\s*\d+\s*$',                    # dots + page number
+            
+            # Multiple spaces (but not just 1)
+            r'.+\s{3,}\d+\s*$',                       # 2+ spaces + page number
+            
+            # Tab separated  
+            r'.+\t+\d+\s*$',                          # tabs + page number
+            
+            # Numbered sections
+            r'^\d+\.?\d*\.?\s*.+\s+\d+\s*$',          # "1.1 Title 25"
+            
+            # Chapter/section patterns
+            r'^(chapter|rozdział|section|część)\s+.*\d+\s*$',  # "Chapter 1 ... 25"
+            
+            # Page in parentheses
+            r'.+\s*\(\d+\)\s*$',                      # "Title (25)"
+            
+            # Conservative single space (only if looks like real TOC)
+            r'^[A-Z].{10,}\s\d{1,3}\s*$',            # "Long Title Name 25" (capitals + long text)
         ]
         
-        return any(re.match(p, text_clean) for p in patterns)
+        return any(re.match(p, text_clean, re.IGNORECASE) for p in patterns)
     
     def _looks_like_content_start(self, text: str) -> bool:
-        """Check if text looks like document content start"""
+        """Check if text looks like document content start - IMPROVED"""
         text_clean = text.strip().lower()
         if len(text_clean) < 3:
             return False
-            
+        
         patterns = [
+            # Polish patterns
             r'^(rozdział|rozdzial)\s+\d+',
+            r'^(część|czesc)\s+\d+',
             r'^(wprowadzenie|wstęp|wstep)',
+            r'^(definicje|słownik|slownik)',
+            r'^(załącznik|zalacznik)\s*[a-z0-9]*',
             r'^art\.\s*\d+',
-            r'^§\s*\d+'
+            r'^§\s*\d+',
+            r'^ust\.\s*\d+',
+            
+            # English patterns  
+            r'^(chapter|part)\s+\d+',
+            r'^(section|article)\s+\d+',
+            r'^(introduction|preface|foreword)',
+            r'^(definitions|glossary|appendix)',
+            r'^(schedule|annex)\s*[a-z0-9]*',
+            
+            # Generic numbered content
+            r'^\d+\.\s+[a-záčďéěíňóřšťúůýž]',  # "1. wprowadzenie"
+            r'^\d+\)\s+[a-záčďéěíňóřšťúůýž]',  # "1) wprowadzenie"
+            r'^[ivx]+\.\s+[a-záčďéěíňóřšťúůýž]',  # "i. wprowadzenie"
+            
+            # Legal document patterns
+            r'^tytuł\s+[ivx0-9]+',
+            r'^księga\s+[ivx0-9]+',
+            r'^dział\s+[ivx0-9]+',
+            
+            # Medical/scientific patterns (for cardiology.pdf)
+            r'^(neuronal|hormonal|local)\s+regulation',
+            r'^(cardiovascular|neuroendocrine)\s+',
+            r'^(physiology|pharmacology)\s+',
+            
+            # Generic content indicators
+            r'^(summary|conclusions|references)',
+            r'^(podsumowanie|wnioski|literatura)',
+            r'^(bibliography|index)',
+            r'^(bibliografia|indeks)',
         ]
         
         return any(re.match(p, text_clean) for p in patterns)
-    
+
+
     def _categorize_candidates(self, candidates: List[Dict]) -> Dict[str, List[Dict]]:
-        """Categorize TOC candidates by confidence"""
+        """Categorize TOC candidates by confidence - MORE LIBERAL"""
         certain = []
         uncertain = []
         rejected = []
-        
-        for candidate in candidates:
+
+        print(f"🔍 Categorizing {len(candidates)} candidates...")
+
+        for i, candidate in enumerate(candidates):
             start_page = candidate['start_page']
             end_page = candidate['end_page']
             entry_count = candidate.get('entry_count', 0)
+            total_lines = candidate.get('total_lines', entry_count)
+            toc_ratio = candidate.get('toc_ratio', 1.0 if entry_count > 0 else 0.0)
             
             page_distance = end_page - start_page
             
             # Proximity validation - TOC should be close to what it describes
             proximity_ok = self._validate_toc_proximity(candidate)
             
-            # Categorization rules using YAML min_toc_entries + proximity
-            if proximity_ok and page_distance <= 1 and entry_count >= self.min_toc_entries:
+            # DEBUG: Print details for each candidate
+            print(f"   Candidate {i}: page {start_page}, entries={entry_count}, total={total_lines}, ratio={toc_ratio:.2f}, proximity={proximity_ok}")
+            
+            # NEW LIBERAL CATEGORIZATION based on ratio, not absolute counts
+            if (proximity_ok and 
+                page_distance <= 1 and 
+                entry_count >= self.min_toc_entries and 
+                toc_ratio >= 0.6):  # 60%+ lines are TOC entries = certain
                 certain.append(candidate)
-            elif proximity_ok and page_distance <= 3 and entry_count >= max(2, self.min_toc_entries - 1):
+                print(f"     → CERTAIN")
+                
+            elif (proximity_ok and 
+                    page_distance <= 5 and 
+                    total_lines >= 3 and 
+                    toc_ratio >= 0.25):  # 25%+ lines are TOC entries = uncertain, let LLM decide
                 uncertain.append(candidate)
+                print(f"     → UNCERTAIN")
+                
             else:
-                rejected.append(candidate)  # bad proximity OR bad distance/entries
-        
+                rejected.append(candidate)
+                reason = []
+                if not proximity_ok: reason.append("bad_proximity")
+                if page_distance > 5: reason.append("too_far")
+                if total_lines < 3: reason.append("too_few_lines")
+                if toc_ratio < 0.25: reason.append(f"low_ratio_{toc_ratio:.2f}")
+                print(f"     → REJECTED: {', '.join(reason)}")
+
         return {
             'certain': certain,
             'uncertain': uncertain, 
@@ -186,23 +276,24 @@ class TOCPatternDetector:
     
     def _validate_toc_proximity(self, candidate: Dict) -> bool:
         """Check if TOC is reasonably close to first entry it references"""
-        toc_page = candidate['start_page']
+        return True 
+        # toc_page = candidate['start_page']
         
-        # Extract first entry page number from the candidate
-        first_entry_page = self._extract_first_entry_page_number(candidate)
+        # # Extract first entry page number from the candidate
+        # first_entry_page = self._extract_first_entry_page_number(candidate)
         
-        if first_entry_page is None:
-            return True  # Can't validate - give benefit of doubt
+        # if first_entry_page is None:
+        #     return True  # Can't validate - give benefit of doubt
         
-        gap = first_entry_page - toc_page
+        # gap = first_entry_page - toc_page
         
-        # TOC should be max 5 pages before first entry
-        if gap < 0:      # Entry before TOC = nonsense
-            return False
-        if gap > 5:      # Gap > 5 pages = suspicious  
-            return False
+        # # TOC should be max 5 pages before first entry
+        # if gap < 0:
+        #     return False
+        # if gap > 5:
+        #     return False
         
-        return True      # Gap 0-5 pages = reasonable
+        # return True 
     
     def _extract_first_entry_page_number(self, candidate: Dict) -> int:
         """Extract page number from first TOC entry for proximity validation"""

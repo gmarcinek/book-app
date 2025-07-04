@@ -51,6 +51,38 @@ TOCDetector:
     
     ONLY JSON.
 
+TOCFallbackLLMStrategy:
+  model: "gpt-4.1-mini"
+  temperature: 0.0
+  
+  semantic_prompt: |
+    Jesteś algorytmem analizy dokumentów który tworzy spis treści.
+    
+    Przeanalizuj nagłówki dokumentu i znajdź jego naturalną strukturę - rozdziały, sekcje, załączniki.
+    
+    TEKST DOKUMENTU:
+    {text}
+    
+    Twoim zadaniem jest utworzenie spisu treści w formie mapy:
+    - Klucz: tytuł rozdziału/sekcji jak pojawia się w dokumencie
+    - Wartość: początkowy tekst tego rozdziału (unikalny fragment początku)
+    
+    Szukaj wzorców takich jak:
+    - Nagłówki rozdziałów
+    - Numerowane sekcje  
+    - Załączniki
+    - Definicje
+    - Tabele jako osobne sekcje
+    
+    JSON format:
+    {
+      "Introduction": "tekst początku sekcji Introduction dokładnie jak w dokumencie",
+      "Chapter 1: Overview": "tekst początku Chapter 1 dokładnie jak w dokumencie", 
+      "Definitions": "tekst początku sekcji z definicjami",
+      "Appendix A": "tekst początku załącznika A"
+    }
+    
+    Bądź precyzyjny - start_text musi być unikalny w dokumencie żeby można było go znaleźć.
 
 TOCLLMParser:
   model: "gpt-4o-mini"

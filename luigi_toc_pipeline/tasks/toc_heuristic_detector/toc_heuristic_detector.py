@@ -45,21 +45,47 @@ class TOCHeuristicDetector(StructuredTask):
             verification_engine = TOCVerificationEngine(self.file_path, config)
             verified_tocs = verification_engine.verify_uncertain_tocs(toc_candidates['uncertain'])
             
-            # Merge verified TOCs with certain ones
-            toc_candidates['certain'].extend(verified_tocs)
-            print(f"✅ After verification: {len(toc_candidates['certain'])} confirmed TOCs")
+            # Check if verification was aborted
+            if len(verified_tocs) == 0 and len(toc_candidates['uncertain']) > 0:
+                if len(toc_candidates['uncertain']) > 25:
+                    reason = "too_many_uncertain_candidates"
+                    details = f"{len(toc_candidates['uncertain'])} > 25 limit"
+                else:
+                    reason = "too_many_rejections"
+                    details = "LLM rejected 4+ candidates, likely bad pattern detection"
+                
+                print(f"🚨 Verification failed: {reason}")
+                result = {
+                    "status": "verification_failed",
+                    "reason": reason,
+                    "details": details,
+                    "uncertain_count": len(toc_candidates['uncertain']),
+                    "toc_found": False
+                }
+            else:
+                # Normal flow - merge verified TOCs with certain ones
+                toc_candidates['certain'].extend(verified_tocs)
+                print(f"✅ After verification: {len(toc_candidates['certain'])} confirmed TOCs")
+                
+                result = {
+                    "status": "success",
+                    "toc_found": len(toc_candidates['certain']) > 0,
+                    "certain_count": len(toc_candidates['certain']),
+                    "verified_count": len(verified_tocs)
+                }
+        else:
+            # No uncertain TOCs to verify
+            result = {
+                "status": "success", 
+                "toc_found": len(toc_candidates['certain']) > 0,
+                "certain_count": len(toc_candidates['certain'])
+            }
         
-        # Debug: Save all findings
-        debug_utils = TOCDebugUtils(self.pipeline_name, self.task_name)
-        debug_utils.save_detection_summary(toc_candidates, self.file_path)
-        
-        # Result: Return best TOC or failure
-        result = self._select_best_toc(toc_candidates['certain'])
+        # Save result
+        with self.output().open('w') as f:
+            json.dump(result, f, indent=2, ensure_ascii=False)
         
         doc.close()
-        
-        with self.output().open('w') as f:
-            json.dump(result, f)
     
     def _select_best_toc(self, certain_tocs):
         """Select best TOC from confirmed candidates"""

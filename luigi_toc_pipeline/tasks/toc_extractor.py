@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 
 from luigi_components.structured_task import StructuredTask
-from luigi_toc_pipeline.tasks.toc_heuristic_detector.toc_heuristic_detector import TOCHeuristicDetector
+from luigi_toc_pipeline.tasks.toc_fallback_llm_strategy.toc_fallback_llm_strategy import TOCFallbackLLMStrategy
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 class TOCExtractor(StructuredTask):
@@ -20,7 +20,7 @@ class TOCExtractor(StructuredTask):
         return "toc_extractor"
     
     def requires(self):
-        return TOCHeuristicDetector(file_path=self.file_path)
+        return TOCFallbackLLMStrategy(file_path=self.file_path)
     
     def run(self):
         # Load TOC coordinates from heuristic detector
