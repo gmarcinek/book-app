@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from luigi_pipeline.tasks.base.structured_task import StructuredTask
-from .toc_merger import TOCMerger
+from .toc_heuristic_detector import TOCHeuristicDetector  # ← ZMIANA
 
 class TOCExtractor(StructuredTask):
     file_path = luigi.Parameter()
@@ -19,10 +19,10 @@ class TOCExtractor(StructuredTask):
         return "toc_extractor"
     
     def requires(self):
-        return TOCMerger(file_path=self.file_path)
+        return TOCHeuristicDetector(file_path=self.file_path)  # ← ZMIANA
     
     def run(self):
-        # Load TOC coordinates
+        # Load TOC coordinates from heuristic detector
         with self.input().open('r') as f:
             toc_data = json.load(f)
         

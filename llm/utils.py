@@ -52,8 +52,6 @@ System Message: {config.system_message or 'None'}
 
 PROMPT:
 {prompt}
-
-=====================================
 """
         
         (logs_dir / filename).write_text(log_content, encoding='utf-8')
@@ -78,11 +76,55 @@ Response Word Count: {len(response.split())}
 
 RESPONSE:
 {response}
-
-=====================================
 """
         
         (logs_dir / filename).write_text(log_content, encoding='utf-8')
         
     except Exception as e:
         print(f"⚠️ Failed to log LLM response: {e}")
+
+
+def parse_json_with_markdown_blocks(response: str) -> Optional[dict]:
+    """
+    Parse JSON response that may be wrapped in markdown code blocks
+    Handles Unicode quotes that break JSON parsing
+    
+    Args:
+        response: LLM response string
+        
+    Returns:
+        Parsed JSON dict or None if parsing fails
+    """
+    import json
+    from typing import Optional
+    
+    if not response or not response.strip():
+        return None
+    
+    # Clean markdown blocks
+    clean_response = response.strip()
+    
+    if '```json' in clean_response:
+        clean_response = clean_response.split('```json')[1].split('```')[0]
+    elif '```' in clean_response:
+        parts = clean_response.split('```')
+        if len(parts) >= 3:
+            clean_response = parts[1]
+            # Remove language identifier if present
+            if clean_response.strip().startswith(('json', 'JSON')):
+                lines = clean_response.strip().split('\n')
+                clean_response = '\n'.join(lines[1:])
+    
+    # Normalize Unicode quotes that break JSON
+    clean_response = clean_response.replace('„', '"').replace('"', '"').replace(''', "'").replace(''', "'")
+    
+    # Clean whitespace and try parsing
+    clean_response = clean_response.strip()
+    
+    if not clean_response:
+        return None
+    
+    try:
+        return json.loads(clean_response)
+    except json.JSONDecodeError:
+        return None

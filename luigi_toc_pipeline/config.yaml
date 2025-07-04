@@ -39,6 +39,8 @@ TOCDetector:
 TOCLLMParser:
   model: "claude-4-sonnet"
   temperature: 0.0
+  target_width_px: 800
+  jpg_quality: 65
   vision_prompt: |
     Analyze this extracted Table of Contents section using both images and text.
 
