@@ -1,0 +1,102 @@
+# Configuration for TOC-based document processing
+
+TOCDetector:
+  # Heuristic settings
+  max_pages_to_scan: 10
+  toc_keywords:
+    - "spis treści"
+    - "treść" 
+    - "table of contents"
+    - "contents"
+    - "indice"
+    - "sommaire"
+  
+  min_toc_entries: 3  # Minimum entries to consider valid TOC
+  
+  # LLM fallback settings
+  llm_model: "gpt-4.1-nano"
+  llm_temperature: 0.0
+  llm_max_tokens: 4000
+  llm_prompt: |
+    Analyze these pages from a PDF document to find Table of Contents.
+
+    PAGES DATA:
+    {pages_text}
+
+    TASK: Determine if there's a Table of Contents and extract its structure.
+
+    LOOK FOR:
+    - "Spis treści", "Table of Contents", "Contents", "Treść"
+    - Lists with page numbers: "Rozdział 1 ......... 15"
+    - Hierarchical structure: chapters, sections, subsections
+    - Page number references at line ends
+
+    RESPOND WITH JSON ONLY:
+    {{"toc_found": true/false, "toc_page": 2, "toc_entries": [{{"title": "Rozdział 1", "page": 15}}, {{"title": "Rozdział 2", "page": 23}}]}}
+
+    ONLY JSON, no explanation.
+
+TOCLLMParser:
+  model: "claude-4-sonnet"
+  temperature: 0.0
+  vision_prompt: |
+    Analyze this extracted Table of Contents section using both images and text.
+
+    IMPORTANT: This PDF contains ONLY the Table of Contents section that was cut from a larger document. You are seeing the MIDDLE or CONTINUATION of the TOC, not necessarily the beginning.
+
+    EXTRACTED TEXT:
+    {text_content}
+
+    TASK: Parse ALL visible TOC entries into structured JSON.
+
+    WHAT YOU'RE SEEING:
+    - This may be page 3 of a TOC that started on page 1
+    - Entries may start mid-chapter (e.g., "1.3 Something" without seeing "1.1" or "1.2")
+    - Page numbers refer to the ORIGINAL document, not this extracted PDF
+    - Some entries may be cut off at the top or bottom
+
+    LOOK FOR:
+    - Chapter/section titles with page numbers
+    - Hierarchical numbering (1.1, 1.2, 2.1, etc.)
+    - Different indentation levels
+    - Dotted lines or spacing leading to page numbers
+    - Appendices, indices, or special sections
+
+    RESPOND WITH JSON:
+    {{
+      "entries": [
+        {{
+          "title": "Rozdział 1 - Wprowadzenie",
+          "page": 15,
+          "level": 1,
+          "type": "chapter"
+        }},
+        {{
+          "title": "1.1 Podstawowe pojęcia", 
+          "page": 17,
+          "level": 2,
+          "type": "section"
+        }}
+      ]
+    }}
+
+    IMPORTANT:
+    - Include ALL entries you can see, even if incomplete
+    - Use images to verify text accuracy
+    - Don't assume missing context - work with what's visible
+    - Level 1 = main chapters, Level 2 = subsections, etc.
+    - ONLY return valid JSON, no explanations
+
+TOCSplitter:
+  overlap_pages: 2
+  min_section_pages: 1
+  max_sections: 50  # Safety limit
+
+# Global settings
+performance:
+  processing_timeout: 300
+  retry_attempts: 2
+
+logging:
+  level: "INFO"
+  save_intermediate_files: true
