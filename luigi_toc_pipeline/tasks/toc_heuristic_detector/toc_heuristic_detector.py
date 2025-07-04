@@ -10,6 +10,7 @@ from .pattern_detector import TOCPatternDetector
 from .verification_engine import TOCVerificationEngine
 from .debug_utils import TOCDebugUtils
 
+
 class TOCHeuristicDetector(StructuredTask):
     file_path = luigi.Parameter()
     
@@ -30,7 +31,7 @@ class TOCHeuristicDetector(StructuredTask):
         max_pages = min(config.get_task_setting("TOCDetector", "max_pages_to_scan", 1000), len(doc))
         
         # Stage 1: Pattern-based detection
-        pattern_detector = TOCPatternDetector(doc, max_pages)
+        pattern_detector = TOCPatternDetector(doc, max_pages, config)
         toc_candidates = pattern_detector.find_all_toc_candidates()
         
         print(f"🔍 Found {len(toc_candidates['certain'])} certain TOCs")

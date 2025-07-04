@@ -16,6 +16,7 @@ TOCDetector:
   
   # LLM fallback settings
   llm_model: "gpt-4.1-nano"
+  verification_llm_model: "gpt-4o-mini"
   llm_temperature: 0.0
   llm_max_tokens: 4000
   llm_prompt: |
@@ -36,6 +37,20 @@ TOCDetector:
     {{"toc_found": true/false, "toc_page": 2, "toc_entries": [{{"title": "Rozdział 1", "page": 15}}, {{"title": "Rozdział 2", "page": 23}}]}}
 
     ONLY JSON, no explanation.
+
+  verification_prompt: |
+    Analyze this text and image to verify if it's a genuine Table of Contents.
+    
+    EXTRACTED TEXT:
+    {text}
+    
+    TASK: Verify if this is a real TOC (not random text with numbers).
+    
+    RESPOND WITH JSON:
+    {"is_toc": true/false, "reasoning": "brief explanation"}
+    
+    ONLY JSON.
+
 
 TOCLLMParser:
   model: "gpt-4o-mini"

@@ -5,8 +5,8 @@ from pathlib import Path
 import sys
 
 from luigi_components.structured_task import StructuredTask
+from luigi_toc_pipeline.tasks.toc_heuristic_detector.toc_heuristic_detector import TOCHeuristicDetector
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from .toc_heuristic_detector import TOCHeuristicDetector
 
 class TOCExtractor(StructuredTask):
     file_path = luigi.Parameter()
