@@ -27,6 +27,7 @@ class ProcessingConfig:
     rate_limit_backoff: float = 30.0
     target_width_px: int = 800
     jpg_quality: int = 65
+    clean_text: bool = False  # NEW: text cleaning flag
     
     @classmethod
     def from_yaml(cls, yaml_dict: dict, task_name: str = "Unknown"):
@@ -72,7 +73,8 @@ class ProcessingConfig:
             max_concurrent=yaml_dict.get("max_concurrent", cls.max_concurrent),
             rate_limit_backoff=yaml_dict.get("rate_limit_backoff", cls.rate_limit_backoff),
             target_width_px=yaml_dict.get("target_width_px", cls.target_width_px),
-            jpg_quality=yaml_dict.get("jpg_quality", cls.jpg_quality)
+            jpg_quality=yaml_dict.get("jpg_quality", cls.jpg_quality),
+            clean_text=yaml_dict.get("clean_text", cls.clean_text)
         )
 
 
@@ -230,6 +232,12 @@ class PDFLLMProcessor:
                 # Extract text
                 text = page.get_text().strip() or "[No text extracted]"
                 
+                # Clean text if enabled
+                if self.config.clean_text:
+                    print(f"🔍 RAW text page {page_num + 1} ({len(text)} chars): {repr(text[:100])}")
+                    text = self._clean_extracted_text(text)
+                    print(f"🧹 CLEANED text page {page_num + 1} ({len(text)} chars): {repr(text[:100])}")
+                
                 # Create screenshot
                 image_base64 = self._create_screenshot(page)
                 
@@ -257,6 +265,28 @@ class PDFLLMProcessor:
         img_bytes = pix.tobytes("jpeg", jpg_quality=self.config.jpg_quality)
         
         return base64.b64encode(img_bytes).decode('utf-8')
+    
+    def _clean_extracted_text(self, raw_text: str) -> str:
+        """Clean PDF extraction artifacts for better LLM parsing"""
+        import re
+        
+        # 1. Normalize multiple spaces to single
+        cleaned = re.sub(r' {2,}', ' ', raw_text)
+        
+        # 2. Normalize multiple dots (dot leaders) 
+        cleaned = re.sub(r'\.{3,}', '...', cleaned)
+        
+        # 3. Remove weird Unicode spaces
+        cleaned = re.sub(r'[\u00A0\u2000-\u200B\u2028\u2029]', ' ', cleaned)
+        
+        # 4. Normalize line breaks
+        cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+        
+        # 5. Strip each line and remove empty lines
+        lines = [line.strip() for line in cleaned.split('\n')]
+        cleaned = '\n'.join(line for line in lines if line)
+        
+        return cleaned
     
     async def _process_with_sliding_window(self, pages_data: List[Dict], 
                                          response_parser: Callable) -> List[PageResult]:

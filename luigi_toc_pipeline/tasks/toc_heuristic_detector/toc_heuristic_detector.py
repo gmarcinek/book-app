@@ -38,8 +38,8 @@ class TOCHeuristicDetector(StructuredTask):
         toc_candidates = pattern_detector.find_all_toc_candidates()
         
         print(f"🔍 Found {len(toc_candidates['certain'])} certain TOCs")
-        print(f"❓ Found {len(toc_candidates['uncertain'])} uncertain TOCs") 
-        print(f"❌ Rejected {len(toc_candidates['rejected'])} false positives")
+        print(f"🔍 Found {len(toc_candidates['uncertain'])} uncertain TOCs") 
+        print(f"🔍 ❌ Rejected {len(toc_candidates['rejected'])} false positives")
         
         # Save debug info for all candidates
         debug_utils.save_detection_summary(toc_candidates, self.file_path)
@@ -144,5 +144,7 @@ class TOCHeuristicDetector(StructuredTask):
             "toc_ratio": best_toc.get('toc_ratio', 0.0),
             "candidate_id": best_toc.get('candidate_id', 'unknown'),
             "pattern_matched": best_toc.get('pattern_matched', ''),
-            "matched_text": best_toc.get('matched_text', '')
+            "matched_text": best_toc.get('matched_text', ''),
+            "toc_entries": best_toc.get('toc_entries', []),
+            "toc_entries_count": best_toc.get('toc_entries_count', 0)
         }

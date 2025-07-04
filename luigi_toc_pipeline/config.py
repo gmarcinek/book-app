@@ -5,7 +5,8 @@ Configuration loader for TOC pipeline
 import yaml
 from pathlib import Path
 from typing import Dict, Any
-
+from dotenv import load_dotenv
+load_dotenv()
 
 class TOCConfig:
     """Configuration loader for TOC pipeline"""

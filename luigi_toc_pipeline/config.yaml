@@ -14,39 +14,48 @@ TOCDetector:
   
   min_toc_entries: 3
   
-  # LLM verification settings
-  verification_llm_model: "claude-3.5-haiku"
-  verification_temperature: 0.0
-  verification_prompt: |
-    Analyze these pages from a PDF document to find Table of Contents.
+  # LLM verification settings - PDFLLMProcessor config
+  verification_processor:
+    model: "claude-3.5-haiku"
+    clean_text: true
+    temperature: 0.0
+    target_width_px: 800
+    jpg_quality: 85
+    max_concurrent: 1
+    rate_limit_backoff: 30.0
+    vision_prompt: |
+      Analyze the extracted Table of Contents (TOC) section using text and images.
+      EXTRACTED TEXT:
+      {text_content}
 
-    PAGES DATA:
-    {text}
+      NOTE: This PDF contains only a fragment (middle or continuation) of the full TOC. Page numbers refer to the original document.
 
-    TASK: Determine if there's a Table of Contents and extract its structure.
+      TASK: Parse all visible TOC entries into a JSON object with a key "entries", each entry having:
 
-    LOOK FOR:
-    - "Spis treści", "Table of Contents", "Contents", "Treść"
-    - Lists with page numbers: "Rozdział 1 ......... 15"
-    - Hierarchical structure: chapters, sections, subsections
-    - Page number references at line ends
+      - "title": string — entry title
+      - "page": integer or null — original page number
+      - "level": integer — hierarchy level (1 = chapter, 2 = subsection, etc.)
+      - "type": string — one of "chapter", "section", or "article"
 
-    RESPOND WITH JSON ONLY:
-    {{"toc_found": true/false, "toc_page": 2, "toc_entries": [{{"title": "Rozdział 1", "page": 15}}, {{"title": "Rozdział 2", "page": 23}}]}}
+      Example:
 
-    JSON FORMATTING RULES:
-    - Use standard ASCII double quotes (") only
-    - Convert Polish quotes („ ") to ASCII quotes (")  
-    - Convert Unicode quotes (" ") to ASCII quotes (")
-    - Escape quotes inside strings: \"
-    - Escape backslashes: \\
-    - Use only ASCII characters in JSON structure
-    
-    ONLY VALID JSON, no explanation, no markdown blocks.
+      {
+        "entries": [
+          {"title": "Rozdział 1 - Wprowadzenie", "page": 15, "level": 1, "type": "chapter"},
+          {"title": "1.1 Podstawowe pojęcia", "page": 17, "level": 2, "type": "section"}
+        ]
+      }
+
+      RULES:
+      - Include all visible entries, even if incomplete.
+      - Use images to verify text accuracy.
+      - Do not assume missing context; parse only visible data.
+      - Respond ONLY with valid JSON, no markdown, no explanations.
+      - Use standard ASCII double quotes and ESCAPE THEM PROPERLY (e.g., \" for quotes inside strings).
+      - Escape all other special JSON characters as required (e.g., backslash \\).
 
 TOCFallbackLLMStrategy:
   model: "gpt-4.1-nano"
-  max_tokens: 8000
   temperature: 0.0
   
   semantic_prompt: |

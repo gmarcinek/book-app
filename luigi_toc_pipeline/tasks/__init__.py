@@ -2,14 +2,13 @@
 TOC processing tasks
 """
 
-from .toc_heuristic_detector import TOCHeuristicDetector
-from .toc_extractor import TOCExtractor  
-from .toc_llm_parser import TOCLLMParser
+from luigi_toc_pipeline.tasks.toc_heuristic_detector.toc_heuristic_detector import TOCHeuristicDetector
+from .toc_fallback_llm_strategy.toc_fallback_llm_strategy import TOCFallbackLLMStrategy
 from .toc_orchestrator import TOCOrchestrator
 
 __all__ = [
     'TOCHeuristicDetector',
-    'TOCExtractor',
-    'TOCLLMParser', 
+    'TOCFallbackLLMStrategy',
+    'TOCHeuristicDetector',
     'TOCOrchestrator'
 ]
