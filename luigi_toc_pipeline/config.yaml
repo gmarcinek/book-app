@@ -43,7 +43,6 @@ TOCLLMParser:
   jpg_quality: 65
   vision_prompt: |
     Analyze the extracted Table of Contents (TOC) section using text and images.
-
     EXTRACTED TEXT:
     {text_content}
 
@@ -70,7 +69,9 @@ TOCLLMParser:
     - Use images to verify text accuracy.
     - Do not assume missing context; parse only visible data.
     - Respond ONLY with valid JSON, no markdown, no explanations.
-    - Use standard ASCII double quotes and escape them properly.
+    - Use standard ASCII double quotes and ESCAPE THEM PROPERLY (e.g., \" for quotes inside strings).
+    - Escape all other special JSON characters as required (e.g., backslash \\).
+
 
 TOCSplitter:
   overlap_pages: 2

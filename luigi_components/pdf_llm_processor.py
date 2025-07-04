@@ -1,4 +1,7 @@
 import asyncio
+from dotenv import load_dotenv
+load_dotenv()
+
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass

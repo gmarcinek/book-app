@@ -7,10 +7,10 @@ from typing import List, Dict
 from asyncio import Semaphore
 
 from llm import LLMConfig
-from luigi_components.sliding_window_page_task import SlidingWindowPageTask
 from luigi_components.structured_task import StructuredTask
 from luigi_pipeline.config import load_config
 from luigi_pipeline.tasks.preprocessing.pdf_processing.pdf_processing import PDFProcessing
+from luigi_pipeline.tasks.preprocessing.sliding_window_page_task.sliding_window_page_task import SlidingWindowPageTask
 
 
 class LLMMarkdownProcessor(StructuredTask):
