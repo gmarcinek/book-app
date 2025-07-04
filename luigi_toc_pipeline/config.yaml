@@ -2,7 +2,7 @@
 
 TOCDetector:
   # Heuristic settings
-  max_pages_to_scan: 10
+  max_pages_to_scan: 1000
   toc_keywords:
     - "spis treści"
     - "treść" 
@@ -10,6 +10,7 @@ TOCDetector:
     - "contents"
     - "indice"
     - "sommaire"
+    - "chapter contents"
   
   min_toc_entries: 3  # Minimum entries to consider valid TOC
   
@@ -38,7 +39,7 @@ TOCDetector:
 
 TOCLLMParser:
   model: "gpt-4o-mini"
-# model: "claude-3.5-haiku"
+  # model: "claude-3.5-haiku"
   temperature: 0.0
   target_width_px: 800
   jpg_quality: 65
