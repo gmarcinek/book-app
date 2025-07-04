@@ -16,18 +16,64 @@ from llm import LLMClient, LLMConfig
 @dataclass
 class ProcessingConfig:
     """Config for PDF → LLM processing"""
-    model: str = "claude-3.5-haiku"
+    # Required fields - no defaults
+    model: str
+    prompt_template: str
+    
+    # Optional fields - with defaults (single source of truth)
     temperature: float = 0.0
     max_tokens: Optional[int] = None
     max_concurrent: int = 2
     rate_limit_backoff: float = 30.0
-    
-    # Image settings
     target_width_px: int = 800
     jpg_quality: int = 65
     
-    # Prompt template with {text_content} placeholder
-    prompt_template: str = ""
+    @classmethod
+    def from_yaml(cls, yaml_dict: dict, task_name: str = "Unknown"):
+        """Create config from YAML dict - FAIL FAST on missing values"""
+        
+        # Check if we got any config at all
+        if not yaml_dict:
+            print(f"❌ FATAL: Task '{task_name}' passed EMPTY config to PDFLLMProcessor")
+            raise ValueError(f"Task '{task_name}' must provide YAML config section")
+        
+        # Required fields - WYJEB if missing
+        required_fields = {
+            "model": "LLM model name (e.g. 'claude-3.5-haiku')",
+            "vision_prompt": "LLM prompt template with {text_content} placeholder"
+        }
+        
+        missing_fields = []
+        for field, description in required_fields.items():
+            if field not in yaml_dict:
+                print(f"❌ MISSING REQUIRED: '{field}' - {description}")
+                missing_fields.append(field)
+        
+        if missing_fields:
+            print(f"❌ FATAL: Task '{task_name}' config missing: {missing_fields}")
+            raise ValueError(f"Required config fields missing: {missing_fields}")
+        
+        # Check for empty required values
+        if not yaml_dict["vision_prompt"].strip():
+            print(f"❌ FATAL: Task '{task_name}' has EMPTY vision_prompt")
+            raise ValueError("vision_prompt cannot be empty")
+        
+        print(f"✅ Config loaded for task '{task_name}': {yaml_dict['model']}")
+        
+        # Create instance using YAML values OR dataclass defaults
+        return cls(
+            # Required fields from YAML
+            model=yaml_dict["model"],
+            prompt_template=yaml_dict["vision_prompt"],
+            
+            # Optional fields - YAML overrides dataclass defaults
+            temperature=yaml_dict.get("temperature", cls.temperature),
+            max_tokens=yaml_dict.get("max_tokens", cls.max_tokens),
+            max_concurrent=yaml_dict.get("max_concurrent", cls.max_concurrent),
+            rate_limit_backoff=yaml_dict.get("rate_limit_backoff", cls.rate_limit_backoff),
+            target_width_px=yaml_dict.get("target_width_px", cls.target_width_px),
+            jpg_quality=yaml_dict.get("jpg_quality", cls.jpg_quality)
+        )
 
 
 @dataclass
@@ -41,7 +87,7 @@ class PageResult:
 
 
 class SlidingWindowPageProcessor:
-    """Single page processor for sliding window - extracted from luigi_pipeline"""
+    """Single page processor for sliding window"""
     
     def __init__(self, page_data: Dict, config: ProcessingConfig, 
                  response_parser: Callable[[str], Dict[str, Any]] = None):
@@ -59,9 +105,6 @@ class SlidingWindowPageProcessor:
         page_num = self.page_data["page_num"]
         
         try:
-            print(f"📄 Processing page {page_num}...")
-            
-            # Call LLM with text + image
             result = self._call_llm_vision()
             
             return PageResult(
@@ -71,16 +114,13 @@ class SlidingWindowPageProcessor:
             )
             
         except Exception as e:
-            print(f"❌ Page {page_num} failed: {e}")
-            
-            # Rate limit handling - copied from luigi_pipeline
+            # Rate limit handling
             if self._is_rate_limit_error(e):
                 print(f"🚨 Rate limit detected! Waiting {self.config.rate_limit_backoff}s...")
                 time.sleep(self.config.rate_limit_backoff)
                 
                 # Try once more after backoff
                 try:
-                    print(f"🔄 Retry after rate limit for page {page_num}...")
                     result = self._call_llm_vision()
                     
                     return PageResult(
@@ -124,7 +164,7 @@ class SlidingWindowPageProcessor:
             return {"raw_response": response}
     
     def _is_rate_limit_error(self, error: Exception) -> bool:
-        """Detect rate limit errors - copied from luigi_pipeline"""
+        """Detect rate limit errors"""
         error_str = str(error).lower()
         return any(phrase in error_str for phrase in [
             "rate limit",
@@ -137,8 +177,14 @@ class SlidingWindowPageProcessor:
 class PDFLLMProcessor:
     """Generic PDF → screenshots + text → LLM processor with sliding window"""
     
-    def __init__(self, config: ProcessingConfig):
-        self.config = config
+    def __init__(self, yaml_config: dict, task_name: str = "Unknown"):
+        """Initialize with YAML config - FAIL FAST if config invalid"""
+        try:
+            self.config = ProcessingConfig.from_yaml(yaml_config, task_name)
+            print(f"🚀 PDFLLMProcessor ready for task '{task_name}'")
+        except Exception as e:
+            print(f"💥 PDFLLMProcessor FAILED to initialize for task '{task_name}': {e}")
+            raise
     
     def process_pdf(self, pdf_path: str, 
                    response_parser: Callable[[str], Dict[str, Any]] = None) -> List[PageResult]:
@@ -193,8 +239,6 @@ class PDFLLMProcessor:
                     "image_base64": image_base64
                 })
                 
-                print(f"📸 Page {page_num + 1}: {len(text)} chars text, {len(image_base64)} chars image")
-                
             except Exception as e:
                 print(f"❌ Failed to extract page {page_num + 1}: {e}")
                 continue
@@ -216,7 +260,7 @@ class PDFLLMProcessor:
     
     async def _process_with_sliding_window(self, pages_data: List[Dict], 
                                          response_parser: Callable) -> List[PageResult]:
-        """Process pages with sliding window - copied from luigi_pipeline"""
+        """Process pages with sliding window"""
         semaphore = asyncio.Semaphore(self.config.max_concurrent)
         
         async def process_single_page(page_data: Dict):

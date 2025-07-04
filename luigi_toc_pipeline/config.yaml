@@ -37,7 +37,8 @@ TOCDetector:
     ONLY JSON, no explanation.
 
 TOCLLMParser:
-  model: "claude-3.5-haiku"
+  model: "gpt-4o-mini"
+# model: "claude-3.5-haiku"
   temperature: 0.0
   target_width_px: 800
   jpg_quality: 65
