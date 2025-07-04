@@ -244,18 +244,15 @@ class TOCPatternDetector:
             # DEBUG: Print details for each candidate
             print(f"   Candidate {i}: page {start_page}, entries={entry_count}, total={total_lines}, ratio={toc_ratio:.2f}, proximity={proximity_ok}")
             
+
             # NEW LIBERAL CATEGORIZATION based on ratio, not absolute counts
-            if (proximity_ok and 
-                page_distance <= 1 and 
-                entry_count >= self.min_toc_entries and 
-                toc_ratio >= 0.6):  # 60%+ lines are TOC entries = certain
+            # 60%+ lines are TOC entries = certain
+            if (proximity_ok and page_distance <= 1):
                 certain.append(candidate)
                 print(f"     → CERTAIN")
                 
-            elif (proximity_ok and 
-                    page_distance <= 5 and 
-                    total_lines >= 3 and 
-                    toc_ratio >= 0.25):  # 25%+ lines are TOC entries = uncertain, let LLM decide
+            # 25%+ lines are TOC entries = uncertain, let LLM decide
+            elif (proximity_ok and page_distance <= 5):  
                 uncertain.append(candidate)
                 print(f"     → UNCERTAIN")
                 
@@ -264,8 +261,6 @@ class TOCPatternDetector:
                 reason = []
                 if not proximity_ok: reason.append("bad_proximity")
                 if page_distance > 5: reason.append("too_far")
-                if total_lines < 3: reason.append("too_few_lines")
-                if toc_ratio < 0.25: reason.append(f"low_ratio_{toc_ratio:.2f}")
                 print(f"     → REJECTED: {', '.join(reason)}")
 
         return {
