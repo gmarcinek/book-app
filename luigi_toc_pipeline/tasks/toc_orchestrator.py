@@ -5,7 +5,7 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from luigi_components.structured_task import StructuredTask
-from .toc_llm_parser import TOCLLMParser
+from .toc_extractor import TOCExtractor
 
 class TOCOrchestrator(StructuredTask):
     file_path = luigi.Parameter()
@@ -19,41 +19,36 @@ class TOCOrchestrator(StructuredTask):
         return "toc_orchestrator"
     
     def requires(self):
-        return TOCLLMParser(file_path=self.file_path)
+        return TOCExtractor(file_path=self.file_path)
     
     def run(self):
-        # Load LLM parser results
+        # Load extractor results
         with self.input().open('r') as f:
-            parser_data = json.load(f)
+            extractor_data = json.load(f)
         
         # Create final orchestration result
-        if parser_data.get("toc_parsed", False):
-            toc_structure = parser_data.get("toc_structure", {})
-            entries = toc_structure.get("entries", [])
-            
+        if extractor_data.get("toc_extracted", False):
             result = {
                 "task_name": "TOCOrchestrator",
                 "input_file": str(self.file_path),
                 "toc_found": True,
-                "toc_entries_count": len(entries),
-                "toc_entries": entries,
-                "toc_structure": toc_structure,
-                "source_toc_pdf": parser_data.get("source_toc_pdf"),
+                "toc_pdf_path": extractor_data.get("toc_pdf_path"),
+                "coordinates": extractor_data.get("coordinates", {}),
                 "ready_for_splitting": True
             }
             
-            print(f"✅ TOC processed: {len(entries)} entries found")
+            print(f"✅ TOC orchestration complete: {extractor_data.get('toc_pdf_path')}")
             
         else:
             result = {
                 "task_name": "TOCOrchestrator", 
                 "input_file": str(self.file_path),
                 "toc_found": False,
-                "reason": parser_data.get("reason", "unknown"),
+                "reason": extractor_data.get("reason", "unknown"),
                 "ready_for_splitting": False
             }
             
-            print("❌ No TOC found or parsed")
+            print("❌ No TOC found or extracted")
         
         with self.output().open('w') as f:
             json.dump(result, f, indent=2)
