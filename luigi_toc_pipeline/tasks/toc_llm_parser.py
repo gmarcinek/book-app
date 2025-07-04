@@ -1,4 +1,4 @@
-from llm.utils import parse_json_with_markdown_blocks
+from llm.json_utils import parse_json_with_markdown_blocks
 import luigi
 import json
 import fitz
@@ -6,12 +6,12 @@ import base64
 from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from luigi_pipeline.tasks.base.structured_task import StructuredTask
+
+from luigi_components.structured_task import StructuredTask
 from luigi_toc_pipeline.config import load_config
-from llm import LLMClient, LLMConfig
 from llm.models import get_model_output_limit
-from ner.utils import parse_llm_json_response
 from .toc_extractor import TOCExtractor
+from luigi_components.pdf_llm_processor import PDFLLMProcessor, ProcessingConfig
 
 class TOCLLMParser(StructuredTask):
     file_path = luigi.Parameter()
@@ -47,31 +47,39 @@ class TOCLLMParser(StructuredTask):
         
         with self.output().open('w') as f:
             json.dump(result, f)
-    
+
+
     def _parse_toc_with_vision(self, toc_pdf_path):
         config = load_config()
-        model = config.get_task_setting("TOCLLMParser", "model", "claude-4-sonnet")
-        temperature = config.get_task_setting("TOCLLMParser", "temperature", 0.0)
-        max_tokens = config.get_task_setting("TOCLLMParser", "max_tokens") or get_model_output_limit(model)
-        prompt_template = config.get_task_setting("TOCLLMParser", "vision_prompt", "")
         
-        llm_client = LLMClient(model)
-        llm_config = LLMConfig(temperature=temperature, max_tokens=max_tokens)
+        # Build config from YAML
+        toc_config = ProcessingConfig(
+            model=config.get_task_setting("TOCLLMParser", "model", "claude-4-sonnet"),
+            temperature=config.get_task_setting("TOCLLMParser", "temperature", 0.0),
+            max_tokens=config.get_task_setting("TOCLLMParser", "max_tokens") or get_model_output_limit(config.get_task_setting("TOCLLMParser", "model", "claude-4-sonnet")),
+            max_concurrent=2,
+            rate_limit_backoff=30.0,
+            target_width_px=config.get_task_setting("TOCLLMParser", "target_width_px", 800),
+            jpg_quality=config.get_task_setting("TOCLLMParser", "jpg_quality", 85),
+            prompt_template=config.get_task_setting("TOCLLMParser", "vision_prompt", "")
+        )
         
-        doc = fitz.open(toc_pdf_path)
+        # Process PDF using shared component
+        processor = PDFLLMProcessor(toc_config)
+        results = processor.process_pdf(toc_pdf_path, parse_json_with_markdown_blocks)
+        
+        # Combine all entries from all pages
         all_entries = []
-        
-        for page_num in range(len(doc)):
-            print(f"📄 Processing TOC page {page_num + 1}/{len(doc)}")
-            
-            page_entries = self._process_page(doc, page_num, prompt_template, llm_client, llm_config, model, config)
-            all_entries.extend(page_entries)
-            print(f"   Found {len(page_entries)} entries")
-        
-        doc.close()
-        print(f"✅ Total TOC entries: {len(all_entries)}")
-        return {"entries": all_entries}
+        for result in results:
+            if result.status == "success" and result.result:
+                entries = result.result.get("entries", [])
+                all_entries.extend(entries)
+                print(f"📄 Page {result.page_num}: {len(entries)} entries")
     
+        print(f"✅ Total TOC entries from shared component: {len(all_entries)}")
+        return {"entries": all_entries}
+
+
     def _process_page(self, doc, page_num, prompt_template, llm_client, llm_config, model, config):
         """Process single TOC page"""
         page = doc[page_num]
@@ -102,9 +110,9 @@ class TOCLLMParser(StructuredTask):
         try:
             print(f"🤖 Calling {model}")
             response = llm_client.chat(prompt, llm_config, images=[image_base64])
-            print(f"📥 Response: {len(response)} chars")
-            
+
             data = parse_json_with_markdown_blocks(response)
+
             if not data:
                 print("❌ Failed to parse JSON from response")
                 return []

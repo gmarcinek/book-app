@@ -37,57 +37,40 @@ TOCDetector:
     ONLY JSON, no explanation.
 
 TOCLLMParser:
-  model: "claude-4-sonnet"
+  model: "claude-3.5-haiku"
   temperature: 0.0
   target_width_px: 800
   jpg_quality: 65
   vision_prompt: |
-    Analyze this extracted Table of Contents section using both images and text.
-
-    IMPORTANT: This PDF contains ONLY the Table of Contents section that was cut from a larger document. You are seeing the MIDDLE or CONTINUATION of the TOC, not necessarily the beginning.
+    Analyze the extracted Table of Contents (TOC) section using text and images.
 
     EXTRACTED TEXT:
     {text_content}
 
-    TASK: Parse ALL visible TOC entries into structured JSON.
+    NOTE: This PDF contains only a fragment (middle or continuation) of the full TOC. Page numbers refer to the original document.
 
-    WHAT YOU'RE SEEING:
-    - This may be page 3 of a TOC that started on page 1
-    - Entries may start mid-chapter (e.g., "1.3 Something" without seeing "1.1" or "1.2")
-    - Page numbers refer to the ORIGINAL document, not this extracted PDF
-    - Some entries may be cut off at the top or bottom
+    TASK: Parse all visible TOC entries into a JSON object with a key "entries", each entry having:
 
-    LOOK FOR:
-    - Chapter/section titles with page numbers
-    - Hierarchical numbering (1.1, 1.2, 2.1, etc.)
-    - Different indentation levels
-    - Dotted lines or spacing leading to page numbers
-    - Appendices, indices, or special sections
+    - "title": string — entry title
+    - "page": integer or null — original page number
+    - "level": integer — hierarchy level (1 = chapter, 2 = subsection, etc.)
+    - "type": string — one of "chapter", "section", or "article"
 
-    RESPOND WITH JSON:
-    {{
+    Example:
+
+    {
       "entries": [
-        {{
-          "title": "Rozdział 1 - Wprowadzenie",
-          "page": 15,
-          "level": 1,
-          "type": "chapter"
-        }},
-        {{
-          "title": "1.1 Podstawowe pojęcia", 
-          "page": 17,
-          "level": 2,
-          "type": "section"
-        }}
+        {"title": "Rozdział 1 - Wprowadzenie", "page": 15, "level": 1, "type": "chapter"},
+        {"title": "1.1 Podstawowe pojęcia", "page": 17, "level": 2, "type": "section"}
       ]
-    }}
+    }
 
-    IMPORTANT:
-    - Include ALL entries you can see, even if incomplete
-    - Use images to verify text accuracy
-    - Don't assume missing context - work with what's visible
-    - Level 1 = main chapters, Level 2 = subsections, etc.
-    - ONLY return valid JSON, no explanations
+    RULES:
+    - Include all visible entries, even if incomplete.
+    - Use images to verify text accuracy.
+    - Do not assume missing context; parse only visible data.
+    - Respond ONLY with valid JSON, no markdown, no explanations.
+    - Use standard ASCII double quotes and escape them properly.
 
 TOCSplitter:
   overlap_pages: 2

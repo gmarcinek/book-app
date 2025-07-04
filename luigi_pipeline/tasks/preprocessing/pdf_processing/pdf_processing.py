@@ -6,7 +6,7 @@ from datetime import datetime
 import fitz  # PyMuPDF
 import PyPDF2
 
-from luigi_pipeline.tasks.base.structured_task import StructuredTask
+from luigi_components.structured_task import StructuredTask
 from luigi_pipeline.tasks.preprocessing.file_router.file_router import FileRouter
 
 

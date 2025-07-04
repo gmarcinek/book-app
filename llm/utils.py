@@ -4,6 +4,7 @@ from typing import Optional
 from datetime import datetime
 from pathlib import Path
 from .base import LLMConfig
+from .json_utils import parse_json_with_markdown_blocks  # ← IMPORT Z NOWEGO PLIKU
 
 
 def detect_image_format(image_base64: str) -> str:
@@ -84,47 +85,14 @@ RESPONSE:
         print(f"⚠️ Failed to log LLM response: {e}")
 
 
-def parse_json_with_markdown_blocks(response: str) -> Optional[dict]:
-    """
-    Parse JSON response that may be wrapped in markdown code blocks
-    Handles Unicode quotes that break JSON parsing
-    
-    Args:
-        response: LLM response string
-        
-    Returns:
-        Parsed JSON dict or None if parsing fails
-    """
-    import json
-    from typing import Optional
-    
-    if not response or not response.strip():
-        return None
-    
-    # Clean markdown blocks
-    clean_response = response.strip()
-    
-    if '```json' in clean_response:
-        clean_response = clean_response.split('```json')[1].split('```')[0]
-    elif '```' in clean_response:
-        parts = clean_response.split('```')
-        if len(parts) >= 3:
-            clean_response = parts[1]
-            # Remove language identifier if present
-            if clean_response.strip().startswith(('json', 'JSON')):
-                lines = clean_response.strip().split('\n')
-                clean_response = '\n'.join(lines[1:])
-    
-    # Normalize Unicode quotes that break JSON
-    clean_response = clean_response.replace('„', '"').replace('"', '"').replace(''', "'").replace(''', "'")
-    
-    # Clean whitespace and try parsing
-    clean_response = clean_response.strip()
-    
-    if not clean_response:
-        return None
-    
-    try:
-        return json.loads(clean_response)
-    except json.JSONDecodeError:
-        return None
+# Convenience functions using enterprise parser
+def get_json_parsing_stats():
+    """Get JSON parsing statistics - convenience function"""
+    from .json_utils import get_json_parsing_stats
+    return get_json_parsing_stats()
+
+
+def reset_json_parsing_stats():
+    """Reset JSON parsing statistics - convenience function"""
+    from .json_utils import reset_json_parsing_stats
+    reset_json_parsing_stats()

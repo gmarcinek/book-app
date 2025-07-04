@@ -5,7 +5,8 @@ import fitz
 from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from luigi_pipeline.tasks.base.structured_task import StructuredTask
+
+from luigi_components.structured_task import StructuredTask
 
 class TOCHeuristicDetector(StructuredTask):
     file_path = luigi.Parameter()

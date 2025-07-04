@@ -3,9 +3,10 @@ import json
 import fitz
 from pathlib import Path
 import sys
+
+from luigi_components.structured_task import StructuredTask
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from luigi_pipeline.tasks.base.structured_task import StructuredTask
-from .toc_heuristic_detector import TOCHeuristicDetector  # ← ZMIANA
+from .toc_heuristic_detector import TOCHeuristicDetector
 
 class TOCExtractor(StructuredTask):
     file_path = luigi.Parameter()
@@ -19,7 +20,7 @@ class TOCExtractor(StructuredTask):
         return "toc_extractor"
     
     def requires(self):
-        return TOCHeuristicDetector(file_path=self.file_path)  # ← ZMIANA
+        return TOCHeuristicDetector(file_path=self.file_path)
     
     def run(self):
         # Load TOC coordinates from heuristic detector

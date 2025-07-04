@@ -3,9 +3,9 @@ import json
 from pathlib import Path
 from datetime import datetime
 
+from luigi_components.structured_task import StructuredTask
 from ner.semantic.hierarchical_strategy import HierarchicalChunker
 from ner.semantic.models import create_semantic_config
-from luigi_pipeline.tasks.base.structured_task import StructuredTask
 from luigi_pipeline.tasks.preprocessing.file_router.file_router import FileRouter
 
 

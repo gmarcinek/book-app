@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from luigi_pipeline.tasks.base.structured_task import StructuredTask
+from luigi_components.structured_task import StructuredTask
 from luigi_pipeline.tasks.preprocessing.markdown_header_cleaner.markdown_header_cleaner import MarkdownHeaderCleaner
 
 

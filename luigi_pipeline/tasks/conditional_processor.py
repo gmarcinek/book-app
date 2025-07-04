@@ -2,7 +2,7 @@ import luigi
 import json
 from datetime import datetime
 
-from luigi_pipeline.tasks.base.structured_task import StructuredTask
+from luigi_components.structured_task import StructuredTask
 from luigi_pipeline.tasks.preprocessing.file_router.file_router import FileRouter
 from luigi_pipeline.tasks.preprocessing.text_processing.text_processing import TextProcessing
 from luigi_pipeline.tasks.postprocessing.postprocess_task.postprocess_task import PostprocessTask

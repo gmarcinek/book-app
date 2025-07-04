@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from luigi_pipeline.tasks.base.structured_task import StructuredTask
+from luigi_components.structured_task import StructuredTask
 from luigi_pipeline.tasks.preprocessing.batch_result_combiner.batch_result_combiner import BatchResultCombiner
 
 

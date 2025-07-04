@@ -6,8 +6,8 @@ from typing import List, Dict
 from datetime import datetime
 
 from llm import LLMClient, LLMConfig
+from luigi_components.structured_task import StructuredTask
 from luigi_pipeline.config import load_config
-from luigi_pipeline.tasks.base.structured_task import StructuredTask
 from luigi_pipeline.tasks.preprocessing.llm_markdown_processor.llm_markdown_processor import LLMMarkdownProcessor
 
 
