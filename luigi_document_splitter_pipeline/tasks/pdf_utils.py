@@ -31,35 +31,62 @@ class PDFUtils:
     
     @staticmethod
     def split_by_levels(entries, doc, base_output_dir, doc_name, entry_format="detected"):
-        """Universal level-based splitting for both built-in and detected TOC"""
+        """Universal level-based splitting - creates folder for each level found"""
         
         def get_entry_level(entry):
             """Get level from entry based on format"""
             if entry_format == "builtin":
                 return entry[0]  # [level, title, page]
             else:  # detected format
-                return entry.get('level', 1)  # {"level": 1, "title": "...", "page": ...}
+                return entry.get('level')  # NO DEFAULT - should be filtered upstream
         
-        # Group by level
-        level_1_entries = [entry for entry in entries if get_entry_level(entry) == 1]
-        level_2_entries = [entry for entry in entries if get_entry_level(entry) == 2]
+        # DEBUG: Analyze entry distribution
+        print(f"🔍 DEBUG split_by_levels:")
+        print(f"   Total entries: {len(entries)}")
+        print(f"   Entry format: {entry_format}")
+        
+        # Show level distribution
+        level_counts = {}
+        null_levels = 0
+        for i, entry in enumerate(entries):
+            level = entry.get('level') if entry_format == "detected" else entry[0]
+            title = entry.get('title', '') if entry_format == "detected" else entry[1]
+            page = entry.get('page') if entry_format == "detected" else entry[2]
+            
+            if level is None:
+                null_levels += 1
+                print(f"   Entry {i}: '{title}' page {page} → level=NULL (will use level 1)")
+            else:
+                level_counts[level] = level_counts.get(level, 0) + 1
+                print(f"   Entry {i}: '{title}' page {page} → level={level}")
+        
+        print(f"   Level distribution: {level_counts}")
+        print(f"   Null levels (defaulted to 1): {null_levels}")
+        
+        # Group by level dynamically
+        levels_found = {}
+        for entry in entries:
+            level = get_entry_level(entry)
+            if level not in levels_found:
+                levels_found[level] = []
+            levels_found[level].append(entry)
+        
+        print(f"   Grouped levels: {dict((k, len(v)) for k, v in levels_found.items())}")
         
         all_sections = []
         
-        # Split by level 1
-        if level_1_entries:
-            lvl1_sections = PDFUtils.create_sections_for_level(
-                doc, level_1_entries, 1, base_output_dir, doc_name, entry_format
+        # Create sections for each level found
+        for level in sorted(levels_found.keys()):
+            level_entries = levels_found[level]
+            print(f"📁 Processing level {level}: {len(level_entries)} entries")
+            
+            level_sections = PDFUtils.create_sections_for_level(
+                doc, level_entries, level, base_output_dir, doc_name, entry_format
             )
-            all_sections.extend(lvl1_sections)
+            all_sections.extend(level_sections)
+            print(f"   Created {len(level_sections)} PDF files for level {level}")
         
-        # Split by level 2  
-        if level_2_entries:
-            lvl2_sections = PDFUtils.create_sections_for_level(
-                doc, level_2_entries, 2, base_output_dir, doc_name, entry_format
-            )
-            all_sections.extend(lvl2_sections)
-        
+        print(f"✅ Total PDF files created: {len(all_sections)}")
         return all_sections
     
     @staticmethod

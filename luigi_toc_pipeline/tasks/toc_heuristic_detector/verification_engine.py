@@ -81,21 +81,31 @@ class TOCVerificationEngine:
             processor = PDFLLMProcessor(self.processor_config, "TOCVerification")
             results = processor.process_pdf(temp_pdf_path, parse_json_with_markdown_blocks)
             
-            # Step 3: Aggregate entries from all pages
+            # Step 3: Aggregate entries from all pages AND FILTER NULL LEVELS
             all_entries = []
+            discarded_count = 0
+            
             for result in results:
                 if result.status == "success" and result.result:
-                    entries = result.result.get("entries", [])
-                    all_entries.extend(entries)
+                    raw_entries = result.result.get("entries", [])
+                    
+                    for entry in raw_entries:
+                        if entry.get('level') is None:
+                            discarded_count += 1
+                            print(f"⚠️ Discarding entry '{entry.get('title', 'unknown')}' - no level detected")
+                        else:
+                            all_entries.append(entry)
             
-            # Step 4: Store results in candidate
+            print(f"📋 Entry filtering: {len(all_entries)} valid, {discarded_count} discarded (NULL level)")
+            
+            # Step 4: Store ONLY valid entries in candidate
             if all_entries:
                 candidate['toc_entries'] = all_entries
                 candidate['toc_entries_count'] = len(all_entries)
-                print(f"📋 PDFLLMProcessor extracted {len(all_entries)} entries")
+                print(f"📋 PDFLLMProcessor extracted {len(all_entries)} valid entries")
                 return True
             else:
-                print(f"⚠️ PDFLLMProcessor found no entries")
+                print(f"⚠️ No valid entries after filtering")
                 return False
                 
         finally:
