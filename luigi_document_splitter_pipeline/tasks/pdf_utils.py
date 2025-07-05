@@ -1,5 +1,5 @@
 """
-PDF processing utilities
+PDF processing utilities - Individual entity chunking
 """
 
 import fitz
@@ -7,127 +7,147 @@ from pathlib import Path
 
 
 class PDFUtils:
-    """Helper class for PDF operations"""
+    """Helper class for PDF operations with individual entity chunking"""
     
     @staticmethod
-    def find_end_page_builtin(current_index, entries, doc_length):
-        """Find end page for built-in TOC entry with better validation"""
-        if current_index + 1 < len(entries):
-            next_entry = entries[current_index + 1]
-            next_page = next_entry[2]  # page number from TOC
-            return max(1, next_page - 1)  # Ensure positive page number
-        else:
-            return doc_length  # Last entry goes to document end
-    
-    @staticmethod
-    def find_end_page_detected(current_index, entries, doc_length):
-        """Find end page for detected TOC entry"""
-        if current_index + 1 < len(entries):
-            next_entry = entries[current_index + 1]
-            next_page = next_entry.get('page')
-            if next_page:
-                return max(1, next_page - 1)
-        return doc_length  # Last entry goes to document end
-    
-    @staticmethod
-    def split_by_levels(entries, doc, base_output_dir, doc_name, entry_format="detected"):
-        """Universal level-based splitting - creates folder for each level found"""
+    def split_by_individual_entities(entries, doc, base_output_dir, doc_name, entry_format="detected"):
+        """
+        NEW: Split each TOC entity into its own PDF chunk
+        Every entity gets its own file regardless of level or page overlaps
+        """
+        from .section_creator import SectionCreator
         
-        def get_entry_level(entry):
-            """Get level from entry based on format"""
-            if entry_format == "builtin":
-                return entry[0]  # [level, title, page]
-            else:  # detected format
-                return entry.get('level')  # NO DEFAULT - should be filtered upstream
-        
-        # DEBUG: Analyze entry distribution
-        print(f"🔍 DEBUG split_by_levels:")
+        print(f"🔪 Individual entity chunking:")
         print(f"   Total entries: {len(entries)}")
         print(f"   Entry format: {entry_format}")
         
-        # Show level distribution
-        level_counts = {}
-        null_levels = 0
-        for i, entry in enumerate(entries):
-            level = entry.get('level') if entry_format == "detected" else entry[0]
-            title = entry.get('title', '') if entry_format == "detected" else entry[1]
-            page = entry.get('page') if entry_format == "detected" else entry[2]
-            
-            if level is None:
-                null_levels += 1
-                print(f"   Entry {i}: '{title}' page {page} → level=NULL (will use level 1)")
-            else:
-                level_counts[level] = level_counts.get(level, 0) + 1
-                print(f"   Entry {i}: '{title}' page {page} → level={level}")
-        
-        print(f"   Level distribution: {level_counts}")
-        print(f"   Null levels (defaulted to 1): {null_levels}")
-        
-        # Group by level dynamically
-        levels_found = {}
-        for entry in entries:
-            level = get_entry_level(entry)
-            if level not in levels_found:
-                levels_found[level] = []
-            levels_found[level].append(entry)
-        
-        print(f"   Grouped levels: {dict((k, len(v)) for k, v in levels_found.items())}")
+        # Create single output directory for all chunks
+        output_dir = base_output_dir / doc_name / "sections"
+        output_dir.mkdir(parents=True, exist_ok=True)
         
         all_sections = []
         
-        # Create sections for each level found
-        for level in sorted(levels_found.keys()):
-            level_entries = levels_found[level]
-            print(f"📁 Processing level {level}: {len(level_entries)} entries")
-            
-            level_sections = PDFUtils.create_sections_for_level(
-                doc, level_entries, level, base_output_dir, doc_name, entry_format
-            )
-            all_sections.extend(level_sections)
-            print(f"   Created {len(level_sections)} PDF files for level {level}")
+        # Process each entity individually
+        for i, entry in enumerate(entries):
+            try:
+                # Calculate boundaries for this specific entity
+                start_page, end_page = PDFUtils._calculate_entity_boundaries(
+                    i, entries, len(doc), entry_format
+                )
+                
+                if start_page is None:
+                    print(f"   ⚠️ Entity {i}: No page number - skipping")
+                    continue
+                
+                # Extract entity info based on format
+                if entry_format == "builtin":
+                    level, title, page = entry
+                else:  # detected
+                    title = entry.get("title", f"Section_{i}")
+                    level = entry.get("level", 1)
+                    page = entry.get("page")
+                
+                print(f"   📄 Entity {i}: '{title}' pages {start_page}-{end_page} (level {level})")
+                
+                # Create individual PDF chunk
+                section = SectionCreator.create_individual_entity_chunk(
+                    doc, title, start_page, end_page, level, i, output_dir
+                )
+                
+                if section:
+                    all_sections.append(section)
+                    
+            except Exception as e:
+                print(f"   ❌ Entity {i} failed: {e}")
+                continue
         
-        print(f"✅ Total PDF files created: {len(all_sections)}")
+        print(f"✅ Created {len(all_sections)} individual entity chunks")
         return all_sections
     
     @staticmethod
-    def create_sections_for_level(doc, entries, level, base_output_dir, doc_name, entry_format="builtin"):
-        """Create sections for specific TOC level - supports both formats"""
-        from .section_creator import SectionCreator
+    def _calculate_entity_boundaries(current_index, all_entries, doc_length, entry_format):
+        """
+        Calculate start/end pages for single entity using hierarchical logic
+        Returns: (start_page, end_page) or (None, None) if invalid
+        """
+        current_entry = all_entries[current_index]
         
-        # Create level-specific output directory
-        output_dir = base_output_dir / doc_name / "sections" / f"lvl_{level}"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        # Get current entity's page and level
+        if entry_format == "builtin":
+            current_level = current_entry[0]  # [level, title, page]
+            current_page = current_entry[2]
+        else:  # detected
+            current_level = current_entry.get("level", 1)
+            current_page = current_entry.get("page")
         
-        sections = []
+        if current_page is None:
+            return None, None
         
-        for i, entry in enumerate(entries):
-            if entry_format == "builtin":
-                # Built-in format: [level, title, page]
-                toc_level, title, page = entry
-                end_page = PDFUtils.find_end_page_builtin(i, entries, len(doc))
-                
-                section = SectionCreator.create_section_builtin(
-                    doc, title, page, end_page, level, i, output_dir
-                )
-            else:
-                # Detected format: {"level": 1, "title": "...", "page": ...}
-                title = entry.get("title", f"Section_{i}")
-                page = entry.get("page")
-                
-                if page is None:
-                    continue  # Skip entries without page numbers
-                
-                end_page = PDFUtils.find_end_page_detected(i, entries, len(doc))
-                
-                section = SectionCreator.create_section_detected_with_level(
-                    doc, title, page, end_page, level, i, output_dir
-                )
+        # Find next entity with level <= current_level (hierarchical cut)
+        next_page = None
+        for j in range(current_index + 1, len(all_entries)):
+            next_entry = all_entries[j]
             
-            if section:
-                sections.append(section)
+            # Get next entity's level and page
+            if entry_format == "builtin":
+                next_level = next_entry[0]
+                candidate_page = next_entry[2]
+            else:
+                next_level = next_entry.get("level", 1)
+                candidate_page = next_entry.get("page")
+            
+            # Skip entries without page numbers
+            if candidate_page is None:
+                continue
+            
+            # Hierarchical logic: cut on same or higher level (lower number)
+            if next_level <= current_level:
+                next_page = candidate_page
+                break
         
-        print(f"📁 Created {len(sections)} level {level} sections in: {output_dir.name}")
-        return sections
+        # Calculate boundaries
+        start_page = current_page
+        if next_page is not None:
+            end_page = next_page  # Include full page where next entity starts
+        else:
+            end_page = doc_length  # Last entity goes to document end
+        
+        # Validation: ensure at least current page is included
+        if end_page < start_page:
+            end_page = start_page  # Single page entity
+        
+        return start_page, end_page
+    
+    # LEGACY METHODS - keep for backward compatibility but mark as deprecated
+    
+    @staticmethod
+    def split_by_levels(entries, doc, base_output_dir, doc_name, entry_format="detected"):
+        """
+        LEGACY: Use split_by_individual_entities instead
+        Kept for backward compatibility
+        """
+        print("⚠️ DEPRECATED: split_by_levels - using split_by_individual_entities")
+        return PDFUtils.split_by_individual_entities(entries, doc, base_output_dir, doc_name, entry_format)
+    
+    @staticmethod
+    def find_end_page_builtin(current_index, entries, doc_length):
+        """LEGACY: Use _calculate_entity_boundaries instead"""
+        _, end_page = PDFUtils._calculate_entity_boundaries(current_index, entries, doc_length, "builtin")
+        return end_page or doc_length
+    
+    @staticmethod
+    def find_end_page_detected(current_index, entries, doc_length):
+        """LEGACY: Use _calculate_entity_boundaries instead"""
+        _, end_page = PDFUtils._calculate_entity_boundaries(current_index, entries, doc_length, "detected")
+        return end_page or doc_length
+    
+    @staticmethod
+    def create_sections_for_level(doc, entries, level, base_output_dir, doc_name, entry_format="builtin"):
+        """LEGACY: Use split_by_individual_entities instead"""
+        print(f"⚠️ DEPRECATED: create_sections_for_level - redirecting to individual chunking")
+        return PDFUtils.split_by_individual_entities(entries, doc, base_output_dir, doc_name, entry_format)
+    
+    # UTILITY METHODS - keep unchanged
     
     @staticmethod
     def get_base_output_dir():
@@ -136,7 +156,7 @@ class PDFUtils:
     
     @staticmethod
     def get_output_dir(file_path):
-        """Get output directory for single document (legacy - use split_by_levels instead)"""
+        """Get output directory for single document (legacy)"""
         input_path = Path(file_path)
         return PDFUtils.get_base_output_dir() / input_path.stem / "sections"
     

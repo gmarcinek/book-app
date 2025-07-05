@@ -10,11 +10,10 @@ from luigi_components.structured_task import StructuredTask
 from luigi_toc_pipeline.tasks.toc_orchestrator import TOCOrchestrator
 from .toc_validator import TOCValidator
 from .pdf_utils import PDFUtils
-from .section_creator import SectionCreator
 
 
 class DocumentSplitter(StructuredTask):
-    """Split document into sections based on TOC entries with smart validation"""
+    """Split document into individual entity chunks based on TOC entries"""
     
     file_path = luigi.Parameter()
     
@@ -38,7 +37,7 @@ class DocumentSplitter(StructuredTask):
             print(f"📚 Built-in TOC found ({len(builtin_toc)} entries)")
             print(f"   Document pages: {doc_pages}")
             
-            if TOCValidator.is_valid_toc(builtin_toc, doc_pages, self.file_path):  # ← dodaj file_path
+            if TOCValidator.is_valid_toc(builtin_toc, doc_pages, self.file_path):
                 print("✅ TOC appears valid - using built-in")
                 return None
             else:
@@ -49,7 +48,7 @@ class DocumentSplitter(StructuredTask):
             return TOCOrchestrator(file_path=self.file_path)
     
     def run(self):
-        """Split with smart TOC validation"""
+        """Split using individual entity chunking"""
         doc = fitz.open(self.file_path)
         builtin_toc = doc.get_toc()
         doc_pages = len(doc)
@@ -58,85 +57,81 @@ class DocumentSplitter(StructuredTask):
         # Check if we have input (detected TOC) or should use built-in
         if builtin_toc and TOCValidator.is_valid_toc(builtin_toc, doc_pages, self.file_path):
             # Use built-in TOC - no input dependency
-            result = self._split_by_builtin_toc(builtin_toc)
+            result = self._split_by_builtin_toc_individual(builtin_toc)
         else:
             # Use detected TOC - has input dependency
-            with self.input().open('r') as f:  # ← ONLY call input() when we have dependency
+            with self.input().open('r') as f:
                 toc_data = json.load(f)
-            result = self._handle_detected_toc(toc_data)
+            result = self._handle_detected_toc_individual(toc_data)
         
         with self.output().open('w') as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
     
-    def _split_by_builtin_toc(self, builtin_toc):
-        """Split document using built-in TOC with level-based folders"""
+    def _split_by_builtin_toc_individual(self, builtin_toc):
+        """Split document using built-in TOC with individual entity chunking"""
         doc = fitz.open(self.file_path)
         base_output_dir = PDFUtils.get_base_output_dir()
         doc_name = PDFUtils.get_doc_name(self.file_path)
         
-        # Group entries by level
-        level_1_entries = [entry for entry in builtin_toc if entry[0] == 1]
-        level_2_entries = [entry for entry in builtin_toc if entry[0] == 2]
-        
-        all_sections = []
-        
         try:
-            # Split by level 1
-            if level_1_entries:
-                lvl1_sections = PDFUtils.create_sections_for_level(
-                    doc, level_1_entries, 1, base_output_dir, doc_name
-                )
-                all_sections.extend(lvl1_sections)
-            
-            # Split by level 2  
-            if level_2_entries:
-                lvl2_sections = PDFUtils.create_sections_for_level(
-                    doc, level_2_entries, 2, base_output_dir, doc_name
-                )
-                all_sections.extend(lvl2_sections)
+            # NEW: Individual entity chunking for ALL entries
+            all_sections = PDFUtils.split_by_individual_entities(
+                builtin_toc, doc, base_output_dir, doc_name, "builtin"
+            )
             
         finally:
             doc.close()
         
+        # Count by level for stats
+        level_1_count = len([s for s in all_sections if s["level"] == 1])
+        level_2_count = len([s for s in all_sections if s["level"] == 2])
+        other_levels_count = len(all_sections) - level_1_count - level_2_count
+        
         result = {
             "status": "success",
-            "method": "builtin_toc",
-            "total_sections_created": len(all_sections),
-            "level_1_sections": len([s for s in all_sections if s["level"] == 1]),
-            "level_2_sections": len([s for s in all_sections if s["level"] == 2]),
+            "method": "builtin_toc_individual_entities",
+            "total_entities_created": len(all_sections),
+            "level_1_entities": level_1_count,
+            "level_2_entities": level_2_count,
+            "other_levels_entities": other_levels_count,
             "sections": all_sections,
-            "output_base_directory": str(base_output_dir)
+            "output_base_directory": str(base_output_dir),
+            "chunking_strategy": "individual_entity"
         }
         
-        print(f"✅ Split by built-in TOC: {len(all_sections)} total sections")
-        print(f"   Level 1: {result['level_1_sections']} sections")
-        print(f"   Level 2: {result['level_2_sections']} sections")
+        print(f"✅ Individual entity chunking complete: {len(all_sections)} total entities")
+        print(f"   Level 1: {level_1_count} entities")
+        print(f"   Level 2: {level_2_count} entities")
+        if other_levels_count > 0:
+            print(f"   Other levels: {other_levels_count} entities")
         
         return result
     
-    def _handle_detected_toc(self, toc_data):
-        """Handle detected TOC results"""
+    def _handle_detected_toc_individual(self, toc_data):
+        """Handle detected TOC results with individual entity chunking"""
         if not toc_data.get("toc_found", False):
             result = {
                 "status": "no_toc",
                 "reason": toc_data.get("reason", "TOC not found"),
-                "sections_created": 0
+                "entities_created": 0,
+                "chunking_strategy": "none"
             }
             print("❌ Cannot split document - no TOC found")
             return result
         else:
-            return self._split_by_detected_toc(toc_data)
+            return self._split_by_detected_toc_individual(toc_data)
     
-    def _split_by_detected_toc(self, toc_data):
-        """Split document using detected TOC with level-based folders"""
+    def _split_by_detected_toc_individual(self, toc_data):
+        """Split document using detected TOC with individual entity chunking"""
         toc_entries = toc_data.get("toc_entries", [])
         if not toc_entries:
             return {
                 "status": "success",
-                "method": "detected_toc", 
-                "total_sections_created": 0,
+                "method": "detected_toc_individual_entities", 
+                "total_entities_created": 0,
                 "sections": [],
-                "output_directory": "none"
+                "output_directory": "none",
+                "chunking_strategy": "individual_entity"
             }
         
         doc = fitz.open(self.file_path)
@@ -144,26 +139,35 @@ class DocumentSplitter(StructuredTask):
         doc_name = PDFUtils.get_doc_name(self.file_path)
         
         try:
-            # Use unified level-based splitting (same as built-in TOC)
-            all_sections = PDFUtils.split_by_levels(
+            # NEW: Individual entity chunking for ALL detected entries
+            all_sections = PDFUtils.split_by_individual_entities(
                 toc_entries, doc, base_output_dir, doc_name, "detected"
             )
             
         finally:
             doc.close()
         
+        # Count by level for stats
+        level_1_count = len([s for s in all_sections if s["level"] == 1])
+        level_2_count = len([s for s in all_sections if s["level"] == 2])
+        other_levels_count = len(all_sections) - level_1_count - level_2_count
+        
         result = {
             "status": "success",
-            "method": "detected_toc", 
-            "total_sections_created": len(all_sections),
-            "level_1_sections": len([s for s in all_sections if s["level"] == 1]),
-            "level_2_sections": len([s for s in all_sections if s["level"] == 2]),
+            "method": "detected_toc_individual_entities", 
+            "total_entities_created": len(all_sections),
+            "level_1_entities": level_1_count,
+            "level_2_entities": level_2_count,
+            "other_levels_entities": other_levels_count,
             "sections": all_sections,
-            "output_base_directory": str(base_output_dir)
+            "output_base_directory": str(base_output_dir),
+            "chunking_strategy": "individual_entity"
         }
         
-        print(f"✅ Split by detected TOC: {len(all_sections)} total sections")
-        print(f"   Level 1: {result['level_1_sections']} sections")
-        print(f"   Level 2: {result['level_2_sections']} sections")
+        print(f"✅ Individual entity chunking complete: {len(all_sections)} total entities")
+        print(f"   Level 1: {level_1_count} entities")
+        print(f"   Level 2: {level_2_count} entities")
+        if other_levels_count > 0:
+            print(f"   Other levels: {other_levels_count} entities")
         
         return result
