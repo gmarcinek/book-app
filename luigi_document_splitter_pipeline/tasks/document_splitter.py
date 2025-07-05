@@ -128,33 +128,42 @@ class DocumentSplitter(StructuredTask):
             return self._split_by_detected_toc(toc_data)
     
     def _split_by_detected_toc(self, toc_data):
-        """Split document using detected TOC (fallback)"""
+        """Split document using detected TOC with level-based folders"""
         toc_entries = toc_data.get("toc_entries", [])
         if not toc_entries:
-            return []
+            return {
+                "status": "success",
+                "method": "detected_toc", 
+                "total_sections_created": 0,
+                "sections": [],
+                "output_directory": "none"
+            }
         
         doc = fitz.open(self.file_path)
-        output_dir = PDFUtils.get_output_dir(self.file_path)
-        output_dir.mkdir(parents=True, exist_ok=True)
+        base_output_dir = PDFUtils.get_base_output_dir()
+        doc_name = PDFUtils.get_doc_name(self.file_path)
         
-        sections = []
         try:
-            for i, entry in enumerate(toc_entries):
-                section = SectionCreator.create_section_detected(
-                    doc, entry, i, toc_entries, output_dir
-                )
-                if section:
-                    sections.append(section)
+            # Use unified level-based splitting (same as built-in TOC)
+            all_sections = PDFUtils.split_by_levels(
+                toc_entries, doc, base_output_dir, doc_name, "detected"
+            )
+            
         finally:
             doc.close()
         
         result = {
             "status": "success",
             "method": "detected_toc", 
-            "total_sections_created": len(sections),
-            "sections": sections,
-            "output_directory": str(output_dir)
+            "total_sections_created": len(all_sections),
+            "level_1_sections": len([s for s in all_sections if s["level"] == 1]),
+            "level_2_sections": len([s for s in all_sections if s["level"] == 2]),
+            "sections": all_sections,
+            "output_base_directory": str(base_output_dir)
         }
         
-        print(f"✅ Split by detected TOC: {len(sections)} sections")
+        print(f"✅ Split by detected TOC: {len(all_sections)} total sections")
+        print(f"   Level 1: {result['level_1_sections']} sections")
+        print(f"   Level 2: {result['level_2_sections']} sections")
+        
         return result
