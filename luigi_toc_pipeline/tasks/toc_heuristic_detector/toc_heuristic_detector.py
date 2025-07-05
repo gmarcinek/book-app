@@ -39,7 +39,7 @@ class TOCHeuristicDetector(StructuredTask):
         
         print(f"🔍 Found {len(toc_candidates['certain'])} certain TOCs")
         print(f"🔍 Found {len(toc_candidates['uncertain'])} uncertain TOCs") 
-        print(f"🔍 ❌ Rejected {len(toc_candidates['rejected'])} false positives")
+        print(f"🔍 Rejected {len(toc_candidates['rejected'])} false positives")
         
         # Save debug info for all candidates
         debug_utils.save_detection_summary(toc_candidates, self.file_path)

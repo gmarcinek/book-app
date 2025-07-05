@@ -19,10 +19,15 @@ TOCDetector:
     model: "claude-3.5-haiku"
     clean_text: true
     temperature: 0.0
-    target_width_px: 800
-    jpg_quality: 85
+    target_width_px: 900
+    jpg_quality: 75
     max_concurrent: 1
     rate_limit_backoff: 30.0
+    
+    # Verification limits
+    max_candidates: 50
+    max_rejected_count: 5
+    
     vision_prompt: |
       Analyze the extracted Table of Contents (TOC) section using text and images.
       EXTRACTED TEXT:
@@ -53,88 +58,3 @@ TOCDetector:
       - Respond ONLY with valid JSON, no markdown, no explanations.
       - Use standard ASCII double quotes and ESCAPE THEM PROPERLY (e.g., \" for quotes inside strings).
       - Escape all other special JSON characters as required (e.g., backslash \\).
-
-TOCFallbackLLMStrategy:
-  model: "gpt-4.1-nano"
-  temperature: 0.0
-  
-  semantic_prompt: |
-    Jesteś algorytmem analizy dokumentów który tworzy spis treści.
-    
-    Przeanalizuj nagłówki dokumentu i znajdź jego naturalną strukturę - rozdziały, sekcje, załączniki.
-    
-    TEKST DOKUMENTU:
-    {text}
-    
-    Twoim zadaniem jest utworzenie spisu treści w formie mapy:
-    - Klucz: tytuł rozdziału/sekcji jak pojawia się w dokumencie
-    - Wartość: początkowy tekst tego rozdziału (unikalny fragment początku)
-    
-    Szukaj wzorców takich jak:
-    - Nagłówki rozdziałów
-    - Numerowane sekcje  
-    - Załączniki
-    - Definicje
-    - Tabele jako osobne sekcje
-    
-    JSON format:
-    {
-      "Introduction": "tekst początku sekcji Introduction dokładnie jak w dokumencie",
-      "Chapter 1: Overview": "tekst początku Chapter 1 dokładnie jak w dokumencie", 
-      "Definitions": "tekst początku sekcji z definicjami",
-      "Appendix A": "tekst początku załącznika A"
-    }
-    
-    Bądź precyzyjny - start_text musi być unikalny w dokumencie żeby można było go znaleźć.
-
-TOCLLMParser:
-  model: "gpt-4o-mini"
-  # model: "claude-3.5-haiku"
-  temperature: 0.0
-  target_width_px: 800
-  jpg_quality: 65
-  vision_prompt: |
-    Analyze the extracted Table of Contents (TOC) section using text and images.
-    EXTRACTED TEXT:
-    {text_content}
-
-    NOTE: This PDF contains only a fragment (middle or continuation) of the full TOC. Page numbers refer to the original document.
-
-    TASK: Parse all visible TOC entries into a JSON object with a key "entries", each entry having:
-
-    - "title": string — entry title
-    - "page": integer or null — original page number
-    - "level": integer — hierarchy level (1 = chapter, 2 = subsection, etc.)
-    - "type": string — one of "chapter", "section", or "article"
-
-    Example:
-
-    {
-      "entries": [
-        {"title": "Rozdział 1 - Wprowadzenie", "page": 15, "level": 1, "type": "chapter"},
-        {"title": "1.1 Podstawowe pojęcia", "page": 17, "level": 2, "type": "section"}
-      ]
-    }
-
-    RULES:
-    - Include all visible entries, even if incomplete.
-    - Use images to verify text accuracy.
-    - Do not assume missing context; parse only visible data.
-    - Respond ONLY with valid JSON, no markdown, no explanations.
-    - Use standard ASCII double quotes and ESCAPE THEM PROPERLY (e.g., \" for quotes inside strings).
-    - Escape all other special JSON characters as required (e.g., backslash \\).
-
-
-TOCSplitter:
-  overlap_pages: 2
-  min_section_pages: 1
-  max_sections: 50  # Safety limit
-
-# Global settings
-performance:
-  processing_timeout: 300
-  retry_attempts: 2
-
-logging:
-  level: "INFO"
-  save_intermediate_files: true
