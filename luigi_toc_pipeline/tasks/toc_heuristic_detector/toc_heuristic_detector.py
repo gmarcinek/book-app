@@ -29,7 +29,8 @@ class TOCHeuristicDetector(StructuredTask):
         doc = fitz.open(self.file_path)
         
         # Initialize debug utils
-        debug_utils = TOCDebugUtils(self.pipeline_name, self.task_name)
+        document_name = Path(self.file_path).stem
+        debug_utils = TOCDebugUtils(self.pipeline_name, self.task_name, document_name)
         
         max_pages = min(config.get_task_setting("TOCDetector", "max_pages_to_scan", 1000), len(doc))
         

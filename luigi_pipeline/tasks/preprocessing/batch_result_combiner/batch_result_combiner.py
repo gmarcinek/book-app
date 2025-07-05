@@ -45,7 +45,8 @@ class BatchResultCombiner(StructuredTask):
             raise ValueError("No batch results found in input data")
         
         # Create task-specific directory
-        task_dir = Path("output") / self.pipeline_name / self.task_name
+        doc_name = Path(self.file_path).stem
+        task_dir = Path("output") / doc_name
         task_dir.mkdir(parents=True, exist_ok=True)
         
         # Extract metadata

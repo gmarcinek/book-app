@@ -9,12 +9,14 @@ import fitz
 class TOCDebugUtils:
     """Debug utilities for TOC detection - screenshots and summaries"""
     
-    def __init__(self, pipeline_name: str, task_name: str):
+    def __init__(self, pipeline_name: str, task_name: str, document_name: str):
+        """Initialize debug utils with document-specific directory"""
         self.pipeline_name = pipeline_name
-        self.task_name = task_name
+        self.task_name = task_name  
+        self.document_name = document_name
         
-        # Create debug directory
-        self.debug_dir = Path("output") / pipeline_name / task_name / "debug"
+        # Create document-specific debug directory (not task-specific)
+        self.debug_dir = Path("output") / document_name / "debug"
         self.debug_dir.mkdir(parents=True, exist_ok=True)
     
     def save_detection_summary(self, toc_candidates: Dict[str, List[Dict]], pdf_path: str):

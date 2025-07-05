@@ -16,11 +16,11 @@ TOCDetector:
   
   # LLM verification settings - PDFLLMProcessor config
   verification_processor:
-    model: "claude-3.5-haiku"
+    model: "gpt-4o"
     clean_text: true
     temperature: 0.0
-    target_width_px: 900
-    jpg_quality: 75
+    target_width_px: 700
+    jpg_quality: 65
     max_concurrent: 1
     rate_limit_backoff: 30.0
     

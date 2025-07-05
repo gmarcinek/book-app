@@ -33,7 +33,8 @@ class PostprocessTask(StructuredTask):
             preprocessing_data = json.load(f)
         
         # Create task-specific directory
-        task_dir = Path("output") / self.pipeline_name / self.task_name
+        doc_name = Path(self.file_path).stem
+        task_dir = Path("output") / doc_name
         task_dir.mkdir(parents=True, exist_ok=True)
         
         # Extract and combine markdown

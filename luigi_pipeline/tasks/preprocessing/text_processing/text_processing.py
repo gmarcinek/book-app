@@ -38,8 +38,8 @@ class TextProcessing(StructuredTask):
         text = Path(self.file_path).read_text(encoding='utf-8')
         
         # Create task-specific directory for chunk files
-        task_dir = Path("output") / self.pipeline_name / self.task_name
-        chunks_dir = task_dir / "chunks"
+        doc_name = Path(self.file_path).stem
+        chunks_dir = Path("output") / doc_name / "chunks"
         chunks_dir.mkdir(parents=True, exist_ok=True)
         
         # Hierarchical chunking

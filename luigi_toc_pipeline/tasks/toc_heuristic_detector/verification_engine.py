@@ -127,7 +127,8 @@ class TOCVerificationEngine:
             new_page.show_pdf_page(new_page.rect, source_doc, start_page, clip=crop_rect)
             
             # Save to debug (not temp)
-            debug_dir = Path("output") / "toc_processing" / "toc_heuristic_detector" / "debug"
+            doc_name = Path(self.pdf_path).stem
+            debug_dir = Path("output") / doc_name / "debug"
             debug_dir.mkdir(parents=True, exist_ok=True)
             
             debug_filename = f"toc_verification_{candidate_id}.pdf"

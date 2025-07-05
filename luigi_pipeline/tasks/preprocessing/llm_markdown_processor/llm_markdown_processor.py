@@ -50,9 +50,9 @@ class LLMMarkdownProcessor(StructuredTask):
             raise ValueError("No pages found")
         
         # Create task-specific directories
-        task_dir = Path("output") / self.pipeline_name / self.task_name
-        markdown_dir = task_dir / "markdown"
-        page_results_dir = task_dir / "page_results"
+        doc_name = Path(self.file_path).stem
+        markdown_dir = Path("output") / doc_name / "markdown"
+        page_results_dir = Path("output") / doc_name / "page_results"
         markdown_dir.mkdir(parents=True, exist_ok=True)
         page_results_dir.mkdir(parents=True, exist_ok=True)
         

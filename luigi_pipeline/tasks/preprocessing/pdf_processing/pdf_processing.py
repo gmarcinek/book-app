@@ -37,8 +37,8 @@ class PDFProcessing(StructuredTask):
             raise ValueError(f"Wrong strategy: {input_data.get('strategy')}")
         
         # Create task-specific screenshot directory
-        task_dir = Path("output") / self.pipeline_name / self.task_name
-        screenshot_dir = task_dir / "screenshots"
+        doc_name = Path(self.file_path).stem
+        screenshot_dir = Path("output") / doc_name / "screenshots"
         screenshot_dir.mkdir(parents=True, exist_ok=True)
         
         # Process PDF
