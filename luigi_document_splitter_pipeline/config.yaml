@@ -1,0 +1,9 @@
+# Configuration for document splitting pipeline
+
+DocumentSplitter:
+  # Basic settings
+  max_filename_length: 50
+  max_sections: 100
+  
+  # Section boundaries  
+  overlap_pages: 0

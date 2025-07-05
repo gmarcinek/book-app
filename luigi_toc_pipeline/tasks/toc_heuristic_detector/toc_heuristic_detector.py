@@ -80,7 +80,7 @@ class TOCHeuristicDetector(StructuredTask):
         
         # Select best TOC and create final result
         if processed_tocs:
-            final_result = self._select_best_toc(processed_tocs)
+            final_result = self._merge_all_tocs(processed_tocs)
             
             # Add debug and statistics info
             final_result.update({
@@ -114,37 +114,60 @@ class TOCHeuristicDetector(StructuredTask):
         
         doc.close()
     
-    def _select_best_toc(self, confirmed_tocs):
-        """Select best TOC from confirmed candidates"""
+    def _merge_all_tocs(self, confirmed_tocs):
+        """Merge all confirmed TOCs into single comprehensive TOC"""
         if not confirmed_tocs:
             return {"toc_found": False, "reason": "no_confirmed_tocs"}
         
-        # Prioritize: earliest page, most entries, best confidence
-        best_toc = min(confirmed_tocs, key=lambda t: (
-            t['start_page'], 
-            -t.get('entry_count', 0),
-            -t.get('toc_ratio', 0.0)
-        ))
+        print(f"🔗 Merging {len(confirmed_tocs)} TOC sections...")
         
-        print(f"📋 Best TOC candidate:")
-        print(f"   Page: {best_toc['start_page']}-{best_toc['end_page']}")
-        print(f"   Entries: {best_toc.get('entry_count', 0)}")
-        print(f"   Ratio: {best_toc.get('toc_ratio', 0.0):.2f}")
-        print(f"   Method: {best_toc.get('method', 'unknown')}")
+        # Collect all entries from all TOCs
+        all_entries = []
+        all_coordinates = []
+        
+        for toc in confirmed_tocs:
+            entries = toc.get('toc_entries', [])
+            print(f"   TOC at page {toc['start_page']}: {len(entries)} entries")
+            
+            all_entries.extend(entries)
+            all_coordinates.append({
+                'start_page': toc['start_page'],
+                'end_page': toc['end_page'],
+                'start_y': toc['start_y'],
+                'end_y': toc['end_y']
+            })
+        
+        # Remove duplicates based on title + page
+        unique_entries = []
+        seen = set()
+        
+        for entry in all_entries:
+            key = (entry.get('title', ''), entry.get('page'))
+            if key not in seen:
+                seen.add(key)
+                unique_entries.append(entry)
+        
+        # Sort by page number (handle None pages)
+        unique_entries.sort(key=lambda e: e.get('page') or 999999)
+        
+        # Calculate overall coordinates
+        first_toc = min(all_coordinates, key=lambda c: c['start_page'])
+        last_toc = max(all_coordinates, key=lambda c: c['end_page'])
+        
+        print(f"📋 Merged result: {len(unique_entries)} unique entries")
+        print(f"   Coverage: pages {first_toc['start_page']}-{last_toc['end_page']}")
         
         return {
             "toc_found": True,
-            "start_page": best_toc['start_page'],
-            "start_y": best_toc['start_y'],
-            "end_page": best_toc['end_page'],
-            "end_y": best_toc['end_y'],
-            "confidence": best_toc.get('confidence', 'high'),
-            "detection_method": best_toc.get('method', 'pattern'),
-            "entry_count": best_toc.get('entry_count', 0),
-            "toc_ratio": best_toc.get('toc_ratio', 0.0),
-            "candidate_id": best_toc.get('candidate_id', 'unknown'),
-            "pattern_matched": best_toc.get('pattern_matched', ''),
-            "matched_text": best_toc.get('matched_text', ''),
-            "toc_entries": best_toc.get('toc_entries', []),
-            "toc_entries_count": best_toc.get('toc_entries_count', 0)
+            "start_page": first_toc['start_page'],
+            "start_y": first_toc['start_y'],
+            "end_page": last_toc['end_page'], 
+            "end_y": last_toc['end_y'],
+            "confidence": "high",
+            "detection_method": "llm_processing_merged",
+            "entry_count": len(unique_entries),
+            "toc_entries": unique_entries,
+            "toc_entries_count": len(unique_entries),
+            "merged_sections": len(confirmed_tocs),
+            "source_coordinates": all_coordinates
         }

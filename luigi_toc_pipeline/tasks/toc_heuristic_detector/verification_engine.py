@@ -104,53 +104,39 @@ class TOCVerificationEngine:
                 os.unlink(temp_pdf_path)
     
     def _create_temp_toc_pdf(self, candidate: Dict) -> str:
-        """Create temporary PDF with TOC section cropped from coordinates"""
+        """Create debug PDF with better cropping (like debug_utils margins)"""
         source_doc = fitz.open(self.pdf_path)
         
-        # Get coordinates
         start_page = candidate['start_page']
-        end_page = candidate['end_page']
         start_y = candidate['start_y']
-        end_y = candidate['end_y']
+        candidate_id = candidate.get('candidate_id', f"toc_{start_page}_{int(start_y)}")
         
-        # Create new temporary PDF
         toc_doc = fitz.open()
         
         try:
-            for page_num in range(start_page, end_page + 1):
-                source_page = source_doc[page_num]
-                page_rect = source_page.rect
-                
-                # Determine crop coordinates for this page
-                if page_num == start_page and page_num == end_page:
-                    # Single page TOC
-                    crop_rect = fitz.Rect(0, start_y, page_rect.width, end_y)
-                elif page_num == start_page:
-                    # First page - crop from start_y to bottom
-                    crop_rect = fitz.Rect(0, start_y, page_rect.width, page_rect.height)
-                elif page_num == end_page:
-                    # Last page - crop from top to end_y
-                    crop_rect = fitz.Rect(0, 0, page_rect.width, end_y)
-                else:
-                    # Middle page - full page
-                    crop_rect = page_rect
-                
-                # Create new page in TOC document
-                new_page = toc_doc.new_page(width=page_rect.width, height=crop_rect.height)
-                
-                # Copy content from cropped area
-                new_page.show_pdf_page(new_page.rect, source_doc, page_num, clip=crop_rect)
+            page = source_doc[start_page]
+            page_rect = page.rect
             
-            # Save to temporary file
-            temp_dir = Path(tempfile.gettempdir())
-            candidate_id = candidate.get('candidate_id', f"toc_{start_page}_{int(start_y)}")
-            temp_filename = f"toc_verification_{candidate_id}.pdf"
-            temp_pdf_path = str(temp_dir / temp_filename)
+            # BETTER CROPPING: Add margins like debug_utils
+            crop_top = max(0, start_y - 100)  # 100px above TOC start
+            crop_bottom = min(page_rect.height, start_y + 600)  # 600px below (more than debug)
+            crop_rect = fitz.Rect(0, crop_top, page_rect.width, crop_bottom)
             
-            toc_doc.save(temp_pdf_path)
-            print(f"📄 Created temp TOC PDF: {temp_filename}")
+            # Single page with smart margins
+            new_page = toc_doc.new_page(width=page_rect.width, height=crop_rect.height)
+            new_page.show_pdf_page(new_page.rect, source_doc, start_page, clip=crop_rect)
             
-            return temp_pdf_path
+            # Save to debug (not temp)
+            debug_dir = Path("output") / "toc_processing" / "toc_heuristic_detector" / "debug"
+            debug_dir.mkdir(parents=True, exist_ok=True)
+            
+            debug_filename = f"toc_verification_{candidate_id}.pdf"
+            debug_pdf_path = str(debug_dir / debug_filename)
+            
+            toc_doc.save(debug_pdf_path)
+            print(f"📄 Saved verification PDF: {debug_filename}")
+            
+            return debug_pdf_path
             
         finally:
             source_doc.close()
