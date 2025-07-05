@@ -7,3 +7,6 @@ DocumentSplitter:
   
   # Section boundaries  
   overlap_pages: 0
+
+  top_margin_px: 10
+  top_threshold_percent: 20  # If Y < 15% page height, start from top

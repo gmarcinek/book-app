@@ -1,164 +1,72 @@
 """
-PDF processing utilities - Individual entity chunking
+PDF utils with sequential start points cutting
 """
 
 import fitz
 from pathlib import Path
+from .start_points_detector import StartPointsDetector
 
 
 class PDFUtils:
-    """Helper class for PDF operations with individual entity chunking"""
+    """Sequential cutting based on sorted start points"""
     
     @staticmethod
     def split_by_individual_entities(entries, doc, base_output_dir, doc_name, entry_format="detected"):
-        """
-        NEW: Split each TOC entity into its own PDF chunk
-        Every entity gets its own file regardless of level or page overlaps
-        """
+        """Compatibility method - routes to sequential start points"""
+        return PDFUtils.split_by_sequential_start_points(entries, doc, base_output_dir, doc_name, entry_format)
+    
+    @staticmethod
+    def split_by_sequential_start_points(entries, doc, base_output_dir, doc_name, entry_format="detected"):
+        """Split using sequential start points approach"""
         from .section_creator import SectionCreator
         
-        print(f"🔪 Individual entity chunking:")
+        print(f"🔪 Sequential start points cutting:")
         print(f"   Total entries: {len(entries)}")
         print(f"   Entry format: {entry_format}")
         
-        # Create single output directory for all chunks
+        # Step 1: Find all start points and sort
+        detector = StartPointsDetector()
+        start_points = detector.find_all_start_points(doc, entries, entry_format)
+        
+        if not start_points:
+            print("❌ No start points found")
+            return []
+        
+        # Step 2: Create output directory
         output_dir = base_output_dir / doc_name / "sections"
         output_dir.mkdir(parents=True, exist_ok=True)
         
         all_sections = []
         
-        # Process each entity individually
-        for i, entry in enumerate(entries):
-            try:
-                # Calculate boundaries for this specific entity
-                start_page, end_page = PDFUtils._calculate_entity_boundaries(
-                    i, entries, len(doc), entry_format
-                )
-                
-                if start_page is None:
-                    print(f"   ⚠️ Entity {i}: No page number - skipping")
-                    continue
-                
-                # Extract entity info based on format
-                if entry_format == "builtin":
-                    level, title, page = entry
-                else:  # detected
-                    title = entry.get("title", f"Section_{i}")
-                    level = entry.get("level", 1)
-                    page = entry.get("page")
-                
-                print(f"   📄 Entity {i}: '{title}' pages {start_page}-{end_page} (level {level})")
-                
-                # Create individual PDF chunk
-                section = SectionCreator.create_individual_entity_chunk(
-                    doc, title, start_page, end_page, level, i, output_dir
-                )
-                
-                if section:
-                    all_sections.append(section)
-                    
-            except Exception as e:
-                print(f"   ❌ Entity {i} failed: {e}")
-                continue
+        # Step 3: Cut sequential ranges
+        for i, start_point in enumerate(start_points):
+            page, start_y, entity_index, title, level = start_point
+            
+            # Find next boundary
+            if i + 1 < len(start_points):
+                next_page, next_y, _, _, _ = start_points[i + 1]
+                end_boundary = (next_page, next_y)
+            else:
+                end_boundary = (len(doc), 0)  # Document end
+            
+            # Create section
+            section = SectionCreator.create_sequential_section(
+                doc, title, (page, start_y), end_boundary, level, entity_index, output_dir
+            )
+            
+            if section:
+                all_sections.append(section)
+                print(f"📄 Created: {section['filename']}")
         
-        print(f"✅ Created {len(all_sections)} individual entity chunks")
+        print(f"✅ Created {len(all_sections)} sequential sections")
         return all_sections
     
-    @staticmethod
-    def _calculate_entity_boundaries(current_index, all_entries, doc_length, entry_format):
-        """
-        Calculate start/end pages for single entity using hierarchical logic
-        Returns: (start_page, end_page) or (None, None) if invalid
-        """
-        current_entry = all_entries[current_index]
-        
-        # Get current entity's page and level
-        if entry_format == "builtin":
-            current_level = current_entry[0]  # [level, title, page]
-            current_page = current_entry[2]
-        else:  # detected
-            current_level = current_entry.get("level", 1)
-            current_page = current_entry.get("page")
-        
-        if current_page is None:
-            return None, None
-        
-        # Find next entity with level <= current_level (hierarchical cut)
-        next_page = None
-        for j in range(current_index + 1, len(all_entries)):
-            next_entry = all_entries[j]
-            
-            # Get next entity's level and page
-            if entry_format == "builtin":
-                next_level = next_entry[0]
-                candidate_page = next_entry[2]
-            else:
-                next_level = next_entry.get("level", 1)
-                candidate_page = next_entry.get("page")
-            
-            # Skip entries without page numbers
-            if candidate_page is None:
-                continue
-            
-            # Hierarchical logic: cut on same or higher level (lower number)
-            if next_level <= current_level:
-                next_page = candidate_page
-                break
-        
-        # Calculate boundaries
-        start_page = current_page
-        if next_page is not None:
-            end_page = next_page  # Include full page where next entity starts
-        else:
-            end_page = doc_length  # Last entity goes to document end
-        
-        # Validation: ensure at least current page is included
-        if end_page < start_page:
-            end_page = start_page  # Single page entity
-        
-        return start_page, end_page
-    
-    # LEGACY METHODS - keep for backward compatibility but mark as deprecated
-    
-    @staticmethod
-    def split_by_levels(entries, doc, base_output_dir, doc_name, entry_format="detected"):
-        """
-        LEGACY: Use split_by_individual_entities instead
-        Kept for backward compatibility
-        """
-        print("⚠️ DEPRECATED: split_by_levels - using split_by_individual_entities")
-        return PDFUtils.split_by_individual_entities(entries, doc, base_output_dir, doc_name, entry_format)
-    
-    @staticmethod
-    def find_end_page_builtin(current_index, entries, doc_length):
-        """LEGACY: Use _calculate_entity_boundaries instead"""
-        _, end_page = PDFUtils._calculate_entity_boundaries(current_index, entries, doc_length, "builtin")
-        return end_page or doc_length
-    
-    @staticmethod
-    def find_end_page_detected(current_index, entries, doc_length):
-        """LEGACY: Use _calculate_entity_boundaries instead"""
-        _, end_page = PDFUtils._calculate_entity_boundaries(current_index, entries, doc_length, "detected")
-        return end_page or doc_length
-    
-    @staticmethod
-    def create_sections_for_level(doc, entries, level, base_output_dir, doc_name, entry_format="builtin"):
-        """LEGACY: Use split_by_individual_entities instead"""
-        print(f"⚠️ DEPRECATED: create_sections_for_level - redirecting to individual chunking")
-        return PDFUtils.split_by_individual_entities(entries, doc, base_output_dir, doc_name, entry_format)
-    
-    # UTILITY METHODS - keep unchanged
+    # UTILITY METHODS
     
     @staticmethod
     def get_base_output_dir():
-        """Get base output directory for sections - SYNC with StructuredTask"""
+        """Get base output directory"""
         return Path("output")
-    
-    @staticmethod
-    def get_output_dir(file_path):
-        """Get output directory for single document (legacy)"""
-        input_path = Path(file_path)
-        return PDFUtils.get_base_output_dir() / input_path.stem / "sections"
     
     @staticmethod
     def get_doc_name(file_path):

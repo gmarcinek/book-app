@@ -13,7 +13,7 @@ from .pdf_utils import PDFUtils
 
 
 class DocumentSplitter(StructuredTask):
-    """Split document into individual entity chunks based on TOC entries"""
+    """Split document into individual entity chunks with precise coordinates"""
     
     file_path = luigi.Parameter()
     
@@ -27,54 +27,45 @@ class DocumentSplitter(StructuredTask):
     
 
     def requires(self):
-        """Conditional dependency with comprehensive TOC validation"""
+        """Conditional dependency with TOC validation"""
         doc = fitz.open(self.file_path)
         builtin_toc = doc.get_toc()
         doc_pages = len(doc)
         doc.close()
         
-        if builtin_toc:
-            print(f"📚 Built-in TOC found ({len(builtin_toc)} entries)")
-            print(f"   Document pages: {doc_pages}")
-            
-            if TOCValidator.is_valid_toc(builtin_toc, doc_pages, self.file_path):
-                print("✅ TOC appears valid - using built-in")
-                return None
-            else:
-                print("⚠️ TOC has quality issues - using detection")
-                return TOCOrchestrator(file_path=self.file_path)
+        if builtin_toc and TOCValidator.is_valid_toc(builtin_toc, doc_pages, self.file_path):
+            print("✅ Valid built-in TOC found - using built-in")
+            return None
         else:
-            print("📖 No built-in TOC - running detection pipeline")
+            print("📖 Using detection pipeline")
             return TOCOrchestrator(file_path=self.file_path)
     
     def run(self):
-        """Split using individual entity chunking"""
+        """Split using precise coordinate cutting"""
         doc = fitz.open(self.file_path)
         builtin_toc = doc.get_toc()
         doc_pages = len(doc)
         doc.close()
         
-        # Check if we have input (detected TOC) or should use built-in
+        # Determine TOC source
         if builtin_toc and TOCValidator.is_valid_toc(builtin_toc, doc_pages, self.file_path):
-            # Use built-in TOC - no input dependency
-            result = self._split_by_builtin_toc_individual(builtin_toc)
+            result = self._split_by_builtin_toc_precise(builtin_toc)
         else:
-            # Use detected TOC - has input dependency
             with self.input().open('r') as f:
                 toc_data = json.load(f)
-            result = self._handle_detected_toc_individual(toc_data)
+            result = self._handle_detected_toc_precise(toc_data)
         
         with self.output().open('w') as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
     
-    def _split_by_builtin_toc_individual(self, builtin_toc):
-        """Split document using built-in TOC with individual entity chunking"""
+    def _split_by_builtin_toc_precise(self, builtin_toc):
+        """Split using built-in TOC with precise coordinates"""
         doc = fitz.open(self.file_path)
         base_output_dir = PDFUtils.get_base_output_dir()
         doc_name = PDFUtils.get_doc_name(self.file_path)
         
         try:
-            # NEW: Individual entity chunking for ALL entries
+            # Use precise coordinate splitting
             all_sections = PDFUtils.split_by_individual_entities(
                 builtin_toc, doc, base_output_dir, doc_name, "builtin"
             )
@@ -82,56 +73,58 @@ class DocumentSplitter(StructuredTask):
         finally:
             doc.close()
         
-        # Count by level for stats
+        # Count precision stats
+        precise_sections = len([s for s in all_sections if s.get("precision") == "coordinate_based"])
+        page_sections = len([s for s in all_sections if s.get("precision") == "page_based"])
+        
+        # Level stats
         level_1_count = len([s for s in all_sections if s["level"] == 1])
         level_2_count = len([s for s in all_sections if s["level"] == 2])
-        other_levels_count = len(all_sections) - level_1_count - level_2_count
         
         result = {
             "status": "success",
-            "method": "builtin_toc_individual_entities",
+            "method": "builtin_toc_precise_cutting",
             "total_entities_created": len(all_sections),
-            "level_1_entities": level_1_count,
-            "level_2_entities": level_2_count,
-            "other_levels_entities": other_levels_count,
+            "precision_stats": {
+                "coordinate_based": precise_sections,
+                "page_based": page_sections,
+                "precision_rate": precise_sections / len(all_sections) if all_sections else 0
+            },
+            "level_stats": {
+                "level_1_entities": level_1_count,
+                "level_2_entities": level_2_count
+            },
             "sections": all_sections,
-            "output_base_directory": str(base_output_dir),
-            "chunking_strategy": "individual_entity"
+            "output_base_directory": str(base_output_dir)
         }
         
-        print(f"✅ Individual entity chunking complete: {len(all_sections)} total entities")
-        print(f"   Level 1: {level_1_count} entities")
-        print(f"   Level 2: {level_2_count} entities")
-        if other_levels_count > 0:
-            print(f"   Other levels: {other_levels_count} entities")
+        print(f"✅ Precise cutting complete: {len(all_sections)} entities")
+        print(f"   Coordinate-based: {precise_sections}/{len(all_sections)}")
+        print(f"   Level 1: {level_1_count}, Level 2: {level_2_count}")
         
         return result
     
-    def _handle_detected_toc_individual(self, toc_data):
-        """Handle detected TOC results with individual entity chunking"""
+    def _handle_detected_toc_precise(self, toc_data):
+        """Handle detected TOC with precise coordinates"""
         if not toc_data.get("toc_found", False):
-            result = {
+            return {
                 "status": "no_toc",
                 "reason": toc_data.get("reason", "TOC not found"),
-                "entities_created": 0,
-                "chunking_strategy": "none"
+                "entities_created": 0
             }
-            print("❌ Cannot split document - no TOC found")
-            return result
-        else:
-            return self._split_by_detected_toc_individual(toc_data)
+        
+        return self._split_by_detected_toc_precise(toc_data)
     
-    def _split_by_detected_toc_individual(self, toc_data):
-        """Split document using detected TOC with individual entity chunking"""
+    def _split_by_detected_toc_precise(self, toc_data):
+        """Split using detected TOC with precise coordinates"""
         toc_entries = toc_data.get("toc_entries", [])
         if not toc_entries:
             return {
                 "status": "success",
-                "method": "detected_toc_individual_entities", 
+                "method": "detected_toc_precise_cutting", 
                 "total_entities_created": 0,
-                "sections": [],
-                "output_directory": "none",
-                "chunking_strategy": "individual_entity"
+                "precision_stats": {"coordinate_based": 0, "page_based": 0},
+                "sections": []
             }
         
         doc = fitz.open(self.file_path)
@@ -139,7 +132,7 @@ class DocumentSplitter(StructuredTask):
         doc_name = PDFUtils.get_doc_name(self.file_path)
         
         try:
-            # NEW: Individual entity chunking for ALL detected entries
+            # Use precise coordinate splitting
             all_sections = PDFUtils.split_by_individual_entities(
                 toc_entries, doc, base_output_dir, doc_name, "detected"
             )
@@ -147,27 +140,30 @@ class DocumentSplitter(StructuredTask):
         finally:
             doc.close()
         
-        # Count by level for stats
+        # Precision and level stats
+        precise_sections = len([s for s in all_sections if s.get("precision") == "coordinate_based"])
+        page_sections = len([s for s in all_sections if s.get("precision") == "page_based"])
         level_1_count = len([s for s in all_sections if s["level"] == 1])
         level_2_count = len([s for s in all_sections if s["level"] == 2])
-        other_levels_count = len(all_sections) - level_1_count - level_2_count
         
         result = {
             "status": "success",
-            "method": "detected_toc_individual_entities", 
+            "method": "detected_toc_precise_cutting", 
             "total_entities_created": len(all_sections),
-            "level_1_entities": level_1_count,
-            "level_2_entities": level_2_count,
-            "other_levels_entities": other_levels_count,
+            "precision_stats": {
+                "coordinate_based": precise_sections,
+                "page_based": page_sections,
+                "precision_rate": precise_sections / len(all_sections) if all_sections else 0
+            },
+            "level_stats": {
+                "level_1_entities": level_1_count,
+                "level_2_entities": level_2_count
+            },
             "sections": all_sections,
-            "output_base_directory": str(base_output_dir),
-            "chunking_strategy": "individual_entity"
+            "output_base_directory": str(base_output_dir)
         }
         
-        print(f"✅ Individual entity chunking complete: {len(all_sections)} total entities")
-        print(f"   Level 1: {level_1_count} entities")
-        print(f"   Level 2: {level_2_count} entities")
-        if other_levels_count > 0:
-            print(f"   Other levels: {other_levels_count} entities")
+        print(f"✅ Precise cutting complete: {len(all_sections)} entities")
+        print(f"   Coordinate-based: {precise_sections}/{len(all_sections)}")
         
         return result
