@@ -1,0 +1,32 @@
+# Configuration for Structure Detection Pipeline
+
+StructureDetector:
+  # Surya OCR settings
+  languages: ["en", "pl"]
+  
+  # Structure detection
+  min_header_confidence: 0.7
+  detect_tables: true
+  detect_images: true
+  
+  # Header hierarchy detection
+  font_size_threshold: 1.2  # Headers should be 20% larger than body text
+  detect_levels: 3          # Max hierarchy levels to detect
+  
+  # Processing limits
+  max_pages: 1000
+  
+StructureSplitter:
+  # Splitting behavior
+  split_on_levels: [1, 2]   # Split on level 1 and 2 headers
+  min_section_pages: 1      # Minimum pages per section
+  output_format: "pdf"      # "pdf" or "markdown"
+  
+  # Output organization
+  create_level_folders: true
+  max_filename_length: 50
+
+# Performance settings
+processing:
+  gpu_enabled: true
+  batch_size: 4

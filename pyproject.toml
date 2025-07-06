@@ -9,6 +9,8 @@ packages = [
     { include = "ner" },
     { include = "llm" },
     { include = "luigi_pipeline" },
+    { include = "ocr" },
+    { include = "pipeline" },
 ]
 
 [tool.poetry.dependencies]
@@ -33,10 +35,12 @@ watchdog = "^6.0.0"
 luigi = "^3.6.0"
 sqlalchemy = "^2.0.0"
 pymupdf = "^1.26.1"
+surya-ocr = "^0.14.6"
 
 [tool.poetry.scripts]
 app = "orchestrator.main:main"
 serve = "api.start:main"
+structure-pipeline = "pipeline.structure.run_structure_pipeline:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]
