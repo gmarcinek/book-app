@@ -123,6 +123,7 @@ class SectionCreator:
             section_doc = fitz.open()
             
             # First page: crop from adjusted start_y to bottom
+            
             if start_y is not None:
                 source_page = doc[start_page - 1]
                 page_rect = source_page.rect
@@ -262,10 +263,7 @@ class SectionCreator:
         try:
             section_doc = fitz.open()
             
-            # Extract text from bbox
-            extracted_text = PDFCuttingUtils.extract_bbox_text(doc, start_page, start_y, end_page, end_y)
-            
-            # Create PDF pages
+            # Create PDF pages FIRST, then extract text from created section
             if start_page == end_page:
                 # Same page cutting
                 source_page = doc[start_page - 1]
@@ -291,10 +289,17 @@ class SectionCreator:
                     crop_rect = PDFCuttingUtils.calculate_crop_rect(source_page.rect, None, end_y)
                     PDFCuttingUtils.create_cropped_page(section_doc, doc, end_page, crop_rect)
             
+            # Save PDF first
             section_doc.save(str(file_path), garbage=3, clean=True, ascii=False)
+            
+            # Extract text from the CREATED section document
+            extracted_text = ""
+            for page_num in range(len(section_doc)):
+                extracted_text += section_doc[page_num].get_text() + "\n"
+            
             section_doc.close()
             
-            # Set metadata
+            # Set metadata (fix incremental save issue)
             SectionCreator._set_section_metadata(file_path, title, entity_index, level, doc)
             
             return {

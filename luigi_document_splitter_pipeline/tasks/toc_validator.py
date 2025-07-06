@@ -2,7 +2,7 @@
 TOC quality validation helpers
 """
 
-from luigi_document_splitter_pipeline.tasks._old_semantic_toc_validator import SemanticTOCValidator
+from luigi_document_splitter_pipeline.tasks.semantic_toc_validator import SemanticTOCValidator
 
 
 class TOCValidator:
