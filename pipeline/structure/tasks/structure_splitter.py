@@ -14,7 +14,7 @@ from pipeline.structure.config import get_splitter_config
 
 
 class StructureSplitter(StructuredTask):
-    """Split document based on detected structure from Surya"""
+    """Split document based on semantic sections from SemanticStructureDetector"""
     
     file_path = luigi.Parameter()
     
@@ -32,18 +32,18 @@ class StructureSplitter(StructuredTask):
     def run(self):
         print("✂️ Starting structure-based document splitting...")
         
-        # Load structure detection results
+        # Load semantic structure detection results
         with self.input().open('r') as f:
             structure_data = json.load(f)
         
         if structure_data.get("status") != "success":
-            raise ValueError("Structure detection failed")
+            raise ValueError("Semantic structure detection failed")
         
         # Load config
         config = get_splitter_config()
         
-        # Split document based on detected blocks
-        sections = self._split_by_blocks(structure_data, config)
+        # Split document based on detected sections
+        sections = self._split_by_semantic_sections(structure_data, config)
         
         # Create output
         result = {
@@ -52,7 +52,7 @@ class StructureSplitter(StructuredTask):
             "status": "success",
             "sections_created": len(sections),
             "sections": sections,
-            "splitting_method": "surya_structure_based",
+            "splitting_method": "semantic_structure_based",
             "created_at": datetime.now().isoformat()
         }
         
@@ -61,15 +61,15 @@ class StructureSplitter(StructuredTask):
         
         print(f"✅ Document split into {len(sections)} sections")
     
-    def _split_by_blocks(self, structure_data, config):
-        """Split document based on detected large blocks"""
-        large_blocks = structure_data["large_blocks"]
+    def _split_by_semantic_sections(self, structure_data, config):
+        """Split document based on semantic sections"""
+        semantic_sections = structure_data.get("sections", [])
         
-        if not large_blocks:
-            print("⚠️ No large blocks found for splitting")
+        if not semantic_sections:
+            print("⚠️ No semantic sections found for splitting")
             return []
         
-        print(f"📊 Found {len(large_blocks)} blocks to process")
+        print(f"📊 Found {len(semantic_sections)} semantic sections to process")
         
         # Create output directory
         doc_name = Path(self.file_path).stem
@@ -80,10 +80,10 @@ class StructureSplitter(StructuredTask):
         doc = fitz.open(self.file_path)
         
         try:
-            # Create sections for each block
-            for i, block in enumerate(large_blocks):
-                section = self._create_section_from_block(
-                    doc, block, i, output_base, config
+            # Create PDF sections for each semantic section
+            for i, semantic_section in enumerate(semantic_sections):
+                section = self._create_section_from_semantic_section(
+                    doc, semantic_section, i, output_base, config
                 )
                 if section:
                     sections.append(section)
@@ -94,92 +94,68 @@ class StructureSplitter(StructuredTask):
         
         return sections
     
-    def _create_section_from_block(self, doc, block, block_index, output_base, config):
-        """Create PDF section from single block"""
-        page_num = block["page"]  # 1-indexed
-        bbox = block["bbox"]
-        
-        # Calculate boundaries
-        start_y = bbox[1]  # Top of block
-        end_y = bbox[3]    # Bottom of block
-        block_height = end_y - start_y
+    def _create_section_from_semantic_section(self, doc, semantic_section, section_index, output_base, config):
+        """Create PDF section from semantic section"""
+        start_page = semantic_section["start_page"]  # 1-indexed
+        end_page = semantic_section["end_page"]      # 1-indexed
+        title = semantic_section["title"]
+        section_type = semantic_section["section_type"]
         
         # Create filename
-        title = f"block_{block_index}"
         safe_title = self._sanitize_filename(title, config.get("max_filename_length", 50))
-        filename = f"section_{block_index:03d}_{safe_title}.pdf"
+        filename = f"section_{section_index:03d}_{section_type}_{safe_title}.pdf"
         file_path = output_base / filename
         
-        # Create section PDF with full width
-        success = self._extract_block_pdf(doc, page_num, bbox, file_path)
+        # Create section PDF with page range
+        success = self._extract_page_range_pdf(doc, start_page, end_page, file_path)
         
         if success:
-            merged_info = {}
-            if 'merged_count' in block:
-                merged_info = {
-                    "merged_count": block['merged_count'],
-                    "original_labels": block.get('original_labels', [])
-                }
-            
             return {
                 "title": title,
                 "filename": filename,
                 "file_path": str(file_path),
-                "page": page_num,
-                "bbox": bbox,
-                "block_index": block_index,
-                "block_height": block_height,
-                "block_area": block.get("area", 0),
-                "splitting_method": "surya_blocks_full_width",
-                **merged_info
+                "start_page": start_page,
+                "end_page": end_page,
+                "section_type": section_type,
+                "section_index": section_index,
+                "page_count": end_page - start_page + 1,
+                "splitting_method": "semantic_page_range"
             }
         
         return None
     
-    def _extract_block_pdf(self, source_doc, page_num, bbox, output_path):
-        """Extract single block as PDF with FULL WIDTH"""
+    def _extract_page_range_pdf(self, source_doc, start_page, end_page, output_path):
+        """Extract page range as PDF"""
         try:
             # Convert to 0-indexed for fitz
-            page_idx = page_num - 1
+            start_idx = start_page - 1
+            end_idx = end_page - 1
             
-            if page_idx >= len(source_doc):
-                print(f"⚠️ Page {page_num} doesn't exist")
+            if start_idx >= len(source_doc) or end_idx >= len(source_doc):
+                print(f"⚠️ Page range {start_page}-{end_page} exceeds document length ({len(source_doc)})")
                 return False
             
-            source_page = source_doc[page_idx]
-            page_rect = source_page.rect
-            
-            # ZAWSZE FULL WIDTH - tylko Y coordinates z bbox
-            x1, y1, x2, y2 = bbox
-            
-            # Force full width
-            safe_x1 = 0                    # ZAWSZE od lewej krawędzi
-            safe_x2 = page_rect.width      # ZAWSZE do prawej krawędzi
-            
-            # Y coordinates z bbox (ale z safety)
-            safe_y1 = max(0, y1) 
-            safe_y2 = min(page_rect.height, y2)
-            
-            if safe_y2 <= safe_y1:
-                print(f"⚠️ Invalid Y range: {y1}-{y2}")
+            if start_idx > end_idx:
+                print(f"⚠️ Invalid page range: {start_page}-{end_page}")
                 return False
             
-            # Create crop rectangle - FULL WIDTH
-            crop_rect = fitz.Rect(safe_x1, safe_y1, safe_x2, safe_y2)
-            crop_width = safe_x2 - safe_x1  # = page_rect.width
-            crop_height = safe_y2 - safe_y1
-            
-            print(f"🔪 Cropping: full width x {crop_height:.0f}px (Y: {safe_y1:.0f}-{safe_y2:.0f})")
-            
-            # Create new PDF with cropped content
+            # Create new PDF with page range
             section_doc = fitz.open()
-            new_page = section_doc.new_page(width=crop_width, height=crop_height)
             
-            # Show cropped area on new page
-            new_page.show_pdf_page(new_page.rect, source_doc, page_idx, clip=crop_rect)
+            for page_idx in range(start_idx, end_idx + 1):
+                source_page = source_doc[page_idx]
+                
+                # Copy page to new document
+                new_page = section_doc.new_page(
+                    width=source_page.rect.width,
+                    height=source_page.rect.height
+                )
+                new_page.show_pdf_page(new_page.rect, source_doc, page_idx)
+            
+            print(f"🔪 Extracting pages {start_page}-{end_page} ({end_page - start_page + 1} pages)")
             
             # Save section
-            section_doc.save(str(output_path), garbage=3, clean=True, ascii=False)
+            section_doc.save(str(output_path), garbage=3, clean=True)
             section_doc.close()
             
             return True
