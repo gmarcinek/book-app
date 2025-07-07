@@ -1,13 +1,12 @@
 import luigi
 import json
-import sys
 import fitz
 from pathlib import Path
 from datetime import datetime
 from PIL import Image
 import io
+import sys
 
-# Add parent directories for imports
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from luigi_components.structured_task import StructuredTask
@@ -15,9 +14,6 @@ from ocr import SuryaClient
 
 
 class StructureDetector(StructuredTask):
-    """
-    Detect document structure using Surya layout analysis
-    """
     file_path = luigi.Parameter()
     
     @property
@@ -29,203 +25,187 @@ class StructureDetector(StructuredTask):
         return "structure_detector"
     
     def run(self):
-        print("🔍 Starting Surya structure detection...")
+        print("🔍 Extracting large text blocks...")
         
-        # Load config
         config = self._load_config()
+        large_blocks = self._extract_large_blocks(config)
         
-        # Initialize Surya OCR client
-        languages = config.get("languages", ["en", "pl"])
-        surya_client = SuryaClient(languages)
-        
-        # Extract PDF pages and analyze structure
-        structure_data = self._analyze_document_structure(surya_client, config)
-        
-        # Create output
         result = {
             "task_name": "StructureDetector",
             "input_file": str(self.file_path),
             "status": "success",
-            "structure_data": structure_data,
+            "large_blocks": large_blocks,
+            "blocks_count": len(large_blocks),
+            "config_used": config,
             "created_at": datetime.now().isoformat()
         }
         
         with self.output().open('w') as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
         
-        print(f"✅ Structure detection complete: {len(structure_data.get('headers', []))} headers found")
+        print(f"✅ Found {len(large_blocks)} large text blocks (min_area: {config['min_block_area']})")
     
     def _load_config(self):
-        """Load structure detection config"""
-        return {
-            "languages": ["en", "pl"],
-            "min_header_confidence": 0.7,
-            "detect_levels": 3,
-            "max_pages": 1000
-        }
+        """Load config from YAML - nie hardkoduj gówna"""
+        try:
+            import yaml
+            config_file = Path(__file__).parent.parent / "config.yaml"
+            
+            with open(config_file, 'r') as f:
+                config = yaml.safe_load(f)
+            
+            return config["StructureDetector"]
+            
+        except FileNotFoundError:
+            raise RuntimeError(f"Config file not found: {config_file}")
+        except KeyError:
+            raise RuntimeError("StructureDetector section missing in config.yaml")
+        except Exception as e:
+            raise RuntimeError(f"Config load failed: {e}")
     
-    def _analyze_document_structure(self, surya_client, config):
-        """Analyze document structure using Surya"""
-        print(f"📊 Analyzing structure of: {Path(self.file_path).name}")
-        
+    def _extract_large_blocks(self, config):
+        """Extract duże bloki tekstu z PDF z merge logic"""
         doc = fitz.open(self.file_path)
         max_pages = min(len(doc), config.get("max_pages", 1000))
         
-        all_headers = []
-        all_tables = []
-        page_images = []
-        
-        # Extract pages as images
-        print(f"🖼️ Extracting {max_pages} pages as images...")
+        # Convert pages to images with higher resolution
+        images = []
         for page_num in range(max_pages):
             page = doc[page_num]
-            # Convert to image
-            pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0))  # 2x zoom
+            pix = page.get_pixmap(matrix=fitz.Matrix(config["zoom_factor"], config["zoom_factor"]))
             img_bytes = pix.tobytes("png")
-            img = Image.open(io.BytesIO(img_bytes))
-            page_images.append(img)
-        
-        # Run Surya analysis on all pages
-        print(f"🤖 Running Surya layout analysis...")
-        ocr_results = surya_client.process_pages(page_images)
-        
-        # Extract structure from Surya results
-        for page_idx, result in enumerate(ocr_results):
-            page_num = page_idx + 1
-            
-            # Extract headers based on layout
-            page_headers = self._extract_headers_from_page(result, page_num, config)
-            all_headers.extend(page_headers)
-            
-            # Extract tables
-            page_tables = self._extract_tables_from_page(result, page_num)
-            all_tables.extend(page_tables)
+            images.append(Image.open(io.BytesIO(img_bytes)))
         
         doc.close()
         
-        # Sort headers by page and position
-        all_headers.sort(key=lambda h: (h['page'], h.get('y_position', 0)))
+        # Use Surya layout detection
+        surya_client = SuryaClient()
+        results = surya_client.process_pages(images)
         
-        print(f"📋 Found {len(all_headers)} headers, {len(all_tables)} tables")
-        
-        return {
-            "headers": all_headers,
-            "tables": all_tables,
-            "total_pages": max_pages,
-            "structure_summary": f"{len(all_headers)} headers across {max_pages} pages"
-        }
-    
-    def _extract_headers_from_page(self, surya_result, page_num, config):
-        """Extract headers from Surya layout analysis using real semantic labels"""
-        headers = []
-        
-        # Get layout info from Surya
-        layout = surya_result.get('layout', [])
-        text_lines = surya_result.get('text_lines', [])
-        min_confidence = config.get('min_header_confidence', 0.7)
-        
-        print(f"🔍 Page {page_num} debug:")
-        print(f"   Layout elements: {len(layout)}")
-        print(f"   Text lines: {len(text_lines)}")
-        
-        # Debug: Show all layout labels found
-        labels_found = [elem.get('label', 'unknown') for elem in layout]
-        label_counts = {}
-        for label in labels_found:
-            label_counts[label] = label_counts.get(label, 0) + 1
-        print(f"   Layout labels: {label_counts}")
-        
-        # Use REAL Surya layout detection
-        for layout_element in layout:
-            label = layout_element.get('label', '')
-            confidence = layout_element.get('confidence', 0.0)
-            bbox = layout_element.get('bbox', [])
+        # Extract ALL blocks first (nie filtruj po area)
+        all_blocks = []
+        for page_idx, result in enumerate(results):
+            layout = result.get('layout', [])
             
-            # Filter by semantic labels and confidence
-            if label in ['Section-header'] and confidence >= min_confidence:
-                # Find corresponding text for this layout element
-                header_text = self._find_text_for_layout_element(layout_element, text_lines)
+            # Handle both dict and LayoutResult objects
+            layout_elements = []
+            if hasattr(layout, 'bboxes'):
+                # LayoutResult object
+                layout_elements = layout.bboxes
+            elif isinstance(layout, list):
+                # List of elements
+                layout_elements = layout
+            else:
+                print(f"⚠️ Unknown layout type: {type(layout)}")
+                continue
+            
+            for element in layout_elements:
+                # Handle both dict and bbox objects
+                if hasattr(element, 'bbox'):
+                    bbox = element.bbox
+                    label = getattr(element, 'label', 'unknown')
+                    confidence = getattr(element, 'confidence', 0.0)
+                elif isinstance(element, dict):
+                    bbox = element.get('bbox', [])
+                    label = element.get('label', 'unknown')
+                    confidence = element.get('confidence', 0.0)
+                else:
+                    print(f"⚠️ Unknown element type: {type(element)}")
+                    continue
                 
-                if header_text and len(header_text.strip()) > 3:
-                    level = self._estimate_level_from_layout(layout_element, text_lines)
+                if len(bbox) >= 4:
+                    height = bbox[3] - bbox[1]
+                    width = bbox[2] - bbox[0]
+                    area = height * width
                     
-                    headers.append({
-                        "text": header_text.strip(),
-                        "page": page_num,
+                    # Dodaj WSZYSTKIE bloki (nie filtruj jeszcze)
+                    all_blocks.append({
+                        "page": page_idx + 1,
                         "bbox": bbox,
-                        "y_position": bbox[1] if len(bbox) >= 2 else 0,
-                        "level": level,
-                        "type": "header",
-                        "surya_label": label,
+                        "width": width,
+                        "height": height,
+                        "area": area,
+                        "label": label,
                         "confidence": confidence
                     })
-                    
-                    print(f"   ✅ Header found: '{header_text[:50]}...' (level {level}, conf: {confidence:.2f})")
         
-        print(f"   📋 Total headers on page {page_num}: {len(headers)}")
-        return headers
+        print(f"📊 Found {len(all_blocks)} raw blocks before merging")
+        
+        # MERGE consecutive blocks
+        merged_blocks = self._merge_consecutive_blocks(all_blocks, config)
+        
+        print(f"📊 After merging: {len(merged_blocks)} blocks")
+        
+        # Filter by area AFTER merging
+        large_blocks = [b for b in merged_blocks if b['area'] > config["min_block_area"]]
+        
+        # Sort by page and position
+        large_blocks.sort(key=lambda b: (b['page'], b['bbox'][1]))
+        
+        return large_blocks
     
-    def _extract_tables_from_page(self, surya_result, page_num):
-        """Extract tables from Surya result using semantic labels"""
-        tables = []
+    def _merge_consecutive_blocks(self, blocks, config):
+        """Merge consecutive blocks that are close together"""
+        if not blocks:
+            return []
         
-        layout = surya_result.get('layout', [])
+        # Sort by page and Y position
+        blocks.sort(key=lambda b: (b['page'], b['bbox'][1]))
         
-        # Look for table elements with proper labels
-        for layout_element in layout:
-            label = layout_element.get('label', '')
-            confidence = layout_element.get('confidence', 0.0)
-            bbox = layout_element.get('bbox', [])
+        merge_gap_px = config.get("merge_gap_px", 50)
+        merged = []
+        current_group = [blocks[0]]
+        
+        for block in blocks[1:]:
+            last_block = current_group[-1]
             
-            if label == 'Table' and confidence >= 0.5:
-                tables.append({
-                    "page": page_num,
-                    "bbox": bbox,
-                    "type": "table",
-                    "confidence": confidence,
-                    "surya_label": label
-                })
-        
-        return tables
-    
-    def _find_text_for_layout_element(self, layout_element, text_lines):
-        """Find text that overlaps with layout element"""
-        layout_bbox = layout_element.get('bbox', [])
-        if len(layout_bbox) < 4:
-            return ""
-        
-        # Find overlapping text lines
-        overlapping_texts = []
-        for text_line in text_lines:
-            text_bbox = text_line.get('bbox', [])
-            text_content = text_line.get('text', '')
+            # Same page and close vertically
+            same_page = block['page'] == last_block['page']
+            vertical_gap = block['bbox'][1] - last_block['bbox'][3]
+            close_enough = vertical_gap < merge_gap_px
             
-            if len(text_bbox) >= 4 and self._bboxes_overlap(layout_bbox, text_bbox):
-                overlapping_texts.append(text_content)
+            if same_page and close_enough:
+                current_group.append(block)
+                print(f"🔗 Merging blocks (gap: {vertical_gap:.1f}px)")
+            else:
+                # Merge current group and start new one
+                merged_block = self._merge_block_group(current_group)
+                merged.append(merged_block)
+                current_group = [block]
         
-        return " ".join(overlapping_texts)
+        # Don't forget last group
+        if current_group:
+            merged_block = self._merge_block_group(current_group)
+            merged.append(merged_block)
+        
+        return merged
     
-    def _bboxes_overlap(self, bbox1, bbox2):
-        """Check if two bboxes overlap"""
-        x1_min, y1_min, x1_max, y1_max = bbox1
-        x2_min, y2_min, x2_max, y2_max = bbox2
+    def _merge_block_group(self, group):
+        """Merge group of blocks into single block"""
+        if len(group) == 1:
+            return group[0]
         
-        return not (x1_max < x2_min or x2_max < x1_min or y1_max < y2_min or y2_max < y1_min)
-    
-    def _estimate_level_from_layout(self, layout_element, text_lines):
-        """Estimate hierarchy level from layout properties"""
-        bbox = layout_element.get('bbox', [])
-        if len(bbox) < 4:
-            return 2
+        # Calculate merged bbox
+        min_x = min(b['bbox'][0] for b in group)
+        min_y = min(b['bbox'][1] for b in group)
+        max_x = max(b['bbox'][2] for b in group)
+        max_y = max(b['bbox'][3] for b in group)
         
-        # Use bbox height as fallback heuristic
-        height = bbox[3] - bbox[1]
-        y_position = bbox[1]
+        merged_bbox = [min_x, min_y, max_x, max_y]
+        merged_width = max_x - min_x
+        merged_height = max_y - min_y
+        merged_area = merged_width * merged_height
         
-        # Larger text or higher on page = higher level
-        if height > 25 or y_position < 100:
-            return 1
-        elif height > 18:
-            return 2
-        else:
-            return 3
+        print(f"🎯 Merged {len(group)} blocks → {merged_area:.0f}px² (was: {[b['area'] for b in group]})")
+        
+        return {
+            "page": group[0]['page'],
+            "bbox": merged_bbox,
+            "width": merged_width,
+            "height": merged_height,
+            "area": merged_area,
+            "label": "merged_text",
+            "confidence": sum(b['confidence'] for b in group) / len(group),
+            "merged_count": len(group),
+            "original_labels": [b['label'] for b in group]
+        }

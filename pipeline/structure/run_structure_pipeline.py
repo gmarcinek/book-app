@@ -8,6 +8,9 @@ from pathlib import Path
 # Add parent directories for imports
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
+# DODAJ TEN IMPORT:
+from pipeline.structure.tasks.structure_splitter import StructureSplitter
+
 def main():
     if len(sys.argv) != 2:
         print("Usage: python run_structure_pipeline.py <pdf_file>")
@@ -21,7 +24,7 @@ def main():
     
     print(f"🚀 Starting structure pipeline for: {Path(file_path).name}")
     
-    # Run Luigi pipeline - StructureSplitter will automatically require StructureDetector
+    # Run Luigi pipeline
     luigi.run([
         "StructureSplitter",
         "--file-path", file_path,

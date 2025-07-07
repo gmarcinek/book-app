@@ -36,6 +36,7 @@ luigi = "^3.6.0"
 sqlalchemy = "^2.0.0"
 pymupdf = "^1.26.1"
 surya-ocr = "^0.14.6"
+streamlit = "^1.46.1"
 
 [tool.poetry.scripts]
 app = "orchestrator.main:main"

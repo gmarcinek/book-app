@@ -1,20 +1,21 @@
 import luigi
 import json
 import fitz
+import re
 from pathlib import Path
 from datetime import datetime
-
 import sys
+
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 
 from luigi_components.structured_task import StructuredTask
-from .structure_detector import StructureDetector
+from pipeline.structure.tasks.semantic_structure_detector import SemanticStructureDetector
+from pipeline.structure.config import get_splitter_config
 
 
 class StructureSplitter(StructuredTask):
-    """
-    Split document based on detected structure from Surya
-    """
+    """Split document based on detected structure from Surya"""
+    
     file_path = luigi.Parameter()
     
     @property
@@ -26,7 +27,7 @@ class StructureSplitter(StructuredTask):
         return "structure_splitter"
     
     def requires(self):
-        return StructureDetector(file_path=self.file_path)
+        return SemanticStructureDetector(file_path=self.file_path)
     
     def run(self):
         print("✂️ Starting structure-based document splitting...")
@@ -39,10 +40,10 @@ class StructureSplitter(StructuredTask):
             raise ValueError("Structure detection failed")
         
         # Load config
-        config = self._load_config()
+        config = get_splitter_config()
         
-        # Split document based on detected headers
-        sections = self._split_by_headers(structure_data, config)
+        # Split document based on detected blocks
+        sections = self._split_by_blocks(structure_data, config)
         
         # Create output
         result = {
@@ -60,174 +61,122 @@ class StructureSplitter(StructuredTask):
         
         print(f"✅ Document split into {len(sections)} sections")
     
-    def _load_config(self):
-        """Load splitter config"""
-        # TODO: Load from config.yaml
-        return {
-            "split_on_levels": [1, 2],
-            "min_section_pages": 1,
-            "output_format": "pdf",
-            "create_level_folders": True,
-            "max_filename_length": 50
-        }
-    
-    def _split_by_headers(self, structure_data, config):
-        """Split document based on detected headers"""
-        headers = structure_data["structure_data"]["headers"]
-        split_levels = config.get("split_on_levels", [1, 2])
+    def _split_by_blocks(self, structure_data, config):
+        """Split document based on detected large blocks"""
+        large_blocks = structure_data["large_blocks"]
         
-        # Filter headers by levels we want to split on
-        split_headers = [h for h in headers if h.get("level") in split_levels]
-        split_headers.sort(key=lambda h: (h['page'], h.get('y_position', 0)))
-        
-        if not split_headers:
-            print("⚠️ No headers found for splitting")
+        if not large_blocks:
+            print("⚠️ No large blocks found for splitting")
             return []
+        
+        print(f"📊 Found {len(large_blocks)} blocks to process")
         
         # Create output directory
         doc_name = Path(self.file_path).stem
         output_base = Path("output") / doc_name / "structure_sections"
+        output_base.mkdir(parents=True, exist_ok=True)
         
         sections = []
         doc = fitz.open(self.file_path)
         
         try:
-            # Create sections between headers
-            for i, header in enumerate(split_headers):
-                section = self._create_section(
-                    doc, header, split_headers, i, output_base, config
+            # Create sections for each block
+            for i, block in enumerate(large_blocks):
+                section = self._create_section_from_block(
+                    doc, block, i, output_base, config
                 )
                 if section:
                     sections.append(section)
+                    print(f"📄 Created: {section['filename']}")
         
         finally:
             doc.close()
         
         return sections
     
-    def _create_section(self, doc, current_header, all_headers, header_index, output_base, config):
-        """Create single section PDF"""
-        start_page = current_header["page"]
-        start_y = current_header.get("y_position", 0)
-        level = current_header.get("level", 1)
-        title = current_header["text"]
+    def _create_section_from_block(self, doc, block, block_index, output_base, config):
+        """Create PDF section from single block"""
+        page_num = block["page"]  # 1-indexed
+        bbox = block["bbox"]
         
-        # Find end boundary
-        end_page = len(doc)  # Default to document end
-        end_y = None
-        
-        # Look for next header of same or higher level
-        for next_header in all_headers[header_index + 1:]:
-            next_level = next_header.get("level", 1)
-            if next_level <= level:  # Same or higher level ends current section
-                end_page = next_header["page"]
-                end_y = next_header.get("y_position")
-                break
-        
-        # Create level-specific directory
-        if config.get("create_level_folders", True):
-            level_dir = output_base / f"level_{level}"
-        else:
-            level_dir = output_base
-        
-        level_dir.mkdir(parents=True, exist_ok=True)
+        # Calculate boundaries
+        start_y = bbox[1]  # Top of block
+        end_y = bbox[3]    # Bottom of block
+        block_height = end_y - start_y
         
         # Create filename
+        title = f"block_{block_index}"
         safe_title = self._sanitize_filename(title, config.get("max_filename_length", 50))
-        filename = f"section_{header_index:03d}_lvl{level}_{safe_title}.pdf"
-        file_path = level_dir / filename
+        filename = f"section_{block_index:03d}_{safe_title}.pdf"
+        file_path = output_base / filename
         
-        # Create section PDF
-        success = self._extract_section_pdf(
-            doc, start_page, start_y, end_page, end_y, file_path
-        )
+        # Create section PDF with full width
+        success = self._extract_block_pdf(doc, page_num, bbox, file_path)
         
         if success:
+            merged_info = {}
+            if 'merged_count' in block:
+                merged_info = {
+                    "merged_count": block['merged_count'],
+                    "original_labels": block.get('original_labels', [])
+                }
+            
             return {
                 "title": title,
                 "filename": filename,
                 "file_path": str(file_path),
-                "start_page": start_page,
-                "end_page": end_page,
-                "level": level,
-                "section_index": header_index,
-                "splitting_method": "surya_coordinates"
+                "page": page_num,
+                "bbox": bbox,
+                "block_index": block_index,
+                "block_height": block_height,
+                "block_area": block.get("area", 0),
+                "splitting_method": "surya_blocks_full_width",
+                **merged_info
             }
         
         return None
     
-    def _extract_section_pdf(self, source_doc, start_page, start_y, end_page, end_y, output_path):
-        """Extract section as PDF using coordinates"""
+    def _extract_block_pdf(self, source_doc, page_num, bbox, output_path):
+        """Extract single block as PDF with FULL WIDTH"""
         try:
-            section_doc = fitz.open()
+            # Convert to 0-indexed for fitz
+            page_idx = page_num - 1
             
-            # Validate coordinates
-            if start_page < 1 or start_page > len(source_doc):
-                print(f"⚠️ Invalid start_page: {start_page}")
+            if page_idx >= len(source_doc):
+                print(f"⚠️ Page {page_num} doesn't exist")
                 return False
-                
-            if end_page < 1 or end_page > len(source_doc):
-                end_page = len(source_doc)
-                print(f"⚠️ Clamped end_page to: {end_page}")
             
-            if start_page == end_page:
-                # Same page section
-                page = source_doc[start_page - 1]
-                page_rect = page.rect
-                
-                # Validate Y coordinates
-                safe_start_y = max(0, start_y or 0)
-                safe_end_y = min(page_rect.height, end_y or page_rect.height)
-                
-                if safe_end_y <= safe_start_y:
-                    # Invalid crop, use full page
-                    section_doc.insert_pdf(source_doc, from_page=start_page - 1, to_page=start_page - 1)
-                else:
-                    # Create valid crop rectangle
-                    crop_rect = fitz.Rect(0, safe_start_y, page_rect.width, safe_end_y)
-                    
-                    new_page = section_doc.new_page(
-                        width=page_rect.width,
-                        height=safe_end_y - safe_start_y
-                    )
-                    new_page.show_pdf_page(new_page.rect, source_doc, start_page - 1, clip=crop_rect)
+            source_page = source_doc[page_idx]
+            page_rect = source_page.rect
             
-            else:
-                # Multi-page section
-                # First page
-                page = source_doc[start_page - 1]
-                page_rect = page.rect
-                
-                if start_y and start_y < page_rect.height:
-                    safe_start_y = max(0, start_y)
-                    crop_rect = fitz.Rect(0, safe_start_y, page_rect.width, page_rect.height)
-                    
-                    new_page = section_doc.new_page(
-                        width=page_rect.width,
-                        height=page_rect.height - safe_start_y
-                    )
-                    new_page.show_pdf_page(new_page.rect, source_doc, start_page - 1, clip=crop_rect)
-                else:
-                    # Full first page
-                    section_doc.insert_pdf(source_doc, from_page=start_page - 1, to_page=start_page - 1)
-                
-                # Middle pages (full pages)
-                for page_num in range(start_page, min(end_page - 1, len(source_doc))):
-                    section_doc.insert_pdf(source_doc, from_page=page_num, to_page=page_num)
-                
-                # Last page (cropped if end_y specified)
-                if end_page <= len(source_doc):
-                    last_page = source_doc[end_page - 1]
-                    last_rect = last_page.rect
-                    
-                    if end_y and end_y > 0 and end_y < last_rect.height:
-                        crop_rect = fitz.Rect(0, 0, last_rect.width, min(end_y, last_rect.height))
-                        
-                        new_page = section_doc.new_page(width=last_rect.width, height=min(end_y, last_rect.height))
-                        new_page.show_pdf_page(new_page.rect, source_doc, end_page - 1, clip=crop_rect)
-                    else:
-                        # Full last page
-                        section_doc.insert_pdf(source_doc, from_page=end_page - 1, to_page=end_page - 1)
+            # ZAWSZE FULL WIDTH - tylko Y coordinates z bbox
+            x1, y1, x2, y2 = bbox
+            
+            # Force full width
+            safe_x1 = 0                    # ZAWSZE od lewej krawędzi
+            safe_x2 = page_rect.width      # ZAWSZE do prawej krawędzi
+            
+            # Y coordinates z bbox (ale z safety)
+            safe_y1 = max(0, y1) 
+            safe_y2 = min(page_rect.height, y2)
+            
+            if safe_y2 <= safe_y1:
+                print(f"⚠️ Invalid Y range: {y1}-{y2}")
+                return False
+            
+            # Create crop rectangle - FULL WIDTH
+            crop_rect = fitz.Rect(safe_x1, safe_y1, safe_x2, safe_y2)
+            crop_width = safe_x2 - safe_x1  # = page_rect.width
+            crop_height = safe_y2 - safe_y1
+            
+            print(f"🔪 Cropping: full width x {crop_height:.0f}px (Y: {safe_y1:.0f}-{safe_y2:.0f})")
+            
+            # Create new PDF with cropped content
+            section_doc = fitz.open()
+            new_page = section_doc.new_page(width=crop_width, height=crop_height)
+            
+            # Show cropped area on new page
+            new_page.show_pdf_page(new_page.rect, source_doc, page_idx, clip=crop_rect)
             
             # Save section
             section_doc.save(str(output_path), garbage=3, clean=True, ascii=False)
@@ -241,15 +190,17 @@ class StructureSplitter(StructuredTask):
     
     def _sanitize_filename(self, title, max_length):
         """Sanitize title for filename"""
-        import re
-        
         # Replace problematic characters
         safe_title = re.sub(r'[<>:"/\\|?*\s]', '_', title)
         safe_title = re.sub(r'_+', '_', safe_title)
         safe_title = safe_title.strip('._')
         
+        # Check for empty or only underscores
+        if not safe_title or re.fullmatch(r'_+', safe_title):
+            safe_title = "untitled"
+        
         # Truncate if too long
         if len(safe_title) > max_length:
             safe_title = safe_title[:max_length].rstrip('_')
         
-        return safe_title or "untitled"
+        return safe_title
