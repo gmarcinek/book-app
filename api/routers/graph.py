@@ -12,8 +12,8 @@ router = APIRouter(prefix="/graph", tags=["graph"])
 
 @router.get("")
 async def get_knowledge_graph(
-    max_nodes: int = Query(200, le=500), 
-    max_edges: int = Query(400, le=1000), 
+    max_nodes: int = Query(900, le=900), 
+    max_edges: int = Query(900, le=900), 
     entity_types: Optional[str] = None
 ):
     """Get knowledge graph data with optional filtering"""
