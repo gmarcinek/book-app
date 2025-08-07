@@ -1,19 +1,15 @@
-# Existing config...
-StructureDetector:
-  min_block_area: 100
-  zoom_factor: 1.0
-  merge_gap_px: 5
-  max_pages: 1000
-
-# DODAJ TO:
 SemanticStructureDetector:
+  extract_page_numbers: true
+  header_confidence_threshold: 0.7
   max_pages: 1000
   min_section_pages: 1
-  header_confidence_threshold: 0.7
   toc_detection_enabled: true
-  extract_page_numbers: true
-
+StructureDetector:
+  max_pages: 1000
+  merge_gap_px: 5
+  min_block_area: 100
+  zoom_factor: 1.0
 StructureSplitter:
-  min_section_height_px: 10
   max_filename_length: 50
-  output_format: "pdf"
+  min_section_height_px: 10
+  output_format: pdf
