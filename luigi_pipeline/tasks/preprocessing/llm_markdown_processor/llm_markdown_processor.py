@@ -35,7 +35,7 @@ class LLMMarkdownProcessor(StructuredTask):
     def run(self):
         # Load config
         config = load_config()
-        model = config.get_task_setting("LLMMarkdownProcessor", "model", "gpt-4o-mini")
+        model = config.get_task_setting("LLMMarkdownProcessor", "model", "gpt-5-mini")
         max_tokens = config.get_max_tokens_for_model(model)
         temperature = config.get_task_setting("LLMMarkdownProcessor", "temperature", 0.0)
         max_concurrent = config.get_task_setting("LLMMarkdownProcessor", "max_concurrent", 5)

@@ -22,11 +22,11 @@ TOCOrchestrator
 
 ```bash
 # Find TOC in document
-poetry run python luigi_toc_pipeline/run_toc_pipeline.py "docs/document.pdf"
+poetry run python luigi_toc_pipeline/run_toc_pipeline.py "docs/meta.pdf"
 
 # Direct Luigi execution
 poetry run luigi --module luigi_toc_pipeline.tasks.toc_orchestrator TOCOrchestrator \
-  --file-path "docs/document.pdf" --local-scheduler
+  --file-path "docs/poetry run python luigi_toc_pipeline/run_toc_pipeline.py "docs/2025.07.26.fixed.Meta.nihilizm.pragmatyczny.pdf"" --local-scheduler
 ```
 
 ### Advanced Usage

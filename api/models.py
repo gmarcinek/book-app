@@ -22,7 +22,7 @@ class TextInput(BaseModel):
     """Text processing input model"""
     text: str
     domains: Optional[List[str]] = ["auto"]
-    model: Optional[str] = "gpt-4o-mini"
+    model: Optional[str] = "gpt-5-mini"
 
 
 class SearchQuery(BaseModel):

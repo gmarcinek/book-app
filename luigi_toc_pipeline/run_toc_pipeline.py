@@ -5,8 +5,10 @@ import luigi
 import sys
 from pathlib import Path
 
-# Add parent directory for imports
+# Add parent directory for imports BEFORE importing TOCOrchestrator
 sys.path.append(str(Path(__file__).parent.parent))
+
+from tasks.toc_orchestrator import TOCOrchestrator
 
 def main():
     if len(sys.argv) != 2:
@@ -21,12 +23,16 @@ def main():
     
     print(f"🚀 Starting TOC pipeline for: {Path(file_path).name}")
     
-    # Run Luigi pipeline
-    luigi.run([
-        "TOCOrchestrator",
-        "--file-path", file_path,
-        "--local-scheduler"
-    ])
+    # Run Luigi pipeline using luigi.build() with task instance
+    result = luigi.build([
+        TOCOrchestrator(file_path=file_path)
+    ], local_scheduler=True)
+    
+    if result:
+        print("✅ Pipeline completed successfully")
+    else:
+        print("❌ Pipeline failed")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

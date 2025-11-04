@@ -41,7 +41,7 @@ def test_chunker(file_path: str):
     try:
         domains = DomainFactory.use(["owu"])
         chunker = TextChunker(
-            model_name="gpt-4.1-nano",
+            model_name="gpt-5-nano",
             domains=domains,
             chunking_mode="semantic",
             document_source=str(text_path)

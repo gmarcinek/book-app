@@ -21,7 +21,7 @@ class NERConfig:
     meta_analysis_temperature: float = 0.0
     entity_extraction_temperature: float = 0.0
     auto_classification_temperature: float = 0.0
-    default_model: str = "gpt-4o-mini"  # Default model for processing
+    default_model: str = "gpt-5-mini"  # Default model for processing
 
     
     # Chunking settings

@@ -1,13 +1,13 @@
 # PLIK: luigi_pipeline/config.yaml
 
 LLMMarkdownProcessor:
-  model: "claude-4-sonnet"
+  model: "gpt-5"
   max_concurrent: 2 # NEW: sliding window size
   rate_limit_backoff: 30.0
   retry_failed_pages: true
 
 AIHeaderDetector:
-  model: "gpt-4.1-mini"
+  model: "gpt-5-mini"
   temperature: 0.0
 
 PDFProcessing:

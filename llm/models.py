@@ -7,9 +7,17 @@ class ModelProvider(Enum):
     OLLAMA = "ollama"
 
 class Models:
-    # OpenAI - emergency backup
+    # OpenAI GPT-5 - latest reasoning models (August 2025)
+    GPT_5 = "gpt-5"
+    GPT_5_MINI = "gpt-5-mini"
+    GPT_5_NANO = "gpt-5-nano"
+    
+    # OpenAI GPT-4.1 - large context models
+    GPT_4_1 = "gpt-4.1"
     GPT_4_1_MINI = "gpt-4.1-mini"
     GPT_4_1_NANO = "gpt-4.1-nano"
+    
+    # OpenAI GPT-4 legacy - emergency backup
     GPT_4O = "gpt-4o"
     GPT_4O_MINI = "gpt-4o-mini"
     
@@ -33,9 +41,17 @@ class Models:
 
 # Mapowanie modeli na providerów
 MODEL_PROVIDERS = {
-    # OpenAI text models
+    # OpenAI GPT-5 models
+    Models.GPT_5: ModelProvider.OPENAI,
+    Models.GPT_5_MINI: ModelProvider.OPENAI,
+    Models.GPT_5_NANO: ModelProvider.OPENAI,
+    
+    # OpenAI GPT-4.1 models
+    Models.GPT_4_1: ModelProvider.OPENAI,
     Models.GPT_4_1_MINI: ModelProvider.OPENAI,
     Models.GPT_4_1_NANO: ModelProvider.OPENAI,
+    
+    # OpenAI GPT-4 legacy
     Models.GPT_4O: ModelProvider.OPENAI,
     Models.GPT_4O_MINI: ModelProvider.OPENAI,
     
@@ -58,31 +74,45 @@ MODEL_PROVIDERS = {
     Models.GEMMA3_12B: ModelProvider.OLLAMA,
 }
 
-# Vision models mapping - FIXED: Added Claude models
+# Vision models mapping - wszystkie OpenAI modele obsługują vision
 VISION_MODELS = {
-    # Ollama vision
-    Models.LLAMA_VISION_11B: ModelProvider.OLLAMA,
-    Models.LLAMA_VISION_90B: ModelProvider.OLLAMA,
-    Models.QWEN_VISION_7B: ModelProvider.OLLAMA,
-    Models.GEMMA3_12B: ModelProvider.OLLAMA,
-    
-    # OpenAI vision
+    # OpenAI vision - wszystkie GPT-5 i GPT-4.1 + legacy
+    Models.GPT_5: ModelProvider.OPENAI,
+    Models.GPT_5_MINI: ModelProvider.OPENAI,
+    Models.GPT_5_NANO: ModelProvider.OPENAI,
+    Models.GPT_4_1: ModelProvider.OPENAI,
+    Models.GPT_4_1_MINI: ModelProvider.OPENAI,
+    Models.GPT_4_1_NANO: ModelProvider.OPENAI,
     Models.GPT_4O: ModelProvider.OPENAI,
     Models.GPT_4O_MINI: ModelProvider.OPENAI,
     
-    # Anthropic vision - ADDED: All Claude models support vision
+    # Anthropic vision - wszystkie Claude modele obsługują vision
     Models.CLAUDE_4_SONNET: ModelProvider.ANTHROPIC,
     Models.CLAUDE_4_OPUS: ModelProvider.ANTHROPIC,
     Models.CLAUDE_3_5_SONNET: ModelProvider.ANTHROPIC,
     Models.CLAUDE_3_5_HAIKU: ModelProvider.ANTHROPIC,
     Models.CLAUDE_3_HAIKU: ModelProvider.ANTHROPIC,
+    
+    # Ollama vision
+    Models.LLAMA_VISION_11B: ModelProvider.OLLAMA,
+    Models.LLAMA_VISION_90B: ModelProvider.OLLAMA,
+    Models.QWEN_VISION_7B: ModelProvider.OLLAMA,
+    Models.GEMMA3_12B: ModelProvider.OLLAMA,
 }
 
 # Maksymalne limity OUTPUT tokenów
 MODEL_MAX_TOKENS = {
-    # OpenAI
-    Models.GPT_4_1_MINI: 32768,
-    Models.GPT_4_1_NANO: 32768,
+    # OpenAI GPT-5 - reasoning models with 128K output limit
+    Models.GPT_5: 128000,        # Full reasoning model
+    Models.GPT_5_MINI: 128000,   # Mini reasoning model  
+    Models.GPT_5_NANO: 128000,   # Nano reasoning model
+    
+    # OpenAI GPT-4.1 - large context models
+    Models.GPT_4_1: 32768,       # Increased from 16K for GPT-4o
+    Models.GPT_4_1_MINI: 16384,  # Standard limit
+    Models.GPT_4_1_NANO: 16384,  # Standard limit
+    
+    # OpenAI GPT-4 legacy
     Models.GPT_4O: 16384,
     Models.GPT_4O_MINI: 16384,
     
@@ -91,7 +121,7 @@ MODEL_MAX_TOKENS = {
     Models.CLAUDE_4_OPUS: 32000,
     Models.CLAUDE_3_5_SONNET: 8192,
     Models.CLAUDE_3_5_HAIKU: 8192,
-    Models.CLAUDE_3_HAIKU: 4096,        # FIXED: Claude 3 Haiku ma limit 4096!
+    Models.CLAUDE_3_HAIKU: 4096,
     
     # Ollama text
     Models.QWEN_CODER: 32768,
@@ -107,9 +137,17 @@ MODEL_MAX_TOKENS = {
 
 # INPUT context window limits
 MODEL_INPUT_CONTEXT = {
-    # OpenAI
+    # OpenAI GPT-5 - 400K total context window (official docs)
+    Models.GPT_5: 400000,        # Flagship model: 400K context
+    Models.GPT_5_MINI: 400000,   # Same context window  
+    Models.GPT_5_NANO: 400000,   # Same context window
+    
+    # OpenAI GPT-4.1 - massive 1M context window
+    Models.GPT_4_1: 1000000,     # 1 million tokens input
     Models.GPT_4_1_MINI: 1000000,
-    Models.GPT_4_1_NANO: 1047576,
+    Models.GPT_4_1_NANO: 1000000,
+    
+    # OpenAI GPT-4 legacy
     Models.GPT_4O: 128000,
     Models.GPT_4O_MINI: 128000,
     

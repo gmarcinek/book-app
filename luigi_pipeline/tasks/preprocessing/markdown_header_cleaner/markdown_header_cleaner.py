@@ -71,7 +71,7 @@ class MarkdownHeaderCleaner(StructuredTask):
         """Use AI to detect headers/footers to remove"""
         # Load AI config
         config = load_config()
-        model = config.get_task_setting("AIHeaderDetector", "model", "gpt-4.1-mini")
+        model = config.get_task_setting("AIHeaderDetector", "model", "gpt-5-mini")
         max_tokens = config.get_max_tokens_for_model(model)
         temperature = config.get_task_setting("AIHeaderDetector", "temperature", 0.0)
         

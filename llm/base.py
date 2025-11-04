@@ -11,6 +11,7 @@ class LLMConfig:
     temperature: float = 0.0
     system_message: Optional[str] = None
     extra_params: Dict[str, Any] = None
+    reasoning_effort: Optional[str] = None  # For GPT-5: "low", "medium", "high"
     
     def __post_init__(self):
         if self.extra_params is None:

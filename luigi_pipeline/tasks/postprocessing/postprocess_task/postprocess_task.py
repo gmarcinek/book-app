@@ -107,7 +107,7 @@ class PostprocessTask(StructuredTask):
             cmd = [
                 "poetry", "run", "app", 
                 str(markdown_file),
-                "-m", "claude-4-sonnet",
+                "-m", "gpt-5",
                 # "-m", "gpt-4.1-nano",
                 "--domains", "literary"
             ]

@@ -16,9 +16,10 @@ TOCDetector:
   
   # LLM verification settings - PDFLLMProcessor config
   verification_processor:
-    model: "gpt-4o"
+    model: "gpt-4.1"
     clean_text: true
-    temperature: 0.0
+    temperature: 1.0  # GPT-5 tylko obsługuje default (1.0)
+    reasoning_effort: "low"  # GPT-5 - tylko "low" działa stabilnie
     target_width_px: 700
     jpg_quality: 65
     max_concurrent: 1

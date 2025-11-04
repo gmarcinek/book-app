@@ -78,11 +78,11 @@ def get_task_config(task_name: str) -> Dict[str, Any]:
 def get_model_for_task(task_name: str) -> str:
     """Get model name for specific task"""
     config = load_config()
-    return config.get_task_setting(task_name, "model", "gpt-4o-mini")
+    return config.get_task_setting(task_name, "model", "gpt-5-mini")
 
 
 def get_max_tokens_for_task_model(task_name: str) -> int:
     """Get max_tokens for task's model from llm.models"""
     config = load_config()
-    model = config.get_task_setting(task_name, "model", "gpt-4o-mini")
+    model = config.get_task_setting(task_name, "model", "gpt-5-mini")
     return config.get_max_tokens_for_model(model)
